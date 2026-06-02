@@ -1,4 +1,4 @@
-function getFactionTone(faction) {
+export function getFactionTone(faction) {
   const tones = {
     魏: { name: "玄铁蓝", primary: "#334b63", accent: "#d2b074" },
     蜀: { name: "松柏绿", primary: "#2e5b46", accent: "#d7bd75" },
@@ -8,7 +8,7 @@ function getFactionTone(faction) {
   return tones[faction] || { name: "暗金", primary: "#3f4652", accent: "#d6a85d" };
 }
 
-function getOriginalCardStyle(general) {
+export function getOriginalCardStyle(general) {
   const tone = getFactionTone(general && general.faction);
   return {
     background: `linear-gradient(155deg, ${tone.primary} 0%, #171c23 58%, #0e1218 100%)`,
@@ -19,7 +19,7 @@ function getOriginalCardStyle(general) {
   };
 }
 
-function getGenerationPolicy() {
+export function getGenerationPolicy() {
   return {
     model: "image2",
     policy: "original_style_only",
@@ -28,16 +28,9 @@ function getGenerationPolicy() {
   };
 }
 
-function getCardImageUrl(general) {
-  if (general && general.asset && general.asset.imageUrl) {
-    return general.asset.imageUrl;
-  }
+export function getCardImageUrl(general) {
+  if (general && general.asset && general.asset.imageUrl) return general.asset.imageUrl;
   return "";
 }
 
-module.exports = {
-  getFactionTone,
-  getOriginalCardStyle,
-  getGenerationPolicy,
-  getCardImageUrl
-};
+export default { getFactionTone, getOriginalCardStyle, getGenerationPolicy, getCardImageUrl };

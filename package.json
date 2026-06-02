@@ -9,6 +9,7 @@
     "test": "node tests/catalog.test.mjs && node tests/scoring.test.mjs && node tests/server.test.mjs && node tests/drawStorage.test.mjs"
   },
   "dependencies": {
+    "ali-oss": "^6.23.0",
     "better-sqlite3": "^12.10.0",
     "sharp": "^0.34.5"
   }

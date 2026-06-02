@@ -83,12 +83,12 @@
           <view class="lineup-score-pill">{{item.score}} 分</view>
         </view>
         <view class="lineup-info">
-          <view class="muted">{{item.troop}} · {{item.generals.0}} / {{item.generals.1}} / {{item.generals.2}}</view>
-          <view class="muted small">{{item.tactics.0}} · {{item.tactics.1}} · {{item.tactics.2}} · {{item.tactics.3}} · {{item.tactics.4}} · {{item.tactics.5}}</view>
+          <view class="muted">{{item.troop}} · {{item.generals[0]}} / {{item.generals[1]}} / {{item.generals[2]}}</view>
+          <view class="muted small">{{item.tactics[0]}} · {{item.tactics[1]}} · {{item.tactics[2]}} · {{item.tactics[3]}} · {{item.tactics[4]}} · {{item.tactics[5]}}</view>
         </view>
         <view wx:if="{{item.weaknesses.length}}" class="lineup-weakness">
           <text class="muted">短板：</text>
-          <text class="muted">{{item.weaknesses.0}}</text>
+          <text class="muted">{{item.weaknesses[0]}}</text>
         </view>
         <button class="mini-btn" data-index="{{index}}" bindtap="saveOptimizeLineup">保存此队</button>
       </view>
@@ -102,8 +102,8 @@
 
       <view wx:if="{{optimizeResult.unused.generals.length || optimizeResult.unused.tactics.length}}" class="unused-section">
         <view class="card-title">剩余库存</view>
-        <view wx:if="{{optimizeResult.unused.generals.length}}" class="muted">未编入武将：{{optimizeResult.unused.generals.0.name}} 等 {{optimizeResult.unused.generals.length}} 名</view>
-        <view wx:if="{{optimizeResult.unused.tactics.length}}" class="muted">未编入战法：{{optimizeResult.unused.tactics.0.name}} 等 {{optimizeResult.unused.tactics.length}} 个</view>
+        <view wx:if="{{optimizeResult.unused.generals.length}}" class="muted">未编入武将：{{optimizeResult.unused.generals[0].name}} 等 {{optimizeResult.unused.generals.length}} 名</view>
+        <view wx:if="{{optimizeResult.unused.tactics.length}}" class="muted">未编入战法：{{optimizeResult.unused.tactics[0].name}} 等 {{optimizeResult.unused.tactics.length}} 个</view>
       </view>
 
       <view wx:if="{{optimizeResult.summary}}" class="summary-section">

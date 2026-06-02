@@ -92,6 +92,14 @@
   border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
+.item-thumb {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 8rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
 .picker-item.selected {
   background: rgba(214, 168, 93, 0.1);
   border-radius: 8rpx;

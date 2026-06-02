@@ -82,6 +82,7 @@ Component({
           type: item.type || "",
           troopLimit: Array.isArray(item.troopLimit) ? item.troopLimit.join("/") : (item.troopLimit || ""),
           selected: item.id === this.data.selectedId,
+          imageUrl: isGeneral && item.asset ? item.asset.imageUrl || "" : "",
           sub: isGeneral
             ? `${item.faction || "?"} · ${item.cost || "?"}御`
             : `${item.quality || "-"} · ${item.type || "战法"}${item.troopLimit ? " · " + (Array.isArray(item.troopLimit) ? item.troopLimit.join("/") : item.troopLimit) : ""}`

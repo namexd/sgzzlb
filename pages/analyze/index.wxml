@@ -24,11 +24,12 @@
     <block wx:for="{{selectedGeneralsView}}" wx:key="id" wx:for-index="slot">
       <view class="general-panel">
         <view class="general-card" style="background: {{item.card.background}}; border-color: {{item.card.borderColor}};" data-slot="{{slot}}" bindtap="openGeneralPicker">
+          <image wx:if="{{item.cardImageUrl}}" class="general-card-img" src="{{item.cardImageUrl}}" mode="aspectFill" />
           <view class="general-top">
             <text class="general-role">{{slot === 0 ? '主将' : '副将'}}</text>
             <text class="general-cost">{{item.cost || '-'}}御</text>
           </view>
-          <view class="general-initial">{{item.card.initial}}</view>
+          <view wx:if="{{!item.cardImageUrl}}" class="general-initial">{{item.card.initial}}</view>
           <view class="general-name">{{item.name}}</view>
           <view class="general-info">{{item.faction}} · {{item.tagText}}</view>
           <view class="aptitudes">

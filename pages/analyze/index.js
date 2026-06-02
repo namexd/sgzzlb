@@ -88,6 +88,7 @@ Page({
         red: this.data.redLevels[slot],
         tagText: general.tags && general.tags.length ? general.tags.join(" / ") : "未标记",
         card: assetPolicy.getOriginalCardStyle(general),
+        cardImageUrl: assetPolicy.getCardImageUrl(general),
         tacticSlots: [0, 1].map((offset) => {
           const tacticSlot = slot * 2 + offset;
           return {

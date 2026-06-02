@@ -15,6 +15,7 @@
 
     <scroll-view class="picker-list" scroll-y>
       <view wx:for="{{filtered}}" wx:key="id" class="picker-item {{item.selected ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="onItemTap">
+        <image wx:if="{{item.imageUrl}}" class="item-thumb" src="{{item.imageUrl}}" mode="aspectFill" />
         <view class="item-main">
           <text class="item-name">{{item.name}}</text>
           <text class="item-sub">{{item.sub}}</text>

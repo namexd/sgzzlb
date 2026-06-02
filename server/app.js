@@ -142,6 +142,43 @@ function readJsonBody(req) {
   });
 }
 
+function readRawBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        reject(Object.assign(new Error("请求体过大。"), { statusCode: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
+function parseMultipartFile(body, boundary) {
+  const boundaryBuf = Buffer.from(`--${boundary}`);
+  const start = body.indexOf(boundaryBuf);
+  if (start < 0) return null;
+  const headerEnd = body.indexOf(Buffer.from("\r\n\r\n"), start);
+  if (headerEnd < 0) return null;
+  const headerStr = body.slice(start + boundaryBuf.length, headerEnd).toString("utf8");
+  const filenameMatch = headerStr.match(/filename="([^"]+)"/);
+  const mimeMatch = headerStr.match(/Content-Type:\s*(.+)/i);
+  const dataStart = headerEnd + 4;
+  const dataEnd = body.indexOf(Buffer.from(`\r\n--${boundary}`), dataStart);
+  const data = body.slice(dataStart, dataEnd > 0 ? dataEnd : undefined);
+  return {
+    filename: filenameMatch ? filenameMatch[1] : "",
+    mime: mimeMatch ? mimeMatch[1].trim() : "application/octet-stream",
+    data
+  };
+}
+
 function parsePositiveInteger(value, fallback, max = Number.MAX_SAFE_INTEGER) {
   const number = Number.parseInt(value, 10);
   if (!Number.isFinite(number) || number < 1) return fallback;
@@ -768,6 +805,26 @@ function createApp(options = {}) {
 
         if (req.method === "GET" && path === "/api/admin/store/export") {
           sendJson(res, 200, admin.exportStore());
+          return;
+        }
+
+        if (req.method === "POST" && path === "/api/admin/cards/upload") {
+          const contentType = req.headers["content-type"] || "";
+          const boundaryMatch = contentType.match(/boundary=(.+)/);
+          if (!boundaryMatch) {
+            sendJson(res, 400, { error: "缺少 multipart boundary。" });
+            return;
+          }
+          const boundary = boundaryMatch[1];
+          const body = await readRawBody(req, 10 * 1024 * 1024);
+          const file = parseMultipartFile(body, boundary);
+          if (!file || !file.filename) {
+            sendJson(res, 400, { error: "未找到文件。" });
+            return;
+          }
+          const ossModule = require("./oss");
+          const result = await ossModule.uploadBuffer(file.data, file.filename, file.mime);
+          sendJson(res, 200, { ok: true, url: result.url, ossKey: result.ossKey });
           return;
         }
       }
