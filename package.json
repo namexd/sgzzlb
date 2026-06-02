@@ -1,0 +1,15 @@
+{
+  "name": "sgzzlb-lineup-analyzer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "三国志战略版配将分析小程序",
+  "scripts": {
+    "fetch:data": "node scripts/fetch-official-catalog.mjs",
+    "dev:server": "node server/index.js",
+    "test": "node tests/catalog.test.mjs && node tests/scoring.test.mjs && node tests/server.test.mjs && node tests/drawStorage.test.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "sharp": "^0.34.5"
+  }
+}

@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334b63"/>
+      <stop offset="45%" stop-color="#1a2836"/>
+      <stop offset="100%" stop-color="#0e1218"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0d48a"/>
+      <stop offset="50%" stop-color="#d2b074"/>
+      <stop offset="100%" stop-color="#a8864a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#3d5a7a" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#0e1218" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="topLight" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#d2b074" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#d2b074" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 金色外框 -->
+  <rect x="4" y="4" width="392" height="552" rx="16" ry="16"
+        fill="none" stroke="url(#gold)" stroke-width="3"/>
+  <!-- 卡面底色 -->
+  <rect x="8" y="8" width="384" height="544" rx="14" ry="14" fill="url(#bg)"/>
+  <!-- 内框装饰线 -->
+  <rect x="18" y="18" width="364" height="524" rx="10" ry="10"
+        fill="none" stroke="#d2b074" stroke-width="1" stroke-opacity="0.3"/>
+  <!-- 顶部光晕 -->
+  <rect x="18" y="18" width="364" height="180" rx="10" ry="10" fill="url(#topLight)"/>
+  <!-- 中心光晕 -->
+  <rect x="18" y="18" width="364" height="524" rx="10" ry="10" fill="url(#glow)"/>
+
+  <!-- 阵营徽章 -->
+  <rect x="28" y="28" width="52" height="28" rx="6" ry="6" fill="#d2b074" fill-opacity="0.9"/>
+  <text x="54" y="47" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="15" font-weight="700" fill="#1a2836">魏</text>
+
+  <!-- 费用 -->
+  <circle cx="348" cy="42" r="20" fill="none" stroke="url(#gold)" stroke-width="2"/>
+  <text x="348" y="48" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="20" font-weight="700" fill="#d2b074">7</text>
+
+  <!-- 英雄大字水印 -->
+  <text x="200" y="210" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,serif"
+        font-size="150" font-weight="900" fill="#d2b074" fill-opacity="0.07">曹</text>
+
+  <!-- 英雄名 -->
+  <text x="200" y="268" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="38" font-weight="800" fill="#f0e6d0" letter-spacing="8">曹操</text>
+
+  <!-- 分割线 -->
+  <line x1="120" y1="290" x2="280" y2="290" stroke="#d2b074" stroke-width="1" stroke-opacity="0.4"/>
+
+  <!-- 副标签 -->
+  <text x="200" y="314" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="14" fill="#d2b074" fill-opacity="0.75">辅 · 5星 · 统率 99</text>
+
+  <!-- 属性面板 -->
+  <rect x="30" y="332" width="340" height="105" rx="8" ry="8" fill="#0a0e14" fill-opacity="0.5"/>
+  <!-- 武力 -->
+  <text x="55" y="356" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="12" fill="#8a9ab0">武力</text>
+  <rect x="100" y="347" width="120" height="8" rx="4" fill="#1a2836"/>
+  <rect x="100" y="347" width="86" height="8" rx="4" fill="#5a8ab5"/>
+  <text x="228" y="356" font-family="monospace" font-size="12" fill="#d2b074">72</text>
+  <!-- 智力 -->
+  <text x="55" y="376" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="12" fill="#8a9ab0">智力</text>
+  <rect x="100" y="367" width="120" height="8" rx="4" fill="#1a2836"/>
+  <rect x="100" y="367" width="109" height="8" rx="4" fill="#5a8ab5"/>
+  <text x="228" y="376" font-family="monospace" font-size="12" fill="#d2b074">91</text>
+  <!-- 统率 -->
+  <text x="55" y="396" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="12" fill="#8a9ab0">统率</text>
+  <rect x="100" y="387" width="120" height="8" rx="4" fill="#1a2836"/>
+  <rect x="100" y="387" width="119" height="8" rx="4" fill="#d2b074"/>
+  <text x="228" y="396" font-family="monospace" font-size="12" fill="#d2b074">99</text>
+  <!-- 速度 -->
+  <text x="260" y="356" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="12" fill="#8a9ab0">速度</text>
+  <rect x="305" y="347" width="55" height="8" rx="4" fill="#1a2836"/>
+  <rect x="305" y="347" width="41" height="8" rx="4" fill="#5a8ab5"/>
+  <text x="363" y="356" font-family="monospace" font-size="12" fill="#d2b074">64</text>
+  <!-- 政治 -->
+  <text x="260" y="376" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="12" fill="#8a9ab0">政治</text>
+  <rect x="305" y="367" width="55" height="8" rx="4" fill="#1a2836"/>
+  <rect x="305" y="367" width="53" height="8" rx="4" fill="#5a8ab5"/>
+  <text x="363" y="376" font-family="monospace" font-size="12" fill="#d2b074">94</text>
+  <!-- 魅力 -->
+  <text x="260" y="396" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="12" fill="#8a9ab0">魅力</text>
+  <rect x="305" y="387" width="55" height="8" rx="4" fill="#1a2836"/>
+  <rect x="305" y="387" width="54" height="8" rx="4" fill="#5a8ab5"/>
+  <text x="363" y="396" font-family="monospace" font-size="12" fill="#d2b074">96</text>
+  <!-- 总分 -->
+  <text x="200" y="428" text-anchor="middle" font-family="monospace" font-size="11" fill="#6a7a8a">总属性 456</text>
+
+  <!-- 兵种适性 -->
+  <rect x="30" y="448" width="340" height="52" rx="8" ry="8" fill="#0a0e14" fill-opacity="0.5"/>
+  <text x="70" y="468" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="13" fill="#8a9ab0">骑</text>
+  <text x="70" y="486" text-anchor="middle" font-family="monospace" font-size="15" font-weight="700" fill="#d2b074">S</text>
+  <text x="140" y="468" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="13" fill="#8a9ab0">盾</text>
+  <text x="140" y="486" text-anchor="middle" font-family="monospace" font-size="15" font-weight="700" fill="#d2b074">S</text>
+  <text x="210" y="468" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="13" fill="#8a9ab0">弓</text>
+  <text x="210" y="486" text-anchor="middle" font-family="monospace" font-size="15" font-weight="700" fill="#8a9ab0">A</text>
+  <text x="280" y="468" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="13" fill="#8a9ab0">枪</text>
+  <text x="280" y="486" text-anchor="middle" font-family="monospace" font-size="15" font-weight="700" fill="#8a9ab0">A</text>
+  <text x="345" y="468" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif" font-size="13" fill="#8a9ab0">器</text>
+  <text x="345" y="486" text-anchor="middle" font-family="monospace" font-size="15" font-weight="700" fill="#6a7a8a">B</text>
+
+  <!-- 底部 -->
+  <line x1="30" y1="515" x2="370" y2="515" stroke="#d2b074" stroke-width="0.5" stroke-opacity="0.25"/>
+  <text x="200" y="538" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="11" fill="#5a6a7a" fill-opacity="0.5">乱世奸雄 · 梦中弑臣</text>
+</svg>

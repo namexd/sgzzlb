@@ -1,0 +1,102 @@
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
+// drawStorage relies on wx.* globals which don't exist in Node.
+// We mock them minimally before requiring.
+global.wx = {
+  _store: new Map(),
+  getStorageSync(key) {
+    return global.wx._store.get(key);
+  },
+  setStorageSync(key, value) {
+    global.wx._store.set(key, value);
+  },
+  removeStorageSync(key) {
+    global.wx._store.delete(key);
+  }
+};
+
+// Clear mock store between requires to get a fresh start
+global.wx._store.clear();
+
+const drawStorage = require("../utils/drawStorage");
+
+// --- Tests ---
+
+// 1. ensureDefaultPool creates a default pool when empty
+const poolsBefore = drawStorage.getPools();
+assert.equal(poolsBefore.length, 0, "初始卡池列表应为空");
+
+const defaultPool = drawStorage.ensureDefaultPool();
+assert.equal(defaultPool.name, "主卡池");
+assert.equal(drawStorage.getPools().length, 1);
+
+// 2. createPool adds a new pool
+const pkPool = drawStorage.createPool("PK赛季卡池");
+assert.equal(pkPool.name, "PK赛季卡池");
+assert.equal(drawStorage.getPools().length, 2);
+
+// 3. getPityInfo starts at 0/30
+const pity0 = drawStorage.getPityInfo(defaultPool.id);
+assert.equal(pity0.current, 0);
+assert.equal(pity0.total, 30);
+assert.equal(pity0.guaranteedAt, null);
+
+// 4. addRecord increments pity counter
+drawStorage.addRecord(defaultPool.id, { quality: "blue", generalName: "张辽", drawType: "free", group: 1 });
+drawStorage.addRecord(defaultPool.id, { quality: "purple", generalName: "夏侯惇", drawType: "half", group: 1 });
+const pity2 = drawStorage.getPityInfo(defaultPool.id);
+assert.equal(pity2.current, 2);
+assert.equal(pity2.guaranteedAt, 2);
+
+// 5. Orange card resets pity counter
+drawStorage.addRecord(defaultPool.id, { quality: "orange", generalName: "曹操", drawType: "free", group: 2 });
+const pityReset = drawStorage.getPityInfo(defaultPool.id);
+assert.equal(pityReset.current, 0);
+assert.equal(pityReset.guaranteedAt, null);
+
+// 6. Records after orange start fresh count
+drawStorage.addRecord(defaultPool.id, { quality: "blue", generalName: "李典", drawType: "half", group: 2 });
+const pityAfterOrange = drawStorage.getPityInfo(defaultPool.id);
+assert.equal(pityAfterOrange.current, 1);
+
+// 7. deleteRecord works
+const records = drawStorage.getRecords(defaultPool.id);
+const recordId = records[records.length - 1].id;
+drawStorage.deleteRecord(defaultPool.id, recordId);
+const pityAfterDelete = drawStorage.getPityInfo(defaultPool.id);
+assert.equal(pityAfterDelete.current, 0);
+
+// 8. Different pools have independent pity counters
+drawStorage.addRecord(pkPool.id, { quality: "blue", generalName: "赵云", drawType: "free", group: 1 });
+drawStorage.addRecord(pkPool.id, { quality: "blue", generalName: "黄忠", drawType: "half", group: 1 });
+const pkPity = drawStorage.getPityInfo(pkPool.id);
+const defaultPity = drawStorage.getPityInfo(defaultPool.id);
+assert.equal(pkPity.current, 2);
+assert.equal(defaultPity.current, 0);
+
+// 9. deletePool removes pool and its records
+drawStorage.deletePool(pkPool.id);
+assert.equal(drawStorage.getPools().length, 1);
+assert.equal(drawStorage.getRecords(pkPool.id).length, 0);
+
+// 10. getDrawWindow returns a result with activeGroup
+const window = drawStorage.getDrawWindow();
+assert.ok("activeGroup" in window);
+assert.ok("group1Open" in window);
+assert.ok("group2Open" in window);
+
+// 11. buildCalendarDays returns correct structure
+const cal = drawStorage.buildCalendarDays(defaultPool.id, 2026, 6);
+assert.ok(Array.isArray(cal.days));
+assert.ok(cal.days.length >= 28);
+assert.equal(typeof cal.totalDraws, "number");
+assert.equal(typeof cal.orangeCount, "number");
+
+// 12. getDrawDate returns a valid date string
+const drawDate = drawStorage.getDrawDate();
+assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(drawDate));
+
+console.log("drawStorage: 全部测试通过。");

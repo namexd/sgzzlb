@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334b63"/>
+      <stop offset="45%" stop-color="#1a2836"/>
+      <stop offset="100%" stop-color="#0e1218"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0d48a"/>
+      <stop offset="50%" stop-color="#d2b074"/>
+      <stop offset="100%" stop-color="#a8864a"/>
+    </linearGradient>
+    <radialGradient id="heroGlow" cx="50%" cy="40%" r="45%">
+      <stop offset="0%" stop-color="#4a6a8a" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0e1218" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="silhouette" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#1e3348"/>
+      <stop offset="60%" stop-color="#141e28"/>
+      <stop offset="100%" stop-color="#0a0e14"/>
+    </linearGradient>
+    <linearGradient id="armor" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#2a4a6a"/>
+      <stop offset="100%" stop-color="#1a2836"/>
+    </linearGradient>
+    <clipPath id="cardClip">
+      <rect x="8" y="8" width="384" height="544" rx="14"/>
+    </clipPath>
+  </defs>
+
+  <!-- 金色外框 -->
+  <rect x="4" y="4" width="392" height="552" rx="16" fill="none" stroke="url(#gold)" stroke-width="3"/>
+  <!-- 卡面底色 -->
+  <rect x="8" y="8" width="384" height="544" rx="14" fill="url(#bg)"/>
+  <!-- 内框线 -->
+  <rect x="18" y="18" width="364" height="524" rx="10" fill="none" stroke="#d2b074" stroke-width="1" stroke-opacity="0.3"/>
+
+  <!-- 裁切区域内的人物 -->
+  <g clip-path="url(#cardClip)">
+    <!-- 中心光晕 -->
+    <rect x="18" y="18" width="364" height="524" fill="url(#heroGlow)"/>
+
+    <!-- ===== 风格化武将剪影 ===== -->
+    <g transform="translate(200, 195)">
+      <!-- 披风/斗篷 -->
+      <path d="M-80,60 Q-90,100 -70,180 L70,180 Q90,100 80,60 Z"
+            fill="#141e28" fill-opacity="0.8"/>
+      <!-- 身体/铠甲 -->
+      <path d="M-50,30 Q-55,60 -50,130 L50,130 Q55,60 50,30 Z"
+            fill="url(#armor)"/>
+      <!-- 铠甲纹理 - 横线 -->
+      <line x1="-45" y1="50" x2="45" y2="50" stroke="#2a4a6a" stroke-width="1" stroke-opacity="0.6"/>
+      <line x1="-48" y1="70" x2="48" y2="70" stroke="#2a4a6a" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="-50" y1="90" x2="50" y2="90" stroke="#2a4a6a" stroke-width="1" stroke-opacity="0.4"/>
+      <line x1="-50" y1="110" x2="50" y2="110" stroke="#2a4a6a" stroke-width="1" stroke-opacity="0.3"/>
+      <!-- 肩甲 -->
+      <ellipse cx="-52" cy="38" rx="18" ry="12" fill="#2a4a6a" fill-opacity="0.8"/>
+      <ellipse cx="52" cy="38" rx="18" ry="12" fill="#2a4a6a" fill-opacity="0.8"/>
+      <ellipse cx="-52" cy="38" rx="14" ry="8" fill="none" stroke="#d2b074" stroke-width="0.8" stroke-opacity="0.4"/>
+      <ellipse cx="52" cy="38" rx="14" ry="8" fill="none" stroke="#d2b074" stroke-width="0.8" stroke-opacity="0.4"/>
+      <!-- 头盔 -->
+      <path d="M-28,-10 Q-30,-40 -20,-60 Q0,-80 20,-60 Q30,-40 28,-10 Z"
+            fill="#1e3348"/>
+      <!-- 头盔顶饰 - 三叉冠 -->
+      <path d="M0,-60 L-5,-85 L0,-75 L5,-85 Z" fill="#d2b074" fill-opacity="0.8"/>
+      <path d="M-12,-55 L-18,-78 L-10,-70 Z" fill="#d2b074" fill-opacity="0.6"/>
+      <path d="M12,-55 L18,-78 L10,-70 Z" fill="#d2b074" fill-opacity="0.6"/>
+      <!-- 面罩/护脸 -->
+      <path d="M-20,-5 Q-22,10 -18,25 L18,25 Q22,10 20,-5 Z"
+            fill="#0e1520" fill-opacity="0.9"/>
+      <!-- 眼睛 - 发光效果 -->
+      <ellipse cx="-9" cy="2" rx="5" ry="2.5" fill="#d2b074" fill-opacity="0.9"/>
+      <ellipse cx="9" cy="2" rx="5" ry="2.5" fill="#d2b074" fill-opacity="0.9"/>
+      <ellipse cx="-9" cy="2" rx="3" ry="1.5" fill="#f0d48a"/>
+      <ellipse cx="9" cy="2" rx="3" ry="1.5" fill="#f0d48a"/>
+      <!-- 腰带 -->
+      <rect x="-52" y="125" width="104" height="8" rx="3" fill="#d2b074" fill-opacity="0.5"/>
+      <circle cx="0" cy="129" r="6" fill="#d2b074" fill-opacity="0.7"/>
+      <circle cx="0" cy="129" r="3" fill="#1a2836"/>
+      <!-- 战旗/披风飘带 -->
+      <path d="M-30,-60 Q-60,-50 -65,-20 Q-60,10 -50,30"
+            fill="none" stroke="#8a3030" stroke-width="3" stroke-opacity="0.6"/>
+      <path d="M30,-60 Q60,-50 65,-20 Q60,10 50,30"
+            fill="none" stroke="#8a3030" stroke-width="3" stroke-opacity="0.6"/>
+    </g>
+
+    <!-- 背景装饰 - 云纹 -->
+    <path d="M30,160 Q60,140 80,155 Q100,140 120,155" fill="none" stroke="#d2b074" stroke-width="0.8" stroke-opacity="0.15"/>
+    <path d="M280,170 Q310,150 330,165 Q350,150 370,165" fill="none" stroke="#d2b074" stroke-width="0.8" stroke-opacity="0.15"/>
+
+    <!-- 底部暗角 -->
+    <rect x="8" y="420" width="384" height="132" rx="0" fill="#0a0e14" fill-opacity="0.7"/>
+  </g>
+
+  <!-- 阵营徽章 -->
+  <rect x="28" y="28" width="52" height="28" rx="6" fill="#d2b074" fill-opacity="0.9"/>
+  <text x="54" y="47" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="15" font-weight="700" fill="#1a2836">魏</text>
+
+  <!-- 费用 -->
+  <circle cx="348" cy="42" r="20" fill="none" stroke="url(#gold)" stroke-width="2"/>
+  <text x="348" y="48" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="20" font-weight="700" fill="#d2b074">7</text>
+
+  <!-- 英雄名 -->
+  <text x="200" y="380" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="40" font-weight="900" fill="#f0e6d0" letter-spacing="10">曹操</text>
+
+  <!-- 分割线 -->
+  <line x1="120" y1="398" x2="280" y2="398" stroke="#d2b074" stroke-width="1" stroke-opacity="0.4"/>
+
+  <!-- 标签 -->
+  <text x="200" y="420" text-anchor="middle" font-family="PingFang SC,Noto Sans SC,sans-serif"
+        font-size="13" fill="#d2b074" fill-opacity="0.7">辅 · 5星 · 统率 99</text>
+
+  <!-- 属性简览 -->
+  <rect x="30" y="435" width="340" height="50" rx="8" fill="#0a0e14" fill-opacity="0.5"/>
+  <text x="70" y="455" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">武力</text>
+  <text x="70" y="472" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#5a8ab5">72</text>
+  <text x="140" y="455" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">智力</text>
+  <text x="140" y="472" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#5a8ab5">91</text>
+  <text x="210" y="455" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">统率</text>
+  <text x="210" y="472" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#d2b074">99</text>
+  <text x="280" y="455" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">速度</text>
+  <text x="280" y="472" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#5a8ab5">64</text>
+  <text x="345" y="455" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">政治</text>
+  <text x="345" y="472" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#5a8ab5">94</text>
+
+  <!-- 兵种适性 -->
+  <rect x="30" y="495" width="340" height="42" rx="8" fill="#0a0e14" fill-opacity="0.5"/>
+  <text x="70" y="512" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">骑</text>
+  <text x="70" y="527" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#d2b074">S</text>
+  <text x="140" y="512" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">盾</text>
+  <text x="140" y="527" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#d2b074">S</text>
+  <text x="210" y="512" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">弓</text>
+  <text x="210" y="527" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#8a9ab0">A</text>
+  <text x="280" y="512" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">枪</text>
+  <text x="280" y="527" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#8a9ab0">A</text>
+  <text x="345" y="512" text-anchor="middle" font-family="PingFang SC,sans-serif" font-size="11" fill="#8a9ab0">器</text>
+  <text x="345" y="527" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#6a7a8a">B</text>
+</svg>

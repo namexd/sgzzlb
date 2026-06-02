@@ -1,0 +1,23 @@
+<view class="page roadmap-page">
+  <view class="section">
+    <view class="title">产品路线</view>
+    <view class="subtitle">三条能力都保留，但按商业验证顺序分期落地。</view>
+  </view>
+
+  <view wx:for="{{stages}}" wx:key="name" class="section band stage">
+    <view class="row-between">
+      <view class="stage-title">{{item.name}}</view>
+      <text class="pill">{{item.status}}</text>
+    </view>
+    <view class="stage-list">
+      <view wx:for="{{item.items}}" wx:key="*this" wx:for-item="entry" class="stage-item">· {{entry}}</view>
+    </view>
+  </view>
+
+  <view class="section band">
+    <view class="stage-title">合规边界</view>
+    <view class="stage-item">· 小程序包不引用官网图片资源。</view>
+    <view class="stage-item">· image2 只生成原创风格卡牌，不复刻官方卡牌。</view>
+    <view class="stage-item">· 商业化上线前需要确认资料字段、长文案和素材展示边界。</view>
+  </view>
+</view>

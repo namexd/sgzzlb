@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>配将分析后台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar" aria-label="后台配置">
+        <div class="brand-block">
+          <span class="seal" aria-hidden="true">管</span>
+          <div>
+            <h1>运营数据管理台</h1>
+            <p>资料、规则、资产、订阅与审计的日常处理工作台</p>
+          </div>
+        </div>
+        <form class="api-form" id="api-form">
+          <label>
+            <span>API 地址</span>
+            <input id="api-base" name="apiBase" type="url" value="http://127.0.0.1:8787" />
+          </label>
+          <label>
+            <span>admin token</span>
+            <input id="admin-token" name="adminToken" type="password" value="dev-admin-token" autocomplete="off" />
+          </label>
+          <button type="submit">刷新数据</button>
+        </form>
+      </header>
+
+      <main>
+        <section class="status-band" aria-label="接口状态">
+          <div class="status-copy">
+            <strong id="global-status-title">等待连接后端</strong>
+            <span id="global-status-text">将从配置的 API 地址读取后台数据。</span>
+          </div>
+          <div class="status-actions">
+            <button id="export-store-button" type="button">导出 store</button>
+            <button id="reset-store-button" type="button" class="ghost">重置 store</button>
+            <button id="retry-button" type="button">重新请求</button>
+            <button id="clear-button" type="button" class="ghost">清空本地草案</button>
+          </div>
+        </section>
+
+        <section class="metric-grid" id="metric-grid" aria-label="运营概览指标"></section>
+
+        <div class="workspace-grid">
+          <section class="panel wide" aria-labelledby="overview-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">运营概览</p>
+                <h2 id="overview-title">今日服务状态</h2>
+              </div>
+              <span class="badge" id="dashboard-badge">未连接</span>
+            </div>
+            <div class="overview-layout">
+              <div class="paper-table" id="overview-table"></div>
+              <div class="insight-list" id="overview-insights"></div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="snapshot-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">资料快照完整性</p>
+                <h2 id="snapshot-title">目录数据核验</h2>
+              </div>
+              <span class="badge" id="catalog-badge">未连接</span>
+            </div>
+            <div id="catalog-summary" class="stack"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="lineups-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">阵容样本</p>
+                <h2 id="lineups-title">保存与同步观察</h2>
+              </div>
+              <span class="badge" id="lineups-badge">未连接</span>
+            </div>
+            <div id="lineups-list" class="lineup-list"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="rules-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">评分规则管理</p>
+                <h2 id="rules-title">权重与阈值</h2>
+              </div>
+              <span class="badge" id="rules-badge">未连接</span>
+            </div>
+            <div class="toolbar">
+              <label class="search-field">
+                <span>规则搜索</span>
+                <input id="rules-filter" type="search" placeholder="输入维度、标签或说明" />
+              </label>
+              <button id="add-rule-draft" type="button" class="ghost">新增规则</button>
+              <button id="save-rules-draft" type="button">保存草案</button>
+            </div>
+            <div id="rules-list" class="rule-list"></div>
+          </section>
+
+          <section class="panel wide" aria-labelledby="assets-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">原创卡牌资产审核</p>
+                <h2 id="assets-title">生成状态与相似度风险</h2>
+              </div>
+              <span class="badge" id="assets-badge">未连接</span>
+            </div>
+            <div class="toolbar">
+              <label class="search-field">
+                <span>审核筛选</span>
+                <input id="assets-filter" type="search" placeholder="武将、阵营、状态、风险" />
+              </label>
+              <select id="assets-status">
+                <option value="">全部状态</option>
+                <option value="needs_generation">待生成</option>
+                <option value="pending_review">待审核</option>
+                <option value="approved">已通过</option>
+                <option value="rejected">已驳回</option>
+              </select>
+              <button id="batch-pending-assets" type="button">前 10 条待生成转待审核</button>
+            </div>
+            <div id="assets-list" class="asset-list"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="reports-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">战报导入队列</p>
+                <h2 id="reports-title">样本入库进度</h2>
+              </div>
+              <span class="badge">V2 预备</span>
+            </div>
+            <div id="report-queue" class="queue-list"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="subscription-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">订阅/权益监控</p>
+                <h2 id="subscription-title">高级能力可用性</h2>
+              </div>
+              <span class="badge">权益</span>
+            </div>
+            <div id="subscription-monitor" class="stack"></div>
+          </section>
+
+          <section class="panel wide" aria-labelledby="audit-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">审计日志</p>
+                <h2 id="audit-title">后台操作追踪</h2>
+              </div>
+              <span class="badge" id="audit-badge">未连接</span>
+            </div>
+            <div class="toolbar">
+              <label class="search-field">
+                <span>日志过滤</span>
+                <input id="audit-filter" type="search" placeholder="操作者、动作、资源或结果" />
+              </label>
+              <select id="audit-level">
+                <option value="">全部结果</option>
+                <option value="success">成功</option>
+                <option value="warning">警告</option>
+                <option value="failed">失败</option>
+              </select>
+            </div>
+            <div id="audit-log" class="audit-list"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <template id="empty-template">
+      <div class="empty-state">
+        <strong></strong>
+        <p></p>
+      </div>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

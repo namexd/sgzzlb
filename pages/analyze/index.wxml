@@ -1,0 +1,113 @@
+<view class="page analyze-page">
+  <view class="section hero">
+    <view>
+      <view class="title">可解释阵容评分</view>
+      <view class="subtitle">不是只给分数。每次评分都会说明强点、短板、对位风险和替代战法。</view>
+    </view>
+    <view class="meta">
+      <text class="pill">{{entitlements.tier === 'premium' ? '高级订阅' : '免费层'}}</text>
+    </view>
+  </view>
+
+  <view class="section controls band">
+    <view class="grid-2">
+      <picker range="{{scenarios}}" range-key="name" value="{{scenarioIndex}}" bindchange="onScenarioChange">
+        <view class="field">场景：{{scenarios[scenarioIndex].name}}</view>
+      </picker>
+      <picker range="{{troops}}" value="{{troopIndex}}" bindchange="onTroopChange">
+        <view class="field">兵种：{{troops[troopIndex]}}</view>
+      </picker>
+    </view>
+  </view>
+
+  <view class="section lineup">
+    <block wx:for="{{selectedGeneralsView}}" wx:key="id" wx:for-index="slot">
+      <view class="general-panel">
+        <view class="general-card" style="background: {{item.card.background}}; border-color: {{item.card.borderColor}};" data-slot="{{slot}}" bindtap="openGeneralPicker">
+          <view class="general-top">
+            <text class="general-role">{{slot === 0 ? '主将' : '副将'}}</text>
+            <text class="general-cost">{{item.cost || '-'}}御</text>
+          </view>
+          <view class="general-initial">{{item.card.initial}}</view>
+          <view class="general-name">{{item.name}}</view>
+          <view class="general-info">{{item.faction}} · {{item.tagText}}</view>
+          <view class="aptitudes">
+            <text>骑{{item.arms.cavalry || '-'}}</text>
+            <text>盾{{item.arms.shield || '-'}}</text>
+            <text>弓{{item.arms.bow || '-'}}</text>
+            <text>枪{{item.arms.spear || '-'}}</text>
+          </view>
+        </view>
+
+        <view class="tactic-list">
+          <block wx:for="{{item.tacticSlots}}" wx:key="slot" wx:for-item="tacticSlot">
+            <view class="field tactic-field" data-slot="{{tacticSlot.slot}}" bindtap="openTacticPicker">{{tacticSlot.tactic.name}}</view>
+          </block>
+        </view>
+
+        <view class="red-row">
+          <text class="muted">红度 {{item.red}}</text>
+          <slider min="0" max="5" step="1" value="{{item.red}}" activeColor="#d6a85d" backgroundColor="#35404d" block-size="18" data-slot="{{slot}}" bindchange="onRedChange" />
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view class="section action-row">
+    <button class="btn" bindtap="analyze" loading="{{isAnalyzing}}" disabled="{{isAnalyzing}}">生成评分报告</button>
+    <button class="btn secondary" bindtap="saveLineup" disabled="{{!report}}">保存阵容</button>
+  </view>
+  <view wx:if="{{apiStatus}}" class="section api-message">{{apiStatus}}</view>
+  <view wx:if="{{savedMessage}}" class="section saved-message">{{savedMessage}}</view>
+
+  <view wx:if="{{report}}" class="section report">
+    <view class="score-band">
+      <view>
+        <view class="score">{{report.totalScore}}</view>
+        <view class="subtitle">{{report.scenarioName}} · {{report.troop}} · 可信度 {{report.confidence}}</view>
+      </view>
+      <view class="cost">统御 {{report.totalCost}}</view>
+    </view>
+
+    <view wx:if="{{report.validation.length}}" class="band warning">
+      <view wx:for="{{report.validation}}" wx:key="*this">⚠ {{item}}</view>
+    </view>
+
+    <view class="band report-block">
+      <view class="block-title">维度拆解</view>
+      <block wx:for="{{report.dimensions}}" wx:key="label">
+        <view class="dimension">
+          <view class="row-between">
+            <text>{{item.label}}</text>
+            <text>{{item.score}}</text>
+          </view>
+          <view class="bar"><view class="bar-inner" style="width: {{item.score}}%;"></view></view>
+          <view class="dimension-reason">{{item.reason}}</view>
+        </view>
+      </block>
+    </view>
+
+    <view class="band report-block">
+      <view class="block-title">为什么这么评</view>
+      <view wx:for="{{report.explanations}}" wx:key="*this" class="bullet">· {{item}}</view>
+    </view>
+
+    <view class="band report-block">
+      <view class="block-title">短板和风险</view>
+      <view wx:for="{{report.weaknesses}}" wx:key="*this" class="bullet danger">· {{item}}</view>
+    </view>
+
+    <view class="band report-block">
+      <view class="row-between">
+        <view class="block-title">替代战法</view>
+        <text class="pill" wx:if="{{!entitlements.canSeeAllReplacements}}">高级解锁完整列表</text>
+      </view>
+      <view wx:for="{{visibleReplacements}}" wx:key="id" class="replacement">
+        <view>{{item.name}}</view>
+        <view class="muted">{{item.quality}} · {{item.type}} · {{item.reason}}</view>
+      </view>
+    </view>
+  </view>
+
+  <search-picker type="{{pickerType}}" selected-id="{{pickerSelectedId}}" visible="{{pickerVisible}}" bind:select="onPickerSelect" bind:close="closePicker" />
+</view>

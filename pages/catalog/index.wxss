@@ -1,0 +1,77 @@
+.stat-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10rpx;
+}
+
+.tab {
+  height: 64rpx;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9da8b6;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  font-size: 25rpx;
+}
+
+.tab.active {
+  color: #1b1408;
+  background: #d6a85d;
+  border-color: #d6a85d;
+  font-weight: 700;
+}
+
+.search {
+  height: 76rpx;
+  padding: 0 22rpx;
+  border-radius: 8rpx;
+  color: #f7e8cf;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  font-size: 26rpx;
+}
+
+.count {
+  font-size: 22rpx;
+}
+
+.sync-status {
+  color: #d6a85d;
+}
+
+.records {
+  display: grid;
+  gap: 16rpx;
+}
+
+.record-title {
+  max-width: 480rpx;
+  color: #f7e4bc;
+  font-size: 30rpx;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-line,
+.record-desc {
+  margin-top: 10rpx;
+  color: #b9c2cf;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.asset-status {
+  margin-top: 14rpx;
+  color: #d6a85d;
+  font-size: 22rpx;
+}

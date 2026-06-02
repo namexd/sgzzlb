@@ -1,0 +1,32 @@
+{
+  "name": "三战配将分析",
+  "appid": "",
+  "description": "面向活跃中高战玩家的配将分析小程序",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true
+    },
+    "usingComponents": true
+  },
+  "h5": {
+    "title": "三战配将分析",
+    "router": {
+      "mode": "hash"
+    },
+    "devServer": {
+      "port": 8080,
+      "proxy": {
+        "/api": {
+          "target": "http://127.0.0.1:8787",
+          "changeOrigin": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "pages": [
+    {
+      "path": "pages/analyze/index",
+      "style": {
+        "navigationBarTitleText": "评分"
+      }
+    },
+    {
+      "path": "pages/catalog/index",
+      "style": {
+        "navigationBarTitleText": "资料"
+      }
+    },
+    {
+      "path": "pages/draw/index",
+      "style": {
+        "navigationBarTitleText": "抽卡"
+      }
+    },
+    {
+      "path": "pages/matchup/index",
+      "style": {
+        "navigationBarTitleText": "对位"
+      }
+    },
+    {
+      "path": "pages/account/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/roadmap/index",
+      "style": {
+        "navigationBarTitleText": "路线"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "三战配将分析",
+    "navigationBarBackgroundColor": "#151b22",
+    "backgroundColor": "#11161d"
+  },
+  "tabBar": {
+    "color": "#8d97a5",
+    "selectedColor": "#d6a85d",
+    "backgroundColor": "#141922",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/analyze/index",
+        "text": "评分",
+        "iconPath": "static/icons/analyze.png",
+        "selectedIconPath": "static/icons/analyze-active.png"
+      },
+      {
+        "pagePath": "pages/catalog/index",
+        "text": "资料",
+        "iconPath": "static/icons/catalog.png",
+        "selectedIconPath": "static/icons/catalog-active.png"
+      },
+      {
+        "pagePath": "pages/draw/index",
+        "text": "抽卡",
+        "iconPath": "static/icons/draw.png",
+        "selectedIconPath": "static/icons/draw-active.png"
+      },
+      {
+        "pagePath": "pages/matchup/index",
+        "text": "对位",
+        "iconPath": "static/icons/matchup.png",
+        "selectedIconPath": "static/icons/matchup-active.png"
+      },
+      {
+        "pagePath": "pages/account/index",
+        "text": "我的",
+        "iconPath": "static/icons/account.png",
+        "selectedIconPath": "static/icons/account-active.png"
+      }
+    ]
+  }
+}
