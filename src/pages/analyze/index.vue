@@ -23,6 +23,12 @@
             <text class="placeholder-initial">{{ general.name[0] }}</text>
             <text class="placeholder-name">{{ general.name }}</text>
           </view>
+          <view class="aptitudes">
+            <text>骑{{ general.arms.cavalry || '-' }}</text>
+            <text>盾{{ general.arms.shield || '-' }}</text>
+            <text>弓{{ general.arms.bow || '-' }}</text>
+            <text>枪{{ general.arms.spear || '-' }}</text>
+          </view>
         </view>
 
         <!-- Tactics: innate + 2 manual -->
@@ -441,10 +447,25 @@ export default {
 }
 
 .general-card {
+  position: relative;
   border: 2rpx solid #d6a85d;
   border-radius: 10rpx;
   overflow: hidden;
   background: #1a2332;
+}
+
+.aptitudes {
+  display: flex;
+  justify-content: center;
+  gap: 6rpx;
+  padding: 6rpx 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.aptitudes text {
+  font-size: 18rpx;
+  color: #f1d29a;
+  padding: 2rpx 8rpx;
 }
 
 .general-card-img {
