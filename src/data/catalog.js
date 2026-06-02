@@ -1264,6 +1264,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E8%B4%BE%E8%AF%A9.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，魏阵营贾诩，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -1733,6 +1734,7 @@ export default {
       "bonds": [],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E9%83%9D%E6%98%AD.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，魏阵营郝昭，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -1965,6 +1967,7 @@ export default {
       "bonds": [],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E8%92%8B%E7%90%AC.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，蜀阵营蒋琬，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -2202,6 +2205,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%87%8C%E7%BB%9F.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，吴阵营凌统，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -2439,6 +2443,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E6%9C%A8%E9%B9%BF%E5%A4%A7%E7%8E%8B.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，群阵营木鹿大王，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -2676,6 +2681,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%8F%B8%E9%A9%AC%E6%87%BF.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，魏阵营司马懿，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -2917,6 +2923,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%BC%A0%E8%BE%BD.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，魏阵营张辽，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -3154,6 +3161,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%BA%9E%E7%BB%9F.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，蜀阵营庞统，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -3627,6 +3635,7 @@ export default {
       "bonds": [],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%BC%A0%E7%BA%AE.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，吴阵营张纮，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -4105,6 +4114,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%BC%A0%E5%A7%AC.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，蜀阵营张姬，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -4342,6 +4352,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E9%99%88%E5%AE%AB.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，群阵营陈宫，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -4811,6 +4822,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%91%A8%E6%B3%B0.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，吴阵营周泰，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -5048,6 +5060,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E8%8D%80%E6%94%B8.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，魏阵营荀攸，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -5289,6 +5302,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%A7%9C%E7%BB%B4.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，蜀阵营姜维，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -5526,6 +5540,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E9%AB%98%E8%A7%88.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，群阵营高览，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -5995,6 +6010,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E4%B8%A5%E9%A2%9C.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，蜀阵营严颜，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -6227,6 +6243,7 @@ export default {
       "bonds": [],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E8%A2%81%E6%9C%AF.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，群阵营袁术，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -6472,6 +6489,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%90%95%E5%B8%83.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，群阵营吕布，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -6713,6 +6731,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E8%B5%B5%E4%BA%91.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，蜀阵营赵云，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -6958,6 +6977,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%91%A8%E7%91%9C.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，吴阵营周瑜，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -7203,6 +7223,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E8%AF%B8%E8%91%9B%E4%BA%AE.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，蜀阵营诸葛亮，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
@@ -7677,6 +7698,7 @@ export default {
       ],
       "asset": {
         "status": "needs_generation",
+        "imageUrl": "https://youhuigoulogo.oss-cn-beijing.aliyuncs.com/articles/cards/%E5%AD%99%E5%9D%9A.png"
         "model": "image2",
         "policy": "original_style_only",
         "prompt": "原创三国策略卡牌，吴阵营孙坚，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
