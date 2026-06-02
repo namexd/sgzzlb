@@ -17,22 +17,11 @@
     <view class="section lineup-row">
       <view v-for="(general, slot) in selectedGeneralsView" :key="general.id" class="general-col">
         <!-- Card -->
-        <view class="general-card" :style="{ borderColor: general.card.borderColor }" @tap="openGeneralPicker(slot)">
-          <image v-if="general.cardImageUrl" class="general-card-img" :src="general.cardImageUrl" mode="aspectFill" />
-          <view v-else class="general-card-bg" :style="{ background: general.card.background }"></view>
-          <view class="general-overlay">
-            <text class="general-role">{{ slot === 0 ? '主将' : '副将' }}</text>
-            <text class="general-cost">{{ general.cost }}御</text>
-          </view>
-          <view class="general-bottom">
-            <text class="general-name">{{ general.name }}</text>
-            <text class="general-info">{{ general.faction }} · {{ general.tagText }}</text>
-            <view class="aptitudes">
-              <text>骑{{ general.arms.cavalry || '-' }}</text>
-              <text>盾{{ general.arms.shield || '-' }}</text>
-              <text>弓{{ general.arms.bow || '-' }}</text>
-              <text>枪{{ general.arms.spear || '-' }}</text>
-            </view>
+        <view class="general-card" @tap="openGeneralPicker(slot)">
+          <image v-if="general.cardImageUrl" class="general-card-img" :src="general.cardImageUrl" mode="widthFix" />
+          <view v-else class="general-card-placeholder">
+            <text class="placeholder-initial">{{ general.name[0] }}</text>
+            <text class="placeholder-name">{{ general.name }}</text>
           </view>
         </view>
 
@@ -452,8 +441,6 @@ export default {
 }
 
 .general-card {
-  position: relative;
-  aspect-ratio: 3/4;
   border: 2rpx solid #d6a85d;
   border-radius: 10rpx;
   overflow: hidden;
@@ -461,87 +448,29 @@ export default {
 }
 
 .general-card-img {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
-  height: 100%;
-  z-index: 0;
+  display: block;
 }
 
-.general-card-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-}
-
-.general-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+.general-card-placeholder {
   display: flex;
-  justify-content: space-between;
-  padding: 8rpx 10rpx;
-  z-index: 2;
-}
-
-.general-role {
-  font-size: 20rpx;
-  color: #f8deb1;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 2rpx 10rpx;
-  border-radius: 4rpx;
-}
-
-.general-cost {
-  font-size: 20rpx;
-  color: #f8deb1;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 2rpx 10rpx;
-  border-radius: 4rpx;
-}
-
-.general-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 10rpx;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
-  z-index: 2;
-}
-
-.general-name {
-  color: #fff4da;
-  font-size: 28rpx;
-  font-weight: 700;
-  text-align: center;
-}
-
-.general-info {
-  color: #c8d0da;
-  font-size: 20rpx;
-  text-align: center;
-  margin-top: 4rpx;
-}
-
-.aptitudes {
-  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 6rpx;
-  margin-top: 8rpx;
+  padding: 40rpx 10rpx;
+  min-height: 280rpx;
 }
 
-.aptitudes text {
-  font-size: 18rpx;
-  color: #f1d29a;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 2rpx 8rpx;
-  border-radius: 4rpx;
+.placeholder-initial {
+  font-size: 64rpx;
+  font-weight: 800;
+  color: #d6a85d;
+}
+
+.placeholder-name {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8d97a5;
 }
 
 /* Tactics */
