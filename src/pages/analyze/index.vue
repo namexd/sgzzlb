@@ -1,83 +1,73 @@
 <template>
   <view class="page analyze-page">
-    <!-- Hero -->
-    <view class="section hero">
-      <view>
-        <view class="title">可解释阵容评分</view>
-        <view class="subtitle">不是只给分数。每次评分都会说明强点、短板、对位风险和替代战法。</view>
-      </view>
-      <view class="meta">
-        <text class="pill">{{ entitlements.tier === 'premium' ? '高级订阅' : '免费层' }}</text>
-      </view>
-    </view>
-
-    <!-- Controls: scenario + troop pickers -->
+    <!-- Controls -->
     <view class="section controls band">
-      <view class="grid-2">
+      <view class="ctrl-row">
         <picker :range="scenarios" range-key="name" :value="scenarioIndex" @change="onScenarioChange">
-          <view class="field">场景：{{ scenarios[scenarioIndex].name }}</view>
+          <view class="field ctrl-field">{{ scenarios[scenarioIndex].name }}</view>
         </picker>
         <picker :range="troops" :value="troopIndex" @change="onTroopChange">
-          <view class="field">兵种：{{ troops[troopIndex] }}</view>
+          <view class="field ctrl-field">{{ troops[troopIndex] }}</view>
         </picker>
+        <text class="pill">{{ entitlements.tier === 'premium' ? '高级' : '免费' }}</text>
       </view>
     </view>
 
-    <!-- Lineup panels -->
-    <view class="section lineup">
-      <view v-for="(general, slot) in selectedGeneralsView" :key="general.id" class="general-panel">
-        <!-- General card -->
-        <view
-          class="general-card"
-          :style="{ background: general.card.background, borderColor: general.card.borderColor }"
-          @tap="openGeneralPicker(slot)"
-        >
+    <!-- 3 Generals horizontal -->
+    <view class="section lineup-row">
+      <view v-for="(general, slot) in selectedGeneralsView" :key="general.id" class="general-col">
+        <!-- Card -->
+        <view class="general-card" :style="{ borderColor: general.card.borderColor }" @tap="openGeneralPicker(slot)">
           <image v-if="general.cardImageUrl" class="general-card-img" :src="general.cardImageUrl" mode="aspectFill" />
-          <view class="general-top">
+          <view v-else class="general-card-bg" :style="{ background: general.card.background }"></view>
+          <view class="general-overlay">
             <text class="general-role">{{ slot === 0 ? '主将' : '副将' }}</text>
-            <text class="general-cost">{{ general.cost || '-' }}御</text>
+            <text class="general-cost">{{ general.cost }}御</text>
           </view>
-          <view v-if="!general.cardImageUrl" class="general-initial">{{ general.card.initial }}</view>
-          <view class="general-name">{{ general.name }}</view>
-          <view class="general-info">{{ general.faction }} · {{ general.tagText }}</view>
-          <view class="aptitudes">
-            <text>骑{{ general.arms.cavalry || '-' }}</text>
-            <text>盾{{ general.arms.shield || '-' }}</text>
-            <text>弓{{ general.arms.bow || '-' }}</text>
-            <text>枪{{ general.arms.spear || '-' }}</text>
+          <view class="general-bottom">
+            <text class="general-name">{{ general.name }}</text>
+            <text class="general-info">{{ general.faction }} · {{ general.tagText }}</text>
+            <view class="aptitudes">
+              <text>骑{{ general.arms.cavalry || '-' }}</text>
+              <text>盾{{ general.arms.shield || '-' }}</text>
+              <text>弓{{ general.arms.bow || '-' }}</text>
+              <text>枪{{ general.arms.spear || '-' }}</text>
+            </view>
           </view>
         </view>
 
-        <!-- Tactic slots -->
-        <view class="tactic-list">
+        <!-- Tactics: innate + 2 manual -->
+        <view class="tactic-section">
+          <view class="tactic-innate">{{ general.tactics.innate || '自带战法' }}</view>
           <view
             v-for="tacticSlot in general.tacticSlots"
             :key="tacticSlot.slot"
-            class="field tactic-field"
+            class="tactic-manual"
             @tap="openTacticPicker(tacticSlot.slot)"
           >
-            {{ tacticSlot.tactic.name }}
+            <text class="tactic-name">{{ tacticSlot.tactic ? tacticSlot.tactic.name : '选择战法' }}</text>
           </view>
         </view>
 
-        <!-- Red level slider -->
-        <view class="red-row">
-          <text class="muted">红度 {{ general.red }}</text>
+        <!-- Red level -->
+        <view class="red-section">
+          <text class="red-label">红度 {{ general.red }}</text>
           <slider
+            class="red-slider"
             :min="0"
             :max="5"
             :step="1"
             :value="general.red"
             activeColor="#d6a85d"
             backgroundColor="#35404d"
-            :block-size="18"
+            :block-size="16"
             @change="onRedChange($event, slot)"
           />
         </view>
       </view>
     </view>
 
-    <!-- Action buttons -->
+    <!-- Actions -->
     <view class="section action-row">
       <button class="btn" :loading="isAnalyzing" :disabled="isAnalyzing" @tap="analyze">生成评分报告</button>
       <button class="btn secondary" :disabled="!report" @tap="saveLineup">保存阵容</button>
@@ -85,7 +75,7 @@
     <view v-if="apiStatus" class="section api-message">{{ apiStatus }}</view>
     <view v-if="savedMessage" class="section saved-message">{{ savedMessage }}</view>
 
-    <!-- Scoring report -->
+    <!-- Report -->
     <view v-if="report" class="section report">
       <view class="score-band">
         <view>
@@ -99,7 +89,6 @@
         <view v-for="(item, idx) in report.validation" :key="idx">⚠ {{ item }}</view>
       </view>
 
-      <!-- Dimensions -->
       <view class="band report-block">
         <view class="block-title">维度拆解</view>
         <view v-for="(dim, idx) in report.dimensions" :key="idx" class="dimension">
@@ -114,19 +103,16 @@
         </view>
       </view>
 
-      <!-- Explanations -->
       <view class="band report-block">
         <view class="block-title">为什么这么评</view>
         <view v-for="(item, idx) in report.explanations" :key="idx" class="bullet">· {{ item }}</view>
       </view>
 
-      <!-- Weaknesses -->
       <view class="band report-block">
         <view class="block-title">短板和风险</view>
         <view v-for="(item, idx) in report.weaknesses" :key="idx" class="bullet danger">· {{ item }}</view>
       </view>
 
-      <!-- Replacements -->
       <view class="band report-block">
         <view class="row-between">
           <view class="block-title">替代战法</view>
@@ -213,7 +199,7 @@ export default {
 
   methods: {
     makeDefaultGeneralIndexes(generals) {
-      const names = ["曹操", "刘备", "孙权"];
+      const names = ["赵云", "诸葛亮", "周瑜"];
       return names.map((name, fallback) => {
         const index = generals.findIndex((item) => item.name === name);
         return index >= 0 ? index : fallback;
@@ -237,6 +223,7 @@ export default {
       const selectedTacticsView = this.selectedTacticIndexes.map((index) => this.tactics[index]);
       const selectedGeneralsView = this.selectedGeneralIndexes.map((index, slot) => {
         const general = this.generals[index];
+        if (!general) return null;
         return {
           ...general,
           slot,
@@ -254,7 +241,7 @@ export default {
           })
         };
       });
-      this.selectedGeneralsView = selectedGeneralsView;
+      this.selectedGeneralsView = selectedGeneralsView.filter(Boolean);
       this.selectedTacticsView = selectedTacticsView;
     },
 
@@ -420,34 +407,11 @@ export default {
 <style scoped>
 .analyze-page {
   min-height: 100vh;
-  padding: 24rpx;
-}
-
-.hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 20rpx;
-}
-
-.meta {
-  flex: 0 0 auto;
-}
-
-.title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #f7e4bc;
-}
-
-.subtitle {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #98a3b3;
+  padding: 20rpx;
 }
 
 .pill {
-  padding: 6rpx 18rpx;
+  padding: 6rpx 16rpx;
   border-radius: 6rpx;
   font-size: 22rpx;
   color: #d6a85d;
@@ -455,59 +419,45 @@ export default {
   background: rgba(214, 168, 93, 0.1);
 }
 
-.controls {
-  margin-top: 8rpx;
+.controls .ctrl-row {
+  display: flex;
+  gap: 12rpx;
+  align-items: center;
 }
 
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16rpx;
-}
-
-.field {
-  padding: 18rpx 20rpx;
+.ctrl-field {
+  flex: 1;
+  padding: 14rpx 16rpx;
   border: 1rpx solid rgba(214, 168, 93, 0.22);
   border-radius: 8rpx;
   background: rgba(255, 255, 255, 0.045);
   color: #f4ead8;
-  font-size: 26rpx;
+  font-size: 24rpx;
 }
 
 .muted {
   color: #8d97a5;
-  font-size: 24rpx;
+  font-size: 22rpx;
 }
 
-.lineup {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18rpx;
+/* 3 generals horizontal row */
+.lineup-row {
+  display: flex;
+  gap: 12rpx;
 }
 
-.general-panel {
-  padding: 18rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.18);
-  border-radius: 8rpx;
-  background: rgba(255, 255, 255, 0.045);
+.general-col {
+  flex: 1;
+  min-width: 0;
 }
 
 .general-card {
   position: relative;
-  min-height: 300rpx;
-  padding: 20rpx;
+  aspect-ratio: 3/4;
   border: 2rpx solid #d6a85d;
-  border-radius: 8rpx;
+  border-radius: 10rpx;
   overflow: hidden;
-}
-
-.general-card::after {
-  content: "";
-  position: absolute;
-  inset: 22rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.14);
-  border-radius: 6rpx;
-  pointer-events: none;
+  background: #1a2332;
 }
 
 .general-card-img {
@@ -517,101 +467,145 @@ export default {
   width: 100%;
   height: 100%;
   z-index: 0;
-  border-radius: 8rpx;
-  opacity: 0.85;
 }
 
-.general-top {
-  position: relative;
-  z-index: 1;
+.general-card-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.general-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: space-between;
-  color: #f8deb1;
-  font-size: 22rpx;
+  padding: 8rpx 10rpx;
+  z-index: 2;
 }
 
-.general-initial {
-  position: relative;
-  z-index: 1;
-  margin: 34rpx auto 18rpx;
-  width: 116rpx;
-  height: 116rpx;
-  border-radius: 50%;
-  border: 2rpx solid rgba(246, 217, 163, 0.8);
+.general-role {
+  font-size: 20rpx;
   color: #f8deb1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 60rpx;
-  font-weight: 800;
-  background: rgba(0, 0, 0, 0.16);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2rpx 10rpx;
+  border-radius: 4rpx;
+}
+
+.general-cost {
+  font-size: 20rpx;
+  color: #f8deb1;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2rpx 10rpx;
+  border-radius: 4rpx;
+}
+
+.general-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10rpx;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  z-index: 2;
 }
 
 .general-name {
-  position: relative;
-  z-index: 1;
-  text-align: center;
   color: #fff4da;
-  font-size: 34rpx;
+  font-size: 28rpx;
   font-weight: 700;
+  text-align: center;
 }
 
 .general-info {
-  position: relative;
-  z-index: 1;
-  margin-top: 8rpx;
-  text-align: center;
   color: #c8d0da;
-  font-size: 22rpx;
+  font-size: 20rpx;
+  text-align: center;
+  margin-top: 4rpx;
 }
 
 .aptitudes {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8rpx;
-  margin-top: 20rpx;
+  display: flex;
+  justify-content: center;
+  gap: 6rpx;
+  margin-top: 8rpx;
 }
 
 .aptitudes text {
-  height: 44rpx;
-  border-radius: 6rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 18rpx;
   color: #f1d29a;
-  background: rgba(0, 0, 0, 0.22);
-  font-size: 22rpx;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2rpx 8rpx;
+  border-radius: 4rpx;
 }
 
-.tactic-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12rpx;
-  margin-top: 14rpx;
+/* Tactics */
+.tactic-section {
+  margin-top: 10rpx;
 }
 
-.tactic-field {
+.tactic-innate {
+  font-size: 20rpx;
+  color: #d6a85d;
+  background: rgba(214, 168, 93, 0.12);
+  border: 1rpx solid rgba(214, 168, 93, 0.25);
+  border-radius: 6rpx;
+  padding: 8rpx 10rpx;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.red-row {
-  display: grid;
-  grid-template-columns: 120rpx 1fr;
-  align-items: center;
-  margin-top: 10rpx;
+.tactic-manual {
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  color: #b6c0cc;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 6rpx;
+  padding: 8rpx 10rpx;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.tactic-name {
+  color: #b6c0cc;
+}
+
+/* Red level */
+.red-section {
+  margin-top: 8rpx;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.red-label {
+  font-size: 18rpx;
+  color: #8d97a5;
+  white-space: nowrap;
+}
+
+.red-slider {
+  flex: 1;
+}
+
+/* Actions */
 .action-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 16rpx;
 }
 
 .btn {
+  flex: 1;
   color: #1a1409;
   background: linear-gradient(135deg, #f0ca7f, #bd823d);
   border-radius: 8rpx;
@@ -641,6 +635,7 @@ export default {
   line-height: 1.5;
 }
 
+/* Report */
 .score-band {
   display: flex;
   justify-content: space-between;

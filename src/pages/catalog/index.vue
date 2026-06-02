@@ -40,14 +40,18 @@
     <view class="records">
       <view v-if="!recordsView.length" class="empty">没有匹配结果</view>
       <view v-for="item in recordsView" :key="item.id" class="record band">
-        <view class="row-between">
-          <view class="record-title">{{ item.title }}</view>
-          <text class="pill">{{ item.badge }}</text>
+        <view class="record-main">
+          <image v-if="item.imageUrl" class="record-thumb" :src="item.imageUrl" mode="aspectFill" />
+          <view class="record-body">
+            <view class="row-between">
+              <view class="record-title">{{ item.title }}</view>
+              <text class="pill">{{ item.badge }}</text>
+            </view>
+            <view class="record-line">{{ item.line1 }}</view>
+            <view class="record-line">{{ item.line2 }}</view>
+            <view v-if="item.desc" class="record-desc">{{ item.desc }}</view>
+          </view>
         </view>
-        <view class="record-line">{{ item.line1 }}</view>
-        <view class="record-line">{{ item.line2 }}</view>
-        <view v-if="item.desc" class="record-desc">{{ item.desc }}</view>
-        <view class="asset-status">{{ item.assetStatus }}</view>
       </view>
     </view>
   </view>
@@ -135,10 +139,10 @@ export default {
           id: record.id,
           title: record.name,
           badge: record.faction || "武将",
+          imageUrl: record.asset && record.asset.imageUrl ? record.asset.imageUrl : "",
           line1: (record.cost || "-") + "御 · " + (record.star || "-") + " · " + ((record.tags && record.tags.join(" / ")) || "未标记"),
           line2: "骑" + ((record.arms && record.arms.cavalry) || "-") + " 盾" + ((record.arms && record.arms.shield) || "-") + " 弓" + ((record.arms && record.arms.bow) || "-") + " 枪" + ((record.arms && record.arms.spear) || "-"),
           desc: "自带：" + ((record.tactics && record.tactics.innate) || "-") + "；传承：" + ((record.tactics && record.tactics.inherited) || "-"),
-          assetStatus: record.asset && record.asset.status === "needs_generation" ? "待生成原创卡" : "已审核"
         };
       }
       if (this.activeTab === "tactics" || this.activeTab === "troopTactics") {
@@ -229,6 +233,24 @@ export default {
 .records {
   display: grid;
   gap: 16rpx;
+}
+
+.record-main {
+  display: flex;
+  gap: 16rpx;
+}
+
+.record-thumb {
+  width: 120rpx;
+  height: 160rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+  border: 1rpx solid rgba(214, 168, 93, 0.25);
+}
+
+.record-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .record-title {
