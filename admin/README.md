@@ -1,5 +1,43 @@
-# Vue 3 + Vite
+# 三国志战略版配将分析管理后台
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+这是项目的内部运营后台，使用 Vue 3、Vite、Element Plus 和 Vue Router 构建。
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## 当前页面
+
+- 登录：输入 `ADMIN_TOKEN` 并保存到本地浏览器。
+- 仪表盘：查看服务状态、资料数量、规则、阵容和审计摘要。
+- 意见反馈：查看反馈列表并流转状态。
+- 阵容管理：查看阵容样本并删除。
+- 资料数据：查看武将和战法资料。
+- 评分规则：查看、新增、删除和保存规则草案。
+- 审计日志：查看后台操作记录。
+
+## 本地启动
+
+```bash
+npm install
+npm run dev
+```
+
+默认 API 地址是 `http://127.0.0.1:8787`。如需连接其它后端：
+
+```bash
+VITE_API_BASE=http://127.0.0.1:8787 npm run dev
+```
+
+后端需要设置 `ADMIN_TOKEN`，否则管理接口会返回未授权。
+
+## 构建
+
+```bash
+npm run build
+```
+
+生产部署会把 `admin/dist` 上传到 `/var/www/sgzzlb/admin`，后端通过 `/admin/` 托管静态资源。
+
+## 注意事项
+
+- 当前登录只是后台 token 保存，不是完整管理员账号体系。
+- 高风险操作上线前需要二次确认和更细审计。
+- 阵容数据当前存在 `.runtime` 与 MySQL 边界不一致，后台阵容页后续应切到统一 MySQL 来源。
+- 真实生产凭据不要写入前端代码、README 或提交记录。

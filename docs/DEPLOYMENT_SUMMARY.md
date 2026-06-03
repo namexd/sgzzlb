@@ -1,126 +1,69 @@
-# 部署完成总结
+# 部署状态总结
 
-## 已完成的工作
+更新时间：2026-06-03。
 
-### 1. 服务器配置
-- **服务器**: 47.99.42.50 (CentOS 7)
-- **域名**: sz.qihangwk.com
-- **Node.js**: v16.20.2 已安装
-- **MySQL**: 5.6.50 已配置
-- **Nginx**: 1.18.0 已配置
-- **PM2**: 已设置开机自启
+## 当前部署链路
 
-### 2. 数据库配置
-- **数据库**: sgzzlb
-- **用户**: sgzzlb
-- **密码**: sgzzlb_2026_secure
-- **字符集**: utf8mb4
+项目已经具备两条部署路径：
 
-### 3. 后端服务
-- **端口**: 8787
-- **进程管理**: PM2
-- **自动重启**: 已配置
-- **日志**: /var/www/sgzzlb/logs/
+- 本地脚本：`./scripts/deploy.sh`
+- GitHub Actions：`.github/workflows/deploy.yml`
 
-### 4. 前端部署
-- **路径**: /var/www/sgzzlb/frontend/
-- **域名**: http://sz.qihangwk.com
-- **缓存**: 静态资源 7 天缓存
+部署内容包括：
 
-### 5. SSH 密钥认证
-- 已配置本地 SSH 密钥到服务器
-- 无需密码即可登录
+- `src` H5 前台构建产物。
+- `admin` Vue 后台构建产物。
+- `server` 后端代码。
+- `utils`、`services` 和 `data` 共享资源。
 
-### 6. CI/CD 自动部署
-- **GitHub Actions**: 已配置
-- **触发条件**: push 到 main 分支
-- **部署内容**: 前端 + 后端 + 数据文件
+## 生产入口
 
-## 访问地址
+- 前台：`https://sz.qihangwk.com`
+- 后台：`https://sz.qihangwk.com/admin/`
+- 健康检查：`https://sz.qihangwk.com/health`
 
-- **前端**: http://sz.qihangwk.com
-- **后端 API**: http://sz.qihangwk.com/api/
-- **健康检查**: http://sz.qihangwk.com/health
+## 服务器口径
+
+- 服务器：`47.99.42.50`
+- 部署目录：`/var/www/sgzzlb`
+- 后端端口：`8787`
+- 进程管理：PM2
+- Web 服务：Nginx
+- 数据库：MySQL
+
+真实密码、后台 token、私钥和面板入口不写入此文档。
+
+## 已完成
+
+- 前台 H5、后台、后端分目录部署口径已建立。
+- 本地部署脚本会构建前台和后台，并上传后端、共享逻辑和资料快照。
+- GitHub Actions 会在 `main` 分支 push 或手动触发时构建并部署。
+- 后端支持 `/health` 健康检查。
+- 后台支持 `/admin/` 访问。
+
+## 当前待复核
+
+- 本轮未重新执行生产部署。
+- 本轮本地 `npm test` 已通过；服务端本地开发和本地测试默认使用 `sgzzlb_local`，生产仍必须显式配置 `MYSQL_*`。
+- 需要确认生产环境 `ADMIN_TOKEN`、`TOKEN_SECRET`、`MYSQL_PASSWORD` 已设置为生产级值。
+- 需要确认 HTTPS 跳转、微信小程序合法域名和 Nginx 代理配置。
+- 需要确认历史文档或提交中如出现真实凭据，是否已经轮换。
 
 ## 常用命令
 
-### 本地部署
 ```bash
-# 一键部署
 ./scripts/deploy.sh
-```
-
-### 服务器管理
-```bash
-# 登录服务器
-ssh root@47.99.42.50
-
-# 查看后端状态
 pm2 status
-
-# 查看日志
 pm2 logs sgzzlb-server
-
-# 重启后端
 pm2 restart sgzzlb-server
-
-# 重启 Nginx
+nginx -t
 nginx -s reload
 ```
 
-### GitHub Actions
-- 代码 push 到 main 分支会自动触发部署
-- 部署日志在 GitHub Actions 页面查看
-
-## 文件结构
-
-```
-sgzzlb/
-├── .github/workflows/deploy.yml  # GitHub Actions 配置
-├── scripts/deploy.sh             # 本地部署脚本
-├── docs/deployment.md            # 详细部署文档
-├── docs/DEPLOYMENT_SUMMARY.md    # 本文档
-├── src/                          # 前端代码
-├── server/                       # 后端代码
-├── utils/                        # 工具函数
-├── services/                     # 服务层
-└── data/                         # 数据文件
-```
-
-## 安全建议
-
-1. **修改 MySQL 密码**: 当前使用简单密码，建议修改
-2. **配置 HTTPS**: 在宝塔面板申请 SSL 证书
-3. **限制 SSH**: 只允许密钥认证
-4. **定期备份**: 数据库和重要文件
-
 ## 后续优化
 
-1. **配置 HTTPS**: 提升安全性
-2. **添加监控**: 服务状态监控
-3. **日志轮转**: 防止日志文件过大
-4. **数据库备份**: 定期自动备份
-
-## 故障排查
-
-### 后端无法启动
-```bash
-pm2 logs sgzzlb-server --err
-mysql -u sgzzlb -psgzzlb_2026_secure sgzzlb -e "SELECT 1;"
-```
-
-### 前端无法访问
-```bash
-nginx -t
-ls -la /var/www/sgzzlb/frontend/
-tail -f /www/wwwlogs/sz.qihangwk.com.error.log
-```
-
-## 联系方式
-
-如有问题，请查看日志或联系运维人员。
-
----
-
-**部署时间**: 2026-06-03
-**部署状态**: ✅ 成功
+1. 抽查 HTTPS 证书续费和 HTTP 到 HTTPS 跳转。
+2. 增加发布后自动冒烟：`/health`、前台首页、后台 dashboard、评分接口、反馈接口。
+3. 增加日志轮转，避免 PM2 和 Nginx 日志持续膨胀。
+4. 增加数据库自动备份和恢复演练。
+5. GitHub Actions 增加测试、前台构建、后台构建、部署和冒烟分阶段状态。

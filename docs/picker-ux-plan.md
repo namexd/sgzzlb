@@ -1,95 +1,41 @@
-# Search-First Picker UX Plan
+# 搜索优先选择器计划
 
-## Problem
+更新时间：2026-06-03。
 
-The analyze page (`pages/analyze/`) uses native `<picker>` components for general (112 items) and tactic (174+ items) selection. Users must scroll through the entire unsorted list to find a specific item — no search, no filter, no grouping.
+## 状态
 
-## Solution
+原计划是替换原生微信小程序的长列表 `<picker>`。当前项目已经迁移到 UniApp，搜索选择器已落地到：
 
-Replace flat pickers with a search-first overlay component. User taps a general card or tactic field → a modal opens with a search input at top + scrollable result list below → type to filter → tap to select.
+- `src/components/search-picker.vue`
+- `src/pages/analyze/index.vue`
 
-## Scope
+评分页当前点击武将卡或战法槽位后，会打开搜索弹层；选择后刷新当前阵容和评分状态。
 
-- **General picker**: 3 slots × 112 items. Display: faction color dot + name + cost + quality.
-- **Tactic picker**: 6 slots × 174+ items. Display: quality badge + name + type + troop limit.
-- **Scenario/Troop pickers**: 3 and 5 items respectively — keep as native `<picker>` (no search needed).
+## 已完成
 
-## Architecture
+- 武将选择：支持搜索、当前选中高亮、选择后回填到对应槽位。
+- 战法选择：支持搜索、当前选中高亮、选择后回填到对应战法槽位。
+- 评分页状态：选择武将、战法、兵种、场景、红度后会清空旧报告。
+- 默认阵容：优先选择赵云、诸葛亮、周瑜，战法使用所选武将自带/传承战法兜底。
+- 性能边界：弹层内只展示过滤结果，避免继续用长列表滚动寻找。
 
-### New file: `components/search-picker/`
+## 当前保留
 
-A reusable WeChat custom component with:
-- **Properties**: `type` ("generals" | "tactics"), `selectedId`, `visible`
-- **Events**: `bind:select` (emits selected item ID), `bind:close`
-- **Internal state**: `keyword`, `filtered` (search results), `scrollIntoView`
-- **Search**: delegates to `catalog.searchRecords(type, keyword)`
-- **Display limit**: 60 items (perf guard for WXML rendering)
-- **Faction filter** (generals only): horizontal chip row for 魏/蜀/吴/群
-- **Quality filter** (tactics only): horizontal chip row for S/A/B
+- 场景选择仍使用小范围 picker。
+- 兵种使用页面内 chip 选择。
+- 搜索逻辑复用 `src/utils/catalog.js`。
+- 评分逻辑和保存逻辑不由选择器组件承担。
 
-Files:
-- `components/search-picker/index.js`
-- `components/search-picker/index.wxml`
-- `components/search-picker/index.wxss`
-- `components/search-picker/index.json`
+## 待复核
 
-### Modified: `pages/analyze/index.wxml`
+- 移动端软键盘弹出时，搜索弹层高度和底部结果列表是否被遮挡。
+- H5 与微信小程序下 `@select` 事件 payload 是否完全一致。
+- 选择器在 112 个武将、209 个战法下的首屏渲染和输入响应。
+- 已选武将互换后，红度和战法槽位是否符合预期。
+- 空结果、重复名称、长战法名和长武将名的视觉表现。
 
-- Replace `<picker range="{{generalOptions}}" ...>` with:
-  ```xml
-  <search-picker type="generals" selected-id="{{item.id}}" visible="{{pickerState.slot === slot && pickerState.type === 'generals'}}" bind:select="onGeneralPick" bind:close="closePicker" data-slot="{{slot}}" />
-  ```
-- Replace `<picker range="{{tacticOptions}}" ...>` with similar pattern.
-- Keep the general card / tactic field as tap targets (bindtap opens picker).
+## 下一步建议
 
-### Modified: `pages/analyze/index.js`
-
-- Add `pickerState: { visible: false, slot: -1, type: "" }` to data.
-- Add `openPicker(slot, type)` — sets `pickerState`.
-- Add `closePicker()` — clears `pickerState`.
-- Add `onGeneralPick(e)` — receives `e.detail.id`, finds index in `generals` array, updates `selectedGeneralIndexes[slot]`, calls `refreshSelection()`.
-- Add `onTacticPick(e)` — same pattern for tactics.
-- Remove `generalOptions`/`tacticOptions` from data (no longer needed).
-- Remove `onGeneralChange`/`onTacticChange` (replaced by pick handlers).
-
-### Modified: `pages/analyze/index.json`
-
-- Register the component:
-  ```json
-  { "usingComponents": { "search-picker": "/components/search-picker/index" } }
-  ```
-
-## UX Details
-
-1. **Opening**: tap general card → picker modal slides up from bottom. Auto-focus search input.
-2. **Searching**: real-time filtering as user types. Empty search shows all items (grouped by faction for generals, by quality for tactics).
-3. **Selecting**: tap item → modal closes, selection updates, card re-renders.
-4. **Closing**: tap backdrop or X button → modal closes, no change.
-5. **Current selection highlight**: the currently selected item has a gold border/checkmark.
-6. **Keyboard**: search input has `confirm-type="search"` and `auto-focus` on modal open.
-
-## Files Changed
-
-| File | Action |
-|------|--------|
-| `components/search-picker/index.js` | Create |
-| `components/search-picker/index.wxml` | Create |
-| `components/search-picker/index.wxss` | Create |
-| `components/search-picker/index.json` | Create |
-| `pages/analyze/index.js` | Modify (picker state, remove old picker handlers) |
-| `pages/analyze/index.wxml` | Modify (replace pickers with component + tap targets) |
-| `pages/analyze/index.json` | Modify (register component) |
-
-## What Stays the Same
-
-- `pages/analyze/index.wxss` — no changes needed (component has own styles)
-- `utils/catalog.js` — `searchRecords` already works, no changes
-- `utils/scoring.js` — untouched
-- `services/api.js` — untouched
-- `pages/analyze/index.js` → `analyze()`, `saveLineup()`, `refreshSelection()` — logic unchanged
-
-## Risks
-
-- **Performance**: 174 tactics in WXML list — mitigated by 60-item display cap + search-first (most queries return <10 results).
-- **WeChat component auto-focus**: `auto-focus` on `<input>` inside a custom component may not work on all devices — fallback: show a "tap to search" prompt.
-- **Picker state collision**: if user taps a general picker while a tactic picker is open — handled by single `pickerState` object (only one picker open at a time).
+- 增加选择器组件级单测或页面冒烟脚本，覆盖搜索、选择、关闭和清空报告。
+- 给武将搜索补阵营筛选，给战法搜索补品质/类型筛选。
+- 若微信小程序端软键盘体验不稳定，再补固定底部操作区和滚动容器高度约束。

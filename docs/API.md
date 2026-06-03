@@ -1,51 +1,85 @@
 # API 形状
 
-当前版本已有两层实现：
+更新时间：2026-06-03。
 
-- 小程序本地服务层：`services/api.js`，默认使用本地资料快照和本地评分逻辑。
-- Node.js 后端原型：`server/app.js`，默认端口 `8787`，提供同名 HTTP 接口和管理后台接口。
+当前后端入口是 `server/app.js`，默认监听 `127.0.0.1:8787`。前台通过 `src/services/api.js` 在本地模式和远程模式之间切换；管理后台通过 `admin/src/api/index.js` 调用后端。
 
-小程序可在“我的 -> 服务端连接”里切换本地快照或远程 API。
+## 通用约定
 
-## `GET /health`
+- 普通 JSON 请求使用 `content-type: application/json`。
+- 登录态请求使用 `authorization: Bearer <token>`。
+- 管理接口使用 `x-admin-token: <ADMIN_TOKEN>`。
+- 生产环境必须设置 `ADMIN_TOKEN`、`TOKEN_SECRET` 和 MySQL 环境变量。
 
-返回服务健康状态。
+## 健康检查
 
-## `GET /api/v1/catalog/summary`
+### `GET /health`
 
-返回资料库摘要，包含快照 meta 和各类数量。
+返回服务健康状态、运行时长和时间戳。
 
-## `GET /api/v1/catalog/generals`
+## 账号与权益
 
-对应：`api.getGenerals({ keyword })`
+### `POST /api/v1/auth/register`
+
+用户名/密码注册。用户名至少 3 个字符，只允许字母、数字和下划线；密码至少 6 个字符。
+
+### `POST /api/v1/auth/login`
+
+用户名/密码登录，返回 token 和用户信息。
+
+### `POST /api/v1/auth/wechat-login`
+
+微信小程序登录。生产环境需要 `WX_APPID` 和 `WX_SECRET`；缺少时使用开发兜底 openid。
+
+### `POST /api/v1/auth/anonymous-login`
+
+H5 匿名登录，返回 token。
+
+### `GET /api/v1/auth/profile`
+
+需要 Bearer token。返回用户、保存阵容数、抽卡记录数和权益。
+
+### `GET /api/v1/auth/entitlements`
+
+返回当前登录用户权益；未登录时返回免费层权益。
+
+### `POST /api/v1/auth/set-tier`
+
+需要 `x-admin-token`。用于调整指定用户的 `free`/`premium` 权益。
+
+## 资料库
+
+### `GET /api/v1/catalog/summary`
+
+返回资料快照摘要，包含武将、战法、装备、兵种数量和快照元信息。
+
+### `GET /api/v1/catalog/generals`
 
 参数：`keyword`、`page`、`pageSize`。
 
-返回武将列表，字段包括 `id`、`name`、`faction`、`cost`、`stats`、`arms`、`tactics`、`asset`。后端 HTTP 版本返回分页结构。
+返回分页武将列表。
 
-## `GET /api/v1/catalog/tactics`
-
-对应：`api.getTactics({ keyword })`
+### `GET /api/v1/catalog/tactics`
 
 参数：`keyword`、`page`、`pageSize`。
 
-返回战法列表，字段包括 `id`、`name`、`quality`、`type`、`source`、`sourceGeneral`、`troopLimit`、`description`。后端 HTTP 版本返回分页结构。
+返回分页战法列表。
 
-## `GET /api/v1/catalog/equipment`
-
-参数：`keyword`、`page`、`pageSize`。
-
-返回装备列表，字段包括 `id`、`name`、`quality`、`type`、`effect`。后端 HTTP 版本返回分页结构。
-
-## `GET /api/v1/catalog/troop-tactics`
+### `GET /api/v1/catalog/equipment`
 
 参数：`keyword`、`page`、`pageSize`。
 
-返回兵种战法列表，字段与战法类似。后端 HTTP 版本返回分页结构。
+返回分页装备列表。
 
-## `POST /api/v1/lineups/analyze`
+### `GET /api/v1/catalog/troop-tactics`
 
-对应：`api.analyzeLineup(payload)`
+参数：`keyword`、`page`、`pageSize`。
+
+返回分页兵种战法列表。
+
+## 阵容与评分
+
+### `POST /api/v1/lineups/analyze`
 
 输入：
 
@@ -59,76 +93,113 @@
 }
 ```
 
-输出 `ScoreReport`：总分、统御、可信度、五维拆解、解释、短板、替代战法和高级订阅提示。
+输出评分报告：总分、场景、兵种、可信度、统御、校验项、维度拆解、解释、短板和替代战法。
 
-## `GET /api/v1/lineups`
-
-对应：`api.getLineupsAsync({ userId })`
+### `GET /api/v1/lineups`
 
 参数：`userId`、`page`、`pageSize`。
 
-返回指定用户保存过的阵容分页列表。当前原型默认用户为 `local-demo`，生产化时必须替换为微信登录态和服务端用户 ID。
+当前读取 `.runtime` store 中的阵容样本。注意：这与 `/api/v1/lineups/sync` 的 MySQL 存储不是同一份数据，下一轮需要统一。
 
-## `POST /api/v1/lineups`
+### `POST /api/v1/lineups`
 
-对应：`api.saveLineupAsync({ userId, lineup })`
+保存阵容到 `.runtime` store。
 
-输入：
+### `DELETE /api/v1/lineups/:id`
 
-```json
-{
-  "userId": "local-demo",
-  "lineup": {
-    "id": "lineup_123",
-    "createdAt": "2026-05-19T10:00:00.000Z",
-    "scenario": "PK赛季",
-    "troop": "骑兵",
-    "score": 82,
-    "generals": ["曹操", "刘备", "孙权"],
-    "tactics": ["战法A", "战法B"]
-  }
-}
-```
+删除 `.runtime` store 中的阵容样本。
 
-返回写入后的阵容记录。服务端会补齐 `userId`、`updatedAt` 和 `source`。
+### `POST /api/v1/lineups/sync`
 
-## `DELETE /api/v1/lineups/:id`
+批量同步本地阵容到 MySQL。当前根据请求用户写入 MySQL，但读取链路尚未统一到 MySQL。
 
-参数：`userId` 可选。
+## 对位与账号优化
 
-删除指定阵容。当前小程序仅使用本地清空，远程删除接口先保留给后续账号级管理。
+### `POST /api/v1/matchups/preview`
 
-## `POST /api/v1/matchups/preview`
+输入本方和敌方阵容，输出双方评分和对位结论。当前仍是规则预览，不是完整战斗引擎。
 
-对应：`api.previewMatchup({ own, enemy })`
+### `POST /api/v1/accounts/optimize`
 
-输出本方报告、敌方报告和对位结论。当前是规则预览，不是完整战斗引擎。
+输入账号库存，输出 V1.5 共存阵容建议、战法冲突和剩余库存。
 
-## `POST /api/v1/accounts/optimize`
+## 战报
 
-对应：`api.optimizeAccount({ generalIds, tacticIds })`
+### `POST /api/v1/battle-reports`
 
-V1.5 入口。当前只判断库存是否达到三队共存分析门槛。
+写入一条战斗结果。`result` 必须是 `win`、`loss` 或 `draw`。
 
-## `POST /api/v1/battle-reports/import`
+### `GET /api/v1/battle-reports`
 
-对应：`api.importBattleReport({ sourceType })`
+参数：`limit`、`offset`。
 
-V2 入口。当前只保留接口形状。
+返回当前用户战报列表。
 
-## 管理后台接口
+### `GET /api/v1/battle-reports/stats`
 
-管理接口统一要求请求头：
+返回当前用户战报统计，包括总场次、胜负平、胜率、平均战损、兵种对位和最近趋势。
 
-```http
-x-admin-token: dev-admin-token
-```
+### `DELETE /api/v1/battle-reports/:id`
 
-本地 token 仅用于开发，生产必须替换为正式登录、权限和审计体系。
+删除当前用户的一条战报。
+
+### `POST /api/v1/battle-reports/import`
+
+保留的战报导入接口形状。
+
+## 意见反馈
+
+### `POST /api/v1/feedback`
+
+提交反馈。内容 5 到 1000 字，联系方式最多 128 字。
+
+### `GET /api/v1/feedback`
+
+需要 `x-admin-token`。返回反馈列表。
+
+### `PUT /api/v1/feedback/:id/status`
+
+需要 `x-admin-token`。状态必须是 `pending`、`read`、`resolved` 或 `rejected`。
+
+## 抽卡
+
+### `GET /api/v1/draw-pools`
+
+返回当前用户卡池。
+
+### `POST /api/v1/draw-pools`
+
+创建卡池。
+
+### `DELETE /api/v1/draw-pools/:id`
+
+删除卡池，并删除该卡池下的抽卡记录。
+
+### `GET /api/v1/draw-records`
+
+参数：`poolId` 可选。
+
+返回当前用户抽卡记录；指定 `poolId` 时只返回该卡池记录。
+
+### `POST /api/v1/draw-records`
+
+写入抽卡记录。
+
+### `DELETE /api/v1/draw-records/:id`
+
+删除抽卡记录。
+
+### `POST /api/v1/draw-records/sync`
+
+批量同步本地抽卡记录到 MySQL。
+
+## 管理后台
+
+以下接口均需要 `x-admin-token`。
 
 ### `GET /api/admin/dashboard`
 
-返回运营概览：资料数量、规则数量、待审核资产和审计日志摘要。
+返回运营概览。
 
 ### `GET /api/admin/rules`
 
@@ -138,48 +209,37 @@ x-admin-token: dev-admin-token
 
 保存评分规则草案。
 
-```json
-{
-  "rules": [
-    {
-      "id": "default-score-policy",
-      "name": "默认评分策略",
-      "enabled": true,
-      "description": "复用前端评分规则"
-    }
-  ]
-}
-```
-
 ### `GET /api/admin/assets/audit`
 
-返回原创卡牌资产审核记录。
+返回原创资产审核记录。
 
 ### `POST /api/admin/assets/audit`
 
-新增一条资产审核记录。
-
-```json
-{
-  "targetId": "general_xxx",
-  "targetType": "general",
-  "status": "approved",
-  "note": "人工确认原创风格可用。"
-}
-```
+新增资产审核记录。
 
 ### `GET /api/admin/audit-log`
 
-返回管理后台操作审计日志。
+返回审计日志。
 
 ### `GET /api/admin/lineups`
 
-返回最近保存的阵容样本，供后台观察远程保存链路和真实用户组合分布。
+返回最近阵容样本。
 
 ### `GET /api/admin/store/export`
 
-导出当前管理后台 store，包含规则草案、资产审核记录、阵容样本和审计日志。
+导出 `.runtime` 管理后台 store。
 
 ### `POST /api/admin/store/reset`
 
-重置管理后台 store 为默认状态，并写入一条 `store.reset` 审计日志。
+重置 `.runtime` 管理后台 store。
+
+### `POST /api/admin/cards/upload`
+
+上传卡牌图片到 OSS。需要 multipart 文件和 OSS 环境变量。
+
+## 当前接口风险
+
+- H5 使用 Bearer token 时，CORS 允许头需要包含 `authorization`。
+- 阵容接口的 `.runtime` 与 MySQL 存储来源必须统一。
+- 后端创建 app 时会初始化 MySQL；本地开发和本地测试默认使用 `root` 空密码并自动创建 `sgzzlb_local` 数据库，生产环境必须显式设置 `MYSQL_*`。
+- 后台 token 登录不是完整管理员账号系统，生产化前需要正式认证与权限。

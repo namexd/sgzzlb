@@ -4,9 +4,9 @@ const crypto = require("crypto");
 const DEFAULT_CONFIG = {
   host: process.env.MYSQL_HOST || "localhost",
   port: Number.parseInt(process.env.MYSQL_PORT || "3306", 10),
-  user: process.env.MYSQL_USER || "sgzzlb",
+  user: process.env.MYSQL_USER || "root",
   password: process.env.MYSQL_PASSWORD || "",
-  database: process.env.MYSQL_DATABASE || "sgzzlb",
+  database: process.env.MYSQL_DATABASE || "sgzzlb_local",
   charset: "utf8mb4",
   waitForConnections: true,
   connectionLimit: 10,
@@ -15,15 +15,51 @@ const DEFAULT_CONFIG = {
 
 let pool = null;
 
+function resolveConfig(config) {
+  return { ...DEFAULT_CONFIG, ...(config || {}) };
+}
+
+function quoteIdentifier(value) {
+  return `\`${String(value).replace(/`/g, "``")}\``;
+}
+
+async function ensureDatabaseExists(config) {
+  const database = config.database;
+  const bootstrapConfig = { ...config };
+  delete bootstrapConfig.database;
+
+  const bootstrapPool = mysql.createPool(bootstrapConfig);
+  try {
+    await bootstrapPool.query(
+      `CREATE DATABASE IF NOT EXISTS ${quoteIdentifier(database)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+  } finally {
+    await bootstrapPool.end();
+  }
+}
+
 function getPool(config) {
   if (!pool) {
-    pool = mysql.createPool(config || DEFAULT_CONFIG);
+    pool = mysql.createPool(resolveConfig(config));
   }
   return pool;
 }
 
 async function createDatabase(config) {
-  const p = getPool(config);
+  const resolvedConfig = resolveConfig(config);
+  let p = getPool(resolvedConfig);
+
+  try {
+    await p.query("SELECT 1");
+  } catch (error) {
+    if (error.code !== "ER_BAD_DB_ERROR") {
+      throw error;
+    }
+    await closePool();
+    await ensureDatabaseExists(resolvedConfig);
+    p = getPool(resolvedConfig);
+    await p.query("SELECT 1");
+  }
 
   await p.execute(`
     CREATE TABLE IF NOT EXISTS users (

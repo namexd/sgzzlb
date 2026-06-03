@@ -11,6 +11,13 @@ const { createApp } = require("../server/app");
 const catalog = require("../utils/catalog");
 
 const ADMIN_TOKEN = "test-admin-token";
+const LOCAL_DB_CONFIG = {
+  host: "localhost",
+  port: 3306,
+  user: "root",
+  password: "",
+  database: "sgzzlb_local"
+};
 
 function httpRequest(baseUrl, path, options = {}) {
   const url = new URL(path, baseUrl);
@@ -44,7 +51,7 @@ function httpRequest(baseUrl, path, options = {}) {
 }
 
 async function startApp(options = {}) {
-  const app = createApp({ adminToken: ADMIN_TOKEN, ...options });
+  const app = createApp({ adminToken: ADMIN_TOKEN, dbConfig: LOCAL_DB_CONFIG, ...options });
   await app.start(0);
   const address = app.address();
   return {
@@ -94,8 +101,8 @@ test("GET /api/v1/catalog/summary 返回目录摘要", async () => {
   await withServer(async (baseUrl) => {
     const res = await httpRequest(baseUrl, "/api/v1/catalog/summary");
     assert.equal(res.statusCode, 200);
-    assert.equal(res.body.counts.generals, 112);
-    assert.equal(res.body.counts.tactics, 174);
+    assert.equal(res.body.counts.generals, catalog.getGenerals().length);
+    assert.equal(res.body.counts.tactics, catalog.getTactics().length);
     assert.ok(res.body.generatedAt);
   });
 });

@@ -1,214 +1,197 @@
-# 三国志战略版配将分析 - 部署文档
+# 三国志战略版配将分析部署文档
 
-## 服务器信息
+更新时间：2026-06-03。
 
-- **服务器地址**: 47.99.42.50
-- **域名**: sz.qihangwk.com
-- **操作系统**: CentOS 7
-- **Node.js**: v16.20.2 (通过二进制安装)
-- **MySQL**: 5.6.50
-- **Nginx**: 1.18.0 (宝塔面板)
+## 生产环境口径
+
+- 服务器：`47.99.42.50`
+- 域名：`sz.qihangwk.com`
+- 操作系统：CentOS 7
+- 后端端口：`8787`
+- Web 服务：Nginx
+- 进程管理：PM2
+- 数据库：MySQL
+- 部署目录：`/var/www/sgzzlb`
+
+真实数据库密码、后台 token、SSH 私钥、宝塔面板入口和 OSS 密钥不得写入仓库文档。它们应保存在服务器环境变量、PM2 配置、GitHub Actions Secrets 或其它密钥管理系统中。
 
 ## 目录结构
 
-```
+```text
 /var/www/sgzzlb/
-├── frontend/          # H5 前端静态文件
+├── frontend/          # H5 前台静态文件
+├── admin/             # 管理后台静态文件
 ├── backend/           # Node.js 后端服务
-│   ├── app.js
-│   ├── db.js
-│   ├── index.js
-│   ├── oss.js
-│   ├── store.js
-│   └── package.json
-├── utils/             # 工具函数
-├── services/          # 服务层
-├── data/              # 数据文件
-│   ├── catalog.js
-│   └── catalog.json
-├── logs/              # 日志目录
-└── deploy.sh          # 服务器端部署脚本
+├── utils/             # Node 侧共享工具
+├── services/          # Node 侧服务适配
+├── data/              # 资料快照
+└── logs/              # 日志目录
 ```
 
-## 数据库配置
+## 必需环境变量
 
-- **数据库名**: sgzzlb
-- **用户名**: sgzzlb
-- **密码**: sgzzlb_2026_secure
-- **主机**: localhost
-- **端口**: 3306
-
-## 服务管理
-
-### PM2 命令
+后端至少需要：
 
 ```bash
-# 查看状态
-pm2 status
-
-# 查看日志
-pm2 logs sgzzlb-server
-
-# 重启服务
-pm2 restart sgzzlb-server
-
-# 停止服务
-pm2 stop sgzzlb-server
-
-# 查看监控
-pm2 monit
+ADMIN_TOKEN=
+TOKEN_SECRET=
+MYSQL_HOST=
+MYSQL_PORT=
+MYSQL_USER=
+MYSQL_PASSWORD=
+MYSQL_DATABASE=
 ```
 
-### Nginx 命令
+可选能力需要：
 
 ```bash
-# 测试配置
-nginx -t
-
-# 重新加载
-nginx -s reload
-
-# 查看日志
-tail -f /www/wwwlogs/sz.qihangwk.com.log
+WX_APPID=
+WX_SECRET=
+OSS_ACCESS_KEY_ID=
+OSS_ACCESS_KEY_SECRET=
+OSS_BUCKET=
+OSS_ENDPOINT=
+OSS_PREFIX=
+OSS_CDN_DOMAIN=
 ```
 
-## 一键部署
+`TOKEN_SECRET` 和 `ADMIN_TOKEN` 必须使用生产级随机值；`MYSQL_PASSWORD` 不允许为空。
 
-### 方法一：本地脚本部署
+## 本地一键部署
+
+在项目根目录执行：
 
 ```bash
-# 在项目根目录执行
 ./scripts/deploy.sh
 ```
 
-### 方法二：手动部署
+脚本会依次执行：
 
-1. **构建前端**
+1. 构建 `src` H5 前台。
+2. 上传前台静态文件。
+3. 构建并上传 `admin` 后台。
+4. 上传 `server`、`utils`、`services` 和 `data`。
+5. 在服务器安装后端生产依赖。
+6. 重启 PM2 服务并 reload Nginx。
+
+## GitHub Actions 部署
+
+`.github/workflows/deploy.yml` 支持：
+
+- push 到 `main` 自动触发。
+- `workflow_dispatch` 手动触发。
+
+CI 会构建前台 H5、构建后台、通过 SSH 上传文件，并在服务器执行后端依赖安装和服务重启。需要在 GitHub Secrets 中配置部署私钥，不能把私钥写入仓库。
+
+## 手动部署
+
+### 构建前台
+
 ```bash
 cd src
 UNI_INPUT_DIR=$(pwd) ./node_modules/.bin/uni build -p h5
 ```
 
-2. **上传文件到服务器**
-```bash
-# 上传前端
-scp -r src/dist/build/h5/* root@47.99.42.50:/var/www/sgzzlb/frontend/
+### 构建后台
 
-# 上传后端
+```bash
+cd admin
+npm run build
+```
+
+### 上传文件
+
+```bash
+scp -r src/dist/build/h5/* root@47.99.42.50:/var/www/sgzzlb/frontend/
+scp -r admin/dist/* root@47.99.42.50:/var/www/sgzzlb/admin/
 scp server/*.js server/package.json root@47.99.42.50:/var/www/sgzzlb/backend/
 scp -r utils/* root@47.99.42.50:/var/www/sgzzlb/utils/
 scp -r services/* root@47.99.42.50:/var/www/sgzzlb/services/
-scp data/catalog.* root@47.99.42.50:/var/www/sgzzlb/data/
+scp data/catalog.js data/catalog.json root@47.99.42.50:/var/www/sgzzlb/data/
 ```
 
-3. **服务器上执行**
+### 重启服务
+
 ```bash
 ssh root@47.99.42.50
 cd /var/www/sgzzlb/backend
-npm install --production
+npm install --omit=dev
 pm2 restart sgzzlb-server
 nginx -s reload
 ```
 
-## SSH 密钥认证
-
-已配置 SSH 密钥认证，无需密码即可登录：
+## 常用运维命令
 
 ```bash
-ssh root@47.99.42.50
+pm2 status
+pm2 logs sgzzlb-server
+pm2 restart sgzzlb-server
+nginx -t
+nginx -s reload
 ```
 
-### 添加新用户的 SSH 密钥
+## 访问地址
 
-1. 获取用户的公钥（通常在 `~/.ssh/id_rsa.pub` 或 `~/.ssh/id_ed25519.pub`）
-2. 添加到服务器：
-```bash
-ssh root@47.99.42.50
-echo "用户公钥内容" >> ~/.ssh/authorized_keys
-```
+- 前台：`https://sz.qihangwk.com`
+- 后台：`https://sz.qihangwk.com/admin/`
+- 健康检查：`https://sz.qihangwk.com/health`
 
-## 环境变量
-
-后端服务的环境变量在 PM2 配置文件中设置：
-
-```javascript
-// /var/www/sgzzlb/backend/ecosystem.config.js
-env: {
-  NODE_ENV: 'production',
-  PORT: 8787,
-  MYSQL_HOST: 'localhost',
-  MYSQL_PORT: 3306,
-  MYSQL_USER: 'sgzzlb',
-  MYSQL_PASSWORD: 'sgzzlb_2026_secure',
-  MYSQL_DATABASE: 'sgzzlb'
-}
-```
-
-## API 接口
-
-- **健康检查**: `GET /health`
-- **武将列表**: `GET /api/v1/catalog/generals`
-- **战法列表**: `GET /api/v1/catalog/tactics`
-- **阵容分析**: `POST /api/v1/lineups/analyze`
-- **对位分析**: `POST /api/v1/matchups/preview`
+HTTP 地址只作为跳转或兼容入口；微信小程序合法域名应配置 HTTPS 域名。
 
 ## 故障排查
 
-### 后端服务无法启动
+### 后端无法启动
 
 ```bash
-# 查看错误日志
 pm2 logs sgzzlb-server --err
-
-# 检查 MySQL 连接
-mysql -u sgzzlb -psgzzlb_2026_secure sgzzlb -e "SELECT 1;"
-
-# 手动测试启动
 cd /var/www/sgzzlb/backend
 node index.js
 ```
 
-### 前端无法访问
+重点检查：
+
+- `MYSQL_PASSWORD` 是否为空。
+- `ADMIN_TOKEN` 是否设置。
+- `TOKEN_SECRET` 是否仍为默认值。
+- MySQL 用户是否有目标库权限。
+
+### 前台或后台无法访问
 
 ```bash
-# 检查 Nginx 配置
 nginx -t
-
-# 检查文件是否存在
 ls -la /var/www/sgzzlb/frontend/
-
-# 查看 Nginx 错误日志
-tail -f /www/wwwlogs/sz.qihangwk.com.error.log
+ls -la /var/www/sgzzlb/admin/
 ```
 
-### 数据库问题
+重点检查：
 
-```bash
-# 登录 MySQL
-mysql -u root -pcdcpdKMR8PhdFX4j
+- 前台构建目录是否上传到 `frontend/`。
+- 后台构建目录是否上传到 `admin/`。
+- Nginx 是否把 `/api/` 代理到后端，把 `/admin/` 指到后台静态目录。
 
-# 切换到 sgzzlb 数据库
-USE sgzzlb;
+### 接口跨域或登录态异常
 
-# 查看表
-SHOW TABLES;
+重点检查：
 
-# 查看用户
-SELECT * FROM users;
-```
+- H5 请求是否带 `authorization`。
+- Nginx 或后端 CORS 是否允许 `authorization` 请求头。
+- 前台 `VITE_API_BASE` 或运行时 API baseUrl 是否指向生产域名。
 
-## 宝塔面板
+## 发布后冒烟
 
-- **地址**: http://47.99.42.50:8888/0699de19
-- 可以在面板中管理 Nginx、MySQL 等服务
+每次发布后至少检查：
 
-## 安全建议
+- `GET /health`
+- 前台首页可打开。
+- 管理后台 `/admin/` 可打开。
+- 管理后台 token 能访问 dashboard。
+- 评分页能生成报告。
+- 反馈提交能写入后端。
 
-1. **修改默认密码**: 建议修改 MySQL 和宝塔面板的默认密码
-2. **配置 HTTPS**: 可以在宝塔面板中申请 SSL 证书
-3. **限制 SSH 登录**: 只允许密钥认证，禁止密码登录
-4. **定期备份**: 建议定期备份数据库和重要文件
+## 安全要求
 
-## 更新日志
-
-- **2026-06-03**: 初始部署，MySQL 数据库，PM2 进程管理
+- 不在仓库内保存真实密码、token、私钥或面板入口。
+- 如果历史提交中出现真实凭据，必须轮换。
+- SSH 只使用密钥认证。
+- MySQL、PM2、Nginx 日志需要定期轮转。
+- 数据库需要定期备份并演练恢复。

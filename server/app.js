@@ -428,8 +428,11 @@ function createApp(options = {}) {
   if (!process.env.TOKEN_SECRET) {
     console.warn("[WARN] TOKEN_SECRET 未设置，使用默认签名密钥。请在生产环境设置 TOKEN_SECRET。");
   }
-  if (!process.env.MYSQL_PASSWORD) {
+  if ((process.env.NODE_ENV === "production" || process.env.MYSQL_USER) && !process.env.MYSQL_PASSWORD) {
     console.warn("[WARN] MYSQL_PASSWORD 未设置，数据库连接可能失败。");
+  }
+  if (process.env.NODE_ENV === "production" && !process.env.MYSQL_DATABASE) {
+    console.warn("[WARN] MYSQL_DATABASE 未设置，生产环境不应使用本地默认库。");
   }
 
   // Initialize MySQL database (returns pool)
@@ -1022,17 +1025,16 @@ function createApp(options = {}) {
         });
       });
     },
-    stop() {
-      return new Promise((resolve, reject) => {
-        if (!server.listening) {
-          resolve();
-          return;
-        }
-        server.close((error) => {
-          if (error) reject(error);
-          else resolve();
+    async stop() {
+      if (server.listening) {
+        await new Promise((resolve, reject) => {
+          server.close((error) => {
+            if (error) reject(error);
+            else resolve();
+          });
         });
-      });
+      }
+      await dbModule.closePool();
     },
     address() {
       return server.address();
