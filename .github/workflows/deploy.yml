@@ -1,0 +1,58 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: cd src && npm install
+
+      - name: Build frontend (H5)
+        run: cd src && UNI_INPUT_DIR=$GITHUB_WORKSPACE/src ./node_modules/.bin/uni build -p h5
+
+      - name: Install admin dependencies
+        run: cd admin && npm install
+
+      - name: Build admin
+        run: cd admin && npm run build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 47.99.42.50 >> ~/.ssh/known_hosts
+
+      - name: Upload frontend
+        run: |
+          ssh -i ~/.ssh/deploy_key root@47.99.42.50 "mkdir -p /var/www/sgzzlb/frontend"
+          scp -i ~/.ssh/deploy_key -r src/dist/build/h5/* root@47.99.42.50:/var/www/sgzzlb/frontend/
+
+      - name: Upload admin
+        run: |
+          ssh -i ~/.ssh/deploy_key root@47.99.42.50 "rm -rf /var/www/sgzzlb/admin && mkdir -p /var/www/sgzzlb/admin"
+          scp -i ~/.ssh/deploy_key -r admin/dist/* root@47.99.42.50:/var/www/sgzzlb/admin/
+
+      - name: Upload backend
+        run: |
+          ssh -i ~/.ssh/deploy_key root@47.99.42.50 "mkdir -p /var/www/sgzzlb/backend /var/www/sgzzlb/utils /var/www/sgzzlb/services /var/www/sgzzlb/data"
+          scp -i ~/.ssh/deploy_key server/db.js server/app.js server/index.js server/oss.js server/store.js server/package.json root@47.99.42.50:/var/www/sgzzlb/backend/
+          scp -i ~/.ssh/deploy_key -r utils/* root@47.99.42.50:/var/www/sgzzlb/utils/
+          scp -i ~/.ssh/deploy_key -r services/* root@47.99.42.50:/var/www/sgzzlb/services/
+          scp -i ~/.ssh/deploy_key data/catalog.js data/catalog.json root@47.99.42.50:/var/www/sgzzlb/data/
+
+      - name: Restart services
+        run: |
+          ssh -i ~/.ssh/deploy_key root@47.99.42.50 "cd /var/www/sgzzlb/backend && npm install --omit=dev && pm2 restart sgzzlb-server && nginx -s reload"
