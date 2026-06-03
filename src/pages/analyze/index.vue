@@ -6,10 +6,20 @@
         <picker :range="scenarios" range-key="name" :value="scenarioIndex" @change="onScenarioChange">
           <view class="field ctrl-field">{{ scenarios[scenarioIndex].name }}</view>
         </picker>
-        <picker :range="troops" :value="troopIndex" @change="onTroopChange">
-          <view class="field ctrl-field">{{ troops[troopIndex] }}</view>
-        </picker>
         <text class="pill">{{ entitlements.tier === 'premium' ? '高级' : '免费' }}</text>
+      </view>
+    </view>
+
+    <!-- Team troop type -->
+    <view class="section troop-row">
+      <text class="troop-label">队伍兵种</text>
+      <view class="troop-options">
+        <view
+          v-for="(t, idx) in troops"
+          :key="t"
+          :class="['troop-chip', { active: troopIndex === idx }]"
+          @tap="onTroopChange({ detail: { value: idx } })"
+        >{{ t }}</view>
       </view>
     </view>
 
@@ -29,6 +39,11 @@
             <text>弓{{ general.arms.bow || '-' }}</text>
             <text>枪{{ general.arms.spear || '-' }}</text>
           </view>
+        </view>
+
+        <!-- Swap buttons -->
+        <view v-if="slot < 2" class="swap-btn" @tap="swapGenerals(slot, slot + 1)">
+          <text class="swap-icon">⇄</text>
         </view>
 
         <!-- Tactics: innate + 2 manual -->
@@ -128,6 +143,8 @@
       @select="onPickerSelect"
       @close="closePicker"
     />
+
+    <view class="feedback-entry" @tap="goToFeedback">对功能有意见？去反馈 →</view>
   </view>
 </template>
 
@@ -300,6 +317,18 @@ export default {
       updated[slot] = Number(event.detail.value);
       this.redLevels = updated;
       this.report = null;
+      this.refreshSelection();
+    },
+
+    swapGenerals(a, b) {
+      const gi = [...this.selectedGeneralIndexes];
+      const rl = [...this.redLevels];
+      [gi[a], gi[b]] = [gi[b], gi[a]];
+      [rl[a], rl[b]] = [rl[b], rl[a]];
+      this.selectedGeneralIndexes = gi;
+      this.redLevels = rl;
+      this.report = null;
+      this.refreshSelection();
     },
 
     analyze() {
@@ -314,24 +343,20 @@ export default {
         tacticIds,
         redLevels: this.redLevels
       };
-      const remote = isRemoteMode();
       this.isAnalyzing = true;
-      this.apiStatus = remote ? "正在请求远程评分服务..." : "使用本地评分规则生成报告。";
+      this.apiStatus = "";
       this.savedMessage = "";
 
       analyzeLineupAsync(payload)
         .then((report) => {
           this.report = report;
           this.isAnalyzing = false;
-          this.apiStatus = remote ? "评分报告来自远程 API。" : "评分报告来自本地规则。";
           this.updateVisibleReplacements(report);
         })
-        .catch((error) => {
-          // fallback: synchronous local analysis
+        .catch(() => {
           const fallback = this.analyzeLineupLocal(payload);
           this.report = fallback;
           this.isAnalyzing = false;
-          this.apiStatus = `远程评分失败，已回退本地规则：${error.message}`;
           this.updateVisibleReplacements(fallback);
         });
     },
@@ -380,20 +405,15 @@ export default {
         tactics: this.selectedTacticsView.map((item) => item.name)
       };
       setStorage(SAVED_LINEUPS_KEY, [lineup, ...saved.filter((item) => item.id !== lineup.id)]);
+      this.savedMessage = '已保存，可在"我的"里查看。';
 
-      if (!isRemoteMode()) {
-        this.savedMessage = '已保存到本地，可在"我的"里查看。';
-        return;
+      if (isRemoteMode()) {
+        saveLineupAsync({ lineup }).catch(() => {});
       }
+    },
 
-      this.savedMessage = "本地已保存，正在同步到远程服务端...";
-      saveLineupAsync({ userId: "local-demo", lineup })
-        .then(() => {
-          this.savedMessage = "本地已保存，远程服务端同步成功。";
-        })
-        .catch((error) => {
-          this.savedMessage = `远程同步失败，本地阵容已保留：${error.message}`;
-        });
+    goToFeedback() {
+      uni.navigateTo({ url: "/pages/feedback/index" });
     }
   }
 };
@@ -402,56 +422,100 @@ export default {
 <style scoped>
 .analyze-page {
   min-height: 100vh;
-  padding: 20rpx;
+  padding: var(--sp-lg);
+  padding-bottom: 60rpx;
+}
+
+.section {
+  margin-bottom: var(--sp-lg);
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+/* H5 大屏：卡牌区域放大 */
+@media screen and (min-width: 768px) {
+  .lineup-row {
+    gap: var(--sp-xl);
+  }
+
+  .general-card-img {
+    border-radius: var(--r-md);
+  }
+
+  .tactic-innate,
+  .tactic-manual {
+    font-size: 24rpx;
+    padding: var(--sp-sm) 14rpx;
+  }
+
+  .red-label {
+    font-size: 22rpx;
+  }
+
+  .troop-chip {
+    padding: 14rpx 28rpx;
+    font-size: 28rpx;
+  }
+
+  .btn {
+    font-size: 32rpx;
+    padding: 22rpx 0;
+  }
 }
 
 .pill {
-  padding: 6rpx 16rpx;
-  border-radius: 6rpx;
+  padding: 6rpx var(--sp-md);
+  border-radius: var(--r-sm);
   font-size: 22rpx;
-  color: #d6a85d;
-  border: 1rpx solid rgba(214, 168, 93, 0.35);
-  background: rgba(214, 168, 93, 0.1);
+  color: var(--gold);
+  border: 1rpx solid var(--border-accent);
+  background: var(--gold-ghost);
 }
 
 .controls .ctrl-row {
   display: flex;
-  gap: 12rpx;
+  gap: var(--sp-md);
   align-items: center;
 }
 
 .ctrl-field {
   flex: 1;
-  padding: 14rpx 16rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.22);
-  border-radius: 8rpx;
-  background: rgba(255, 255, 255, 0.045);
-  color: #f4ead8;
+  padding: 14rpx var(--sp-md);
+  border: 1rpx solid var(--border-accent);
+  border-radius: var(--r-md);
+  background: var(--ink-surface);
+  color: var(--text-ink);
   font-size: 24rpx;
+  transition: border-color var(--ease);
 }
 
 .muted {
-  color: #8d97a5;
+  color: var(--text-stone);
   font-size: 22rpx;
 }
 
 /* 3 generals horizontal row */
 .lineup-row {
   display: flex;
-  gap: 12rpx;
+  gap: var(--sp-md);
+  margin-bottom: 28rpx;
 }
 
 .general-col {
   flex: 1;
   min-width: 0;
+  position: relative;
 }
 
 .general-card {
   position: relative;
-  border: 2rpx solid #d6a85d;
-  border-radius: 10rpx;
+  border: 2rpx solid var(--gold);
+  border-radius: var(--r-sm);
   overflow: hidden;
-  background: #1a2332;
+  background: var(--ink-mid);
+  box-shadow: var(--shadow-sm);
 }
 
 .aptitudes {
@@ -464,8 +528,8 @@ export default {
 
 .aptitudes text {
   font-size: 18rpx;
-  color: #f1d29a;
-  padding: 2rpx 8rpx;
+  color: var(--gold);
+  padding: 2rpx var(--sp-xs);
 }
 
 .general-card-img {
@@ -485,27 +549,27 @@ export default {
 .placeholder-initial {
   font-size: 64rpx;
   font-weight: 800;
-  color: #d6a85d;
+  color: var(--gold);
 }
 
 .placeholder-name {
   margin-top: 10rpx;
   font-size: 24rpx;
-  color: #8d97a5;
+  color: var(--text-stone);
 }
 
 /* Tactics */
 .tactic-section {
-  margin-top: 10rpx;
+  margin-top: var(--sp-md);
 }
 
 .tactic-innate {
   font-size: 20rpx;
-  color: #d6a85d;
-  background: rgba(214, 168, 93, 0.12);
-  border: 1rpx solid rgba(214, 168, 93, 0.25);
-  border-radius: 6rpx;
-  padding: 8rpx 10rpx;
+  color: var(--gold);
+  background: var(--gold-ghost);
+  border: 1rpx solid var(--border-accent);
+  border-radius: var(--r-sm);
+  padding: var(--sp-xs) 10rpx;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -515,24 +579,25 @@ export default {
 .tactic-manual {
   margin-top: 6rpx;
   font-size: 20rpx;
-  color: #b6c0cc;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1rpx solid rgba(255, 255, 255, 0.12);
-  border-radius: 6rpx;
-  padding: 8rpx 10rpx;
+  color: var(--text-ink);
+  background: var(--ink-surface);
+  border: 1rpx solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  padding: var(--sp-xs) 10rpx;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: border-color var(--ease);
 }
 
 .tactic-name {
-  color: #b6c0cc;
+  color: var(--text-ink);
 }
 
 /* Red level */
 .red-section {
-  margin-top: 8rpx;
+  margin-top: 14rpx;
   display: flex;
   align-items: center;
   gap: 6rpx;
@@ -540,7 +605,7 @@ export default {
 
 .red-label {
   font-size: 18rpx;
-  color: #8d97a5;
+  color: var(--text-stone);
   white-space: nowrap;
 }
 
@@ -551,23 +616,26 @@ export default {
 /* Actions */
 .action-row {
   display: flex;
-  gap: 16rpx;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
 }
 
 .btn {
   flex: 1;
-  color: #1a1409;
-  background: linear-gradient(135deg, #f0ca7f, #bd823d);
-  border-radius: 8rpx;
+  color: var(--ink-deepest);
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold-dim));
+  border-radius: var(--r-sm);
   font-size: 28rpx;
   font-weight: 700;
   border: none;
+  padding: 18rpx 0;
+  transition: opacity var(--ease);
 }
 
 .btn.secondary {
-  color: #f7e4bc;
-  background: rgba(214, 168, 93, 0.18);
-  border: 1rpx solid rgba(214, 168, 93, 0.35);
+  color: var(--gold-bright);
+  background: var(--gold-ghost);
+  border: 1rpx solid var(--border-accent);
 }
 
 .btn[disabled] {
@@ -575,12 +643,12 @@ export default {
 }
 
 .saved-message {
-  color: #9bd08f;
+  color: var(--win);
   font-size: 24rpx;
 }
 
 .api-message {
-  color: #d6a85d;
+  color: var(--gold);
   font-size: 24rpx;
   line-height: 1.5;
 }
@@ -591,33 +659,36 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 26rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(135deg, rgba(214, 168, 93, 0.22), rgba(255, 255, 255, 0.06));
-  border: 1rpx solid rgba(214, 168, 93, 0.28);
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--gold-ghost), var(--ink-surface));
+  border: 1rpx solid var(--border-accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .score {
-  color: #f4ca78;
+  color: var(--gold-bright);
   font-size: 72rpx;
   font-weight: 800;
   line-height: 1;
 }
 
 .cost {
-  color: #f7e4bc;
+  color: var(--gold-bright);
   font-size: 26rpx;
 }
 
 .band {
-  padding: 24rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.22);
-  background: rgba(249, 239, 216, 0.06);
-  border-radius: 8rpx;
+  padding: var(--sp-lg);
+  border: 1rpx solid var(--border-accent);
+  background: var(--ink-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--ease);
 }
 
 .warning {
   margin-top: 18rpx;
-  color: #e68973;
+  color: var(--loss);
   font-size: 24rpx;
   line-height: 1.7;
 }
@@ -628,7 +699,7 @@ export default {
 
 .block-title {
   margin-bottom: 14rpx;
-  color: #f7e4bc;
+  color: var(--gold-bright);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -646,31 +717,102 @@ export default {
 .bar {
   height: 12rpx;
   margin: 10rpx 0;
-  border-radius: 8rpx;
-  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
+  background: var(--border-subtle);
   overflow: hidden;
 }
 
 .bar-inner {
   height: 100%;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #bd823d, #f0ca7f);
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
 }
 
 .dimension-reason,
 .bullet,
 .replacement {
-  color: #b6c0cc;
+  color: var(--text-ink);
   font-size: 24rpx;
   line-height: 1.55;
 }
 
 .bullet.danger {
-  color: #e68973;
+  color: var(--loss);
 }
 
 .replacement {
   padding: 14rpx 0;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-top: 1rpx solid var(--border-faint);
+}
+
+/* Troop type row */
+.troop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 18rpx var(--sp-lg);
+  background: var(--ink-surface);
+  border: 1rpx solid var(--border-faint);
+  border-radius: var(--r-sm);
+  margin-bottom: var(--sp-xl);
+}
+
+.troop-label {
+  font-size: 24rpx;
+  color: var(--text-stone);
+  white-space: nowrap;
+}
+
+.troop-options {
+  display: flex;
+  gap: 10rpx;
+  flex-wrap: wrap;
+}
+
+.troop-chip {
+  padding: 10rpx 20rpx;
+  border-radius: var(--r-sm);
+  font-size: 24rpx;
+  color: var(--text-stone);
+  background: var(--ink-surface);
+  border: 1rpx solid var(--border-faint);
+  transition: all var(--ease);
+}
+
+.troop-chip.active {
+  color: var(--ink-deepest);
+  background: var(--gold);
+  border-color: var(--gold);
+  font-weight: 700;
+}
+
+/* Swap button */
+.swap-btn {
+  position: absolute;
+  right: -24rpx;
+  top: 40%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 44rpx;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold);
+  border-radius: 50%;
+  box-shadow: var(--shadow-md);
+}
+
+.swap-icon {
+  font-size: 24rpx;
+  color: var(--ink-deepest);
+  font-weight: 700;
+}
+
+.feedback-entry {
+  text-align: center;
+  color: var(--text-fade);
+  font-size: 24rpx;
+  padding: var(--sp-xl) 0 var(--sp-md);
 }
 </style>

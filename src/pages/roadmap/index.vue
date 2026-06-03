@@ -21,9 +21,9 @@ export default { data() { return {}; } };
 </script>
 
 <style scoped>
-.roadmap-page { min-height: 100vh; padding: 24rpx; }
-.title { font-size: 36rpx; font-weight: 700; color: #f7e4bc; margin-bottom: 24rpx; }
-.band { padding: 24rpx; border: 1rpx solid rgba(214, 168, 93, 0.22); background: rgba(249, 239, 216, 0.06); border-radius: 8rpx; margin-bottom: 16rpx; }
-.card-title { color: #f7e4bc; font-size: 30rpx; font-weight: 700; }
-.note { margin-top: 14rpx; color: #b9c2cf; font-size: 24rpx; }
+.roadmap-page { min-height: 100vh; padding: var(--sp-lg); }
+.title { font-size: 36rpx; font-weight: 700; color: var(--gold-bright); margin-bottom: var(--sp-lg); }
+.band { padding: var(--sp-lg); border: 1rpx solid var(--border-accent); background: var(--ink-surface); border-radius: var(--r-md); margin-bottom: var(--sp-md); box-shadow: var(--shadow-sm); transition: box-shadow var(--ease); }
+.card-title { color: var(--gold-bright); font-size: 30rpx; font-weight: 700; }
+.note { margin-top: 14rpx; color: var(--text-ink); font-size: 24rpx; }
 </style>

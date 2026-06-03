@@ -1,6 +1,6 @@
 module.exports = {
   "meta": {
-    "generatedAt": "2026-05-19T02:39:26.459Z",
+    "generatedAt": "2026-06-03T04:04:22.024Z",
     "source": "https://sgzzlb.lingxigames.com/station/",
     "endpoint": "https://galaxias-api.lingxigames.com/ds/ajax/endpoint.json",
     "gameId": 10000100,
@@ -8,8 +8,8 @@ module.exports = {
     "legalNote": "商业化上线前需确认官方资料字段、长篇文案和素材展示边界。",
     "generalsCount": 112,
     "generalsExpectedCount": 112,
-    "tacticsCount": 174,
-    "tacticsExpectedCount": 174,
+    "tacticsCount": 209,
+    "tacticsExpectedCount": 209,
     "equipmentCount": 57,
     "equipmentExpectedCount": 57,
     "troopTacticsCount": 12,
@@ -33019,6 +33019,474 @@ module.exports = {
       ]
     },
     {
+      "id": "417332562964264963",
+      "name": "虎卫军",
+      "quality": "S",
+      "type": "兵种",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法宛城之战",
+      "troopLimit": [
+        "盾兵"
+      ],
+      "target": "我军群体(3人)",
+      "description": "将盾兵进阶为善固疆场的虎卫军:战斗中，我军主将即将受到普攻时，副将提高6武力，最多提高5次，并会分别对攻击者造成兵刃伤害（伤害率36%，受各自损失兵力影响，最多提高20%），每回合最多触发1次，若典韦或许褚统领，自身统率提高25",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，虎卫军，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "417332562964264963",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法宛城之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "盾兵",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体(3人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "将盾兵进阶为善固疆场的虎卫军:战斗中，我军主将即将受到普攻时，副将提高6武力，最多提高5次，并会分别对攻击者造成兵刃伤害（伤害率36%，受各自损失兵力影响，最多提高20%），每回合最多触发1次，若典韦或许褚统领，自身统率提高25",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "兵种",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "424",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "417332563002013703",
+      "name": "锦帆军",
+      "quality": "S",
+      "type": "兵种",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法锦帆群集",
+      "troopLimit": [
+        "弓兵"
+      ],
+      "target": "我军群体(3人)",
+      "description": "将弓兵进阶为气盖千夫的锦帆军:部队普通攻击时，有40%概率使目标进入溃逃状态（伤害率32%，受武力影响），持续2回合；若目标已经溃逃则造成兵刃攻击（伤害率55%）并恢复伤害量的30%兵力；若甘宁统领，提高友军3%会心",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，锦帆军，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "417332563002013703",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法锦帆群集",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "弓兵",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体(3人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "将弓兵进阶为气盖千夫的锦帆军:部队普通攻击时，有40%概率使目标进入溃逃状态（伤害率32%，受武力影响），持续2回合；若目标已经溃逃则造成兵刃攻击（伤害率55%）并恢复伤害量的30%兵力；若甘宁统领，提高友军3%会心",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "兵种",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "425",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "417332563039762432",
+      "name": "青州兵",
+      "quality": "S",
+      "type": "兵种",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法魏武强兵",
+      "troopLimit": [
+        "枪兵"
+      ],
+      "target": "我军群体(3人)",
+      "description": "将枪兵进阶为冲坚毁锐的青州兵：战斗前2回合，使我军群体（2人）受到普通攻击时对攻击者进行一次反击（伤害率36%→72%）。第三回合开始时依次为我军全体恢复兵力，优先兵力最低单体（治疗率90%→180%，受武力影响，额外受敌军造成伤害影响）；若曹操统领，治疗额外受统率影响。",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，青州兵，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "417332563039762432",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法魏武强兵",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "枪兵",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体(3人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "将枪兵进阶为冲坚毁锐的青州兵：战斗前2回合，使我军群体（2人）受到普通攻击时对攻击者进行一次反击（伤害率36%→72%）。第三回合开始时依次为我军全体恢复兵力，优先兵力最低单体（治疗率90%→180%，受武力影响，额外受敌军造成伤害影响）；若曹操统领，治疗额外受统率影响。",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "兵种",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "426",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "417332563077511175",
+      "name": "三势阵",
+      "quality": "S",
+      "type": "阵法",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法群雄讨董",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "我军群体(3人)",
+      "description": "我军三名武将阵营均不相同，且我军主将自带战法为主动战法或突击战法时，战斗前5回合，主将提高8%自带主动、突击战法发动几率，每回合行动前，使损失兵力较多的副将受到伤害降低15%，另一名副将造成伤害提高12.5%，持续1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，三势阵，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "417332563077511175",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法群雄讨董",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体(3人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "我军三名武将阵营均不相同，且我军主将自带战法为主动战法或突击战法时，战斗前5回合，主将提高8%自带主动、突击战法发动几率，每回合行动前，使损失兵力较多的副将受到伤害降低15%，另一名副将造成伤害提高12.5%，持续1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "阵法",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "427",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "417332563111065607",
+      "name": "当锋摧决",
+      "quality": "S",
+      "type": "突击",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法白马之战",
+      "troopLimit": [],
+      "target": "敌军单体",
+      "description": "普通攻击之后，对攻击目标再次造成一次谋略攻击（伤害率91%，受智力影响），并伪报（禁用被动战法及指挥战法）1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，当锋摧决，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "417332563111065607",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法白马之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军单体",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "普通攻击之后，对攻击目标再次造成一次谋略攻击（伤害率91%，受智力影响），并伪报（禁用被动战法及指挥战法）1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "突击",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "428",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "417332563148814345",
+      "name": "整装待发",
+      "quality": "A",
+      "type": "指挥",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法平定黄巾",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "我军群体(2人)",
+      "description": "战斗中，偶数回合，恢复我军群体（2人）兵力（治疗率44%，受智力影响）",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，整装待发，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "417332563148814345",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法平定黄巾",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体(2人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战斗中，偶数回合，恢复我军群体（2人）兵力（治疗率44%，受智力影响）",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "指挥",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "A",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "429",
+          "type": 5
+        }
+      ]
+    },
+    {
       "id": "417332563186563075",
       "name": "克遵画一",
       "quality": "S",
@@ -33095,6 +33563,970 @@ module.exports = {
         {
           "key": "战法解析",
           "value": "430",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710611544068",
+      "name": "太平道法",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法黄巾之乱",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "自己",
+      "description": "获得14%奇谋并提高自带主动战法发动几率（3%，若为准备战法则提高6%，受智力影响），自身为黄巾军主将时，使黄巾军副将同样获得自带战法发动几率提升",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，太平道法，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710611544068",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法黄巾之乱",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "获得14%奇谋并提高自带主动战法发动几率（3%，若为准备战法则提高6%，受智力影响），自身为黄巾军主将时，使黄巾军副将同样获得自带战法发动几率提升",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "431",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710724790273",
+      "name": "挟势弄权",
+      "quality": "A",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法废立汉帝",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "敌军单体",
+      "description": "对随机敌军单体造成谋略攻击（伤害率93%，受智力影响），并混乱（攻击和战法无差别选择目标）1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，挟势弄权，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710724790273",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法废立汉帝",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军单体",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "对随机敌军单体造成谋略攻击（伤害率93%，受智力影响），并混乱（攻击和战法无差别选择目标）1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "A",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "432",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710762539011",
+      "name": "传檄宣威",
+      "quality": "A",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法群雄鸣动",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "敌军单体",
+      "description": "对随机敌军单体造成谋略攻击（伤害率82.5%，受智力影响），并缴械（无法进行普通攻击）2回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，传檄宣威，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710762539011",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法群雄鸣动",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军单体",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "对随机敌军单体造成谋略攻击（伤害率82.5%，受智力影响），并缴械（无法进行普通攻击）2回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "A",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "433",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710800287751",
+      "name": "气凌三军",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法汜水关之战",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "敌军单体",
+      "description": "受到普通攻击时对攻击者进行一次反击（伤害率26%），自身为副将时，伤害率提升至37%",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，气凌三军，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710800287751",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法汜水关之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军单体",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "受到普通攻击时对攻击者进行一次反击（伤害率26%），自身为副将时，伤害率提升至37%",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "434",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710838036483",
+      "name": "鬼神霆威",
+      "quality": "S",
+      "type": "突击",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法虎牢关之战",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "敌军单体",
+      "description": "普通攻击之后，对攻击目标再次发起一次兵刃攻击（伤害率102%），自身为主将且当目标兵力低于50%时，额外提高伤害（受目标损失兵力影响，最多提高25%）",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，鬼神霆威，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710838036483",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法虎牢关之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军单体",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "普通攻击之后，对攻击目标再次发起一次兵刃攻击（伤害率102%），自身为主将且当目标兵力低于50%时，额外提高伤害（受目标损失兵力影响，最多提高25%）",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "突击",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "435",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710875785220",
+      "name": "火炽原燎",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法洛阳大火",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "敌军群体（2-3人）",
+      "description": "对敌军群体（2-3人）施加灼烧状态，每回合持续造成伤害（伤害率28%，受智力影响），持续2回合；若目标已有灼烧状态则造成兵刃攻击（伤害率59%）",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，火炽原燎，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710875785220",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法洛阳大火",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体（2-3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "对敌军群体（2-3人）施加灼烧状态，每回合持续造成伤害（伤害率28%，受智力影响），持续2回合；若目标已有灼烧状态则造成兵刃攻击（伤害率59%）",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "436",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710913533957",
+      "name": "抚辑军民",
+      "quality": "S",
+      "type": "指挥",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法三让徐州",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "我军群体(2人)",
+      "description": "战斗前3回合，使我军群体（2人）造成的伤害降低12%，受到的伤害降低12%（受统率影响），战斗第4回合时，恢复其兵力（治疗率63%，受智力影响）",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，抚辑军民，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710913533957",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法三让徐州",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体(2人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战斗前3回合，使我军群体（2人）造成的伤害降低12%，受到的伤害降低12%（受统率影响），战斗第4回合时，恢复其兵力（治疗率63%，受智力影响）",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "指挥",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "437",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833710951282690",
+      "name": "虎踞鹰扬",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法平定江东",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "自己",
+      "description": "战斗中，使自身免疫缴械（无法进行普通攻击）状态，普通攻击之后，使自己造成兵刃伤害提高3.5%，最多叠加4次",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，虎踞鹰扬，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833710951282690",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法平定江东",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战斗中，使自身免疫缴械（无法进行普通攻击）状态，普通攻击之后，使自己造成兵刃伤害提高3.5%，最多叠加4次",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "438",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "427833711022585856",
+      "name": "焚辎营垒",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法火烧乌巢",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "敌军群体（2人）",
+      "description": "对敌军群体（2人）造成谋略伤害（伤害率73%，受智力影响）并使其进入禁疗（无法恢复兵力）状态，持续1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，焚辎营垒，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "427833711022585856",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法火烧乌巢",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体（2人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "对敌军群体（2人）造成谋略伤害（伤害率73%，受智力影响）并使其进入禁疗（无法恢复兵力）状态，持续1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "439",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "436914029893531654",
+      "name": "裸衣血战",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法裸衣决斗",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "自己",
+      "description": "战战斗中无法发动主动战法，战斗前3回合，获得45%连击及5%倒戈，并使自身及敌军单体统率降低40%",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，裸衣血战，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "436914029893531654",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法裸衣决斗",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战战斗中无法发动主动战法，战斗前3回合，获得45%连击及5%倒戈，并使自身及敌军单体统率降低40%",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "440",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "436914029918697478",
+      "name": "铁骑驱驰",
+      "quality": "S",
+      "type": "指挥",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法兴兵雪恨",
+      "troopLimit": [
+        "骑兵"
+      ],
+      "target": "敌军群体(3人)",
+      "description": "战斗前2回合，使敌军全体处于遇袭状态（行动滞后），我军全体发动突击战法后，降低普通攻击目标7.5%统率，持续3回合，可叠加",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，铁骑驱驰，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "436914029918697478",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法兴兵雪恨",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体(3人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战斗前2回合，使敌军全体处于遇袭状态（行动滞后），我军全体发动突击战法后，降低普通攻击目标7.5%统率，持续3回合，可叠加",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "指挥",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "441",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "436914029939668994",
+      "name": "引弦力战",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法延津之战",
+      "troopLimit": [
+        "弓兵"
+      ],
+      "target": "自己",
+      "description": "普通攻击之后，有45%概率获得群攻（普通攻击时对目标同部队其他武将造成伤害）状态（伤害率31%），若已处于群攻状态，则提高8武力，持续3回合，最多叠加6次",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，引弦力战，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "436914029939668994",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法延津之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "弓兵",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "普通攻击之后，有45%概率获得群攻（普通攻击时对目标同部队其他武将造成伤害）状态（伤害率31%），若已处于群攻状态，则提高8武力，持续3回合，最多叠加6次",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "442",
           "type": 5
         }
       ]
@@ -33416,6 +34848,168 @@ module.exports = {
         {
           "key": "战法解析",
           "value": "446",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "436914030048720902",
+      "name": "敛众而击",
+      "quality": "A",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件战法祸乱长安",
+      "troopLimit": [
+        "骑兵",
+        "弓兵",
+        "枪兵",
+        "盾兵",
+        "器械"
+      ],
+      "target": "敌军群体(1-2人)",
+      "description": "对敌军群体（1-2人）造成兵刃伤害（伤害率82%），并有45%概率治疗自身（治疗率44%，受武力影响）",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，敛众而击，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "436914030048720902",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件战法祸乱长安",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、弓兵、枪兵、盾兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体(1-2人)",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "对敌军群体（1-2人）造成兵刃伤害（伤害率82%），并有45%概率治疗自身（治疗率44%，受武力影响）",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "A",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "447",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "436914030069692422",
+      "name": "刚勇无前",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件拔矢啖睛",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "自己",
+      "description": "战斗中，受到兵刃伤害后，下回合行动前，提高10%会心并使下一个攻击的伤害提高32.5%，持续1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，刚勇无前，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "436914030069692422",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件拔矢啖睛",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战斗中，受到兵刃伤害后，下回合行动前，提高10%会心并使下一个攻击的伤害提高32.5%，持续1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
           "type": 5
         }
       ]
@@ -38159,6 +39753,81 @@ module.exports = {
       ]
     },
     {
+      "id": "678556298524160005",
+      "name": "仓廪而实",
+      "quality": "A",
+      "type": "内政",
+      "source": "事件战法",
+      "sourceGeneral": "10个群四星武将",
+      "troopLimit": [],
+      "target": "自己",
+      "description": "武将委任为粮草官时，粮食产量提升1%",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，仓廪而实，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "678556298524160005",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "10个群四星武将",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "武将委任为粮草官时，粮食产量提升1%",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "内政",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "A",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "1",
+          "type": 5
+        }
+      ]
+    },
+    {
       "id": "785168813380005895",
       "name": "围师必阙",
       "quality": "S",
@@ -38230,6 +39899,1135 @@ module.exports = {
         {
           "key": "战法来源",
           "value": "自带战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813421948931",
+      "name": "形一阵",
+      "quality": "S",
+      "type": "阵法",
+      "source": "事件战法",
+      "sourceGeneral": "事件界桥之战",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "我军群体（3人）",
+      "description": "我军三名武将自带战法类型相同时，战斗中，自身最高属性提高30点，友军群体（2人）造成及受到伤害降低15%，此效果每回合降低5%。该效果结束后，每回合使其造成伤害提高8%，受到伤害提高2%，可叠加",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，形一阵，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813421948931",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件界桥之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体（3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "我军三名武将自带战法类型相同时，战斗中，自身最高属性提高30点，友军群体（2人）造成及受到伤害降低15%，此效果每回合降低5%。该效果结束后，每回合使其造成伤害提高8%，受到伤害提高2%，可叠加",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "阵法",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813459697667",
+      "name": "独行赴斗",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件猛虎陨落",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "敌军群体（3人）",
+      "description": "嘲讽（强迫目标普通攻击自己）敌军全体，同时提高自身20%统率，持续2回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，独行赴斗，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813459697667",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件猛虎陨落",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体（3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "嘲讽（强迫目标普通攻击自己）敌军全体，同时提高自身20%统率，持续2回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813539389449",
+      "name": "血刃争锋",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件神亭酣战",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "自己",
+      "description": "战斗中，提高37.5%普通攻击伤害，普通攻击之后对目标造成酣斗效果，每回合最多触发1次，若目标身上存在3次酣斗效果，消耗全部酣斗效果额外提升自身（5.5%×酣斗次数）普通攻击伤害，额外提升效果不可叠加，持续到战斗结束",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，血刃争锋，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813539389449",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件神亭酣战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战斗中，提高37.5%普通攻击伤害，普通攻击之后对目标造成酣斗效果，每回合最多触发1次，若目标身上存在3次酣斗效果，消耗全部酣斗效果额外提升自身（5.5%×酣斗次数）普通攻击伤害，额外提升效果不可叠加，持续到战斗结束",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "1",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813581332481",
+      "name": "众动万计",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件袁术称帝",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "自己",
+      "description": "受到普通攻击时，有45%概率对攻击来源造成兵刃伤害（伤害率70%），并使其下一次造成的伤害减少20%",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，众动万计，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813581332481",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件袁术称帝",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "受到普通攻击时，有45%概率对攻击来源造成兵刃伤害（伤害率70%），并使其下一次造成的伤害减少20%",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813619081217",
+      "name": "决水溃城",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件水淹下邳",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "敌军群体（2-3人）",
+      "description": "准备1回合，对敌军群体（2-3人）造成破坏（禁用装备）状态及水攻状态，每回合持续造成伤害（伤害率56%，受智力影响），持续2回合，若该战法首回合发动则无需准备",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，决水溃城，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813619081217",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件水淹下邳",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体（2-3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "准备1回合，对敌军群体（2-3人）造成破坏（禁用装备）状态及水攻状态，每回合持续造成伤害（伤害率56%，受智力影响），持续2回合，若该战法首回合发动则无需准备",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813652635654",
+      "name": "潜龙阵",
+      "quality": "S",
+      "type": "阵法",
+      "source": "事件战法",
+      "sourceGeneral": "事件煮酒论英雄",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "我军群体（3人）",
+      "description": "我军三名武将阵营均不相同时，主将提升7.5%武力、智力、速度、统率，造成伤害降低30%，副将造成伤害提高7.5%，受到伤害降低5%且可触发战法的主将效果；若我军主将的任意战法拥有主将效果，使其失去该效果且属性提升值降低为2.5%",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，潜龙阵，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813652635654",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件煮酒论英雄",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体（3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "我军三名武将阵营均不相同时，主将提升7.5%武力、智力、速度、统率，造成伤害降低30%，副将造成伤害提高7.5%，受到伤害降低5%且可触发战法的主将效果；若我军主将的任意战法拥有主将效果，使其失去该效果且属性提升值降低为2.5%",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "阵法",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "1",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813690384389",
+      "name": "武锋阵",
+      "quality": "S",
+      "type": "阵法",
+      "source": "事件战法",
+      "sourceGeneral": "事件官渡津之战",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "我军群体（3人）",
+      "description": "我军三名武将兵种适性均不相同时，战斗前5回合，我军主将有80%几率优先成为敌军战法的目标，且该战法对其造成的伤害降低15%（受主将统率影响）；战斗中，奇数回合使兵种适性较低的副将恢复我军单体兵力（治疗率92%）；偶数回合使兵种适性较高的副将造成伤害提高7.5%（可叠加）",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，武锋阵，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813690384389",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件官渡津之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体（3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "我军三名武将兵种适性均不相同时，战斗前5回合，我军主将有80%几率优先成为敌军战法的目标，且该战法对其造成的伤害降低15%（受主将统率影响）；战斗中，奇数回合使兵种适性较低的副将恢复我军单体兵力（治疗率92%）；偶数回合使兵种适性较高的副将造成伤害提高7.5%（可叠加）",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "阵法",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813728133129",
+      "name": "千里走单骑",
+      "quality": "S",
+      "type": "被动",
+      "source": "事件战法",
+      "sourceGeneral": "事件千里走单骑",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "自己",
+      "description": "战斗中，自身准备发动自带准备战法时，有35%几率（受武力影响）获得洞察状态（免疫所有控制效果）并提高25武力，持续2回合，在此期间，自身受到普通攻击时，对攻击者进行一次反击（伤害率119%），每回合最多触发1次",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，千里走单骑，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813728133129",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件千里走单骑",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "战斗中，自身准备发动自带准备战法时，有35%几率（受武力影响）获得洞察状态（免疫所有控制效果）并提高25武力，持续2回合，在此期间，自身受到普通攻击时，对攻击者进行一次反击（伤害率119%），每回合最多触发1次",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "被动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813765881864",
+      "name": "婴城自守",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件邺城之战",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "我军群体（2人）",
+      "description": "恢复我军群体（2人）兵力（治疗率46%，受智力影响）并使其获得休整状态（每回合恢复一次兵力，治疗率31%），持续1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，婴城自守，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813765881864",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件邺城之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体（2人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "恢复我军群体（2人）兵力（治疗率46%，受智力影响）并使其获得休整状态（每回合恢复一次兵力，治疗率31%），持续1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813803630596",
+      "name": "据水断桥",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件当阳桥",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "敌军群体（2-3人）",
+      "description": "对敌军群体（2-3人）造成溃逃状态，每回合持续造成伤害（伤害率39%，受武力影响），并使其造成伤害降低4%（受双方武力之差影响），同时使自身获得8%倒戈（造成兵刃伤害时，恢复自身基于伤害量的一定兵力），持续2回合，该战法发动后会进入1回合冷却",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，据水断桥，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813803630596",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件当阳桥",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体（2-3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "对敌军群体（2-3人）造成溃逃状态，每回合持续造成伤害（伤害率39%，受武力影响），并使其造成伤害降低4%（受双方武力之差影响），同时使自身获得8%倒戈（造成兵刃伤害时，恢复自身基于伤害量的一定兵力），持续2回合，该战法发动后会进入1回合冷却",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "1",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813837185027",
+      "name": "草船借箭",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件草船借箭",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "我军群体（2人）",
+      "description": "移除我军群体（2-3人）负面效果，并使我军群体（2人）获得急救状态，每次受到伤害时有35%几率回复一定兵力（伤害量的14%，受统率影响），持续2回合，该战法发动后会进入1回合冷却",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，草船借箭，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813837185027",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件草船借箭",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "我军群体（2人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "移除我军群体（2-3人）负面效果，并使我军群体（2人）获得急救状态，每次受到伤害时有35%几率回复一定兵力（伤害量的14%，受统率影响），持续2回合，该战法发动后会进入1回合冷却",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813887516674",
+      "name": "掣刀斫敌",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件劫法场",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "敌军单体",
+      "description": "使敌军单体受到兵刃伤害提高7.5%，然后对其造成兵刃伤害（伤害率104%）及震慑状态，持续1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，掣刀斫敌，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813887516674",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件劫法场",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军单体",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "使敌军单体受到兵刃伤害提高7.5%，然后对其造成兵刃伤害（伤害率104%）及震慑状态，持续1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "1",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813925265417",
+      "name": "击其惰归",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件定军山之战",
+      "troopLimit": [
+        "盾兵"
+      ],
+      "target": "自己",
+      "description": "自身在下回合行动前，若受到超过最大兵力20%的伤害，则恢复自身兵力（治疗率148%，受统率影响）并降低12.5%受到谋略伤害（受统率影响），持续1回合，否则对敌军全体造成兵刃伤害（伤害率77%）",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，击其惰归，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813925265417",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件定军山之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "盾兵",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "自己",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "自身在下回合行动前，若受到超过最大兵力20%的伤害，则恢复自身兵力（治疗率148%，受统率影响）并降低12.5%受到谋略伤害（受统率影响），持续1回合，否则对敌军全体造成兵刃伤害（伤害率77%）",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
+          "type": 3
+        },
+        {
+          "key": "战法解析",
+          "value": "",
+          "type": 5
+        }
+      ]
+    },
+    {
+      "id": "785168813963014144",
+      "name": "绝其汲道",
+      "quality": "S",
+      "type": "主动",
+      "source": "事件战法",
+      "sourceGeneral": "事件街亭之战",
+      "troopLimit": [
+        "骑兵",
+        "盾兵",
+        "弓兵",
+        "枪兵",
+        "器械"
+      ],
+      "target": "敌军群体（2-3人）",
+      "description": "准备1回合，对敌军群体（2-3人）造成一次兵刃攻击（伤害率81%），使其进入禁疗状态（无法恢复兵力），持续1回合",
+      "season": "",
+      "asset": {
+        "status": "needs_generation",
+        "model": "image2",
+        "policy": "original_style_only",
+        "prompt": "原创三国策略卡牌，绝其汲道，半身人物，克制暗金军帐色彩，自有边框设计，不参考任何官网图、游戏立绘或竞品截图"
+      },
+      "sourceRef": {
+        "table": "战法库",
+        "rowId": "785168813963014144",
+        "mediaFieldsExcluded": [
+          "PCicon",
+          "移动icon",
+          "pc图标",
+          "移动图标"
+        ]
+      },
+      "rawDetails": [
+        {
+          "key": "来源武将",
+          "value": "事件街亭之战",
+          "type": 2
+        },
+        {
+          "key": "兵种限制",
+          "value": "骑兵、盾兵、弓兵、枪兵、器械",
+          "type": 2
+        },
+        {
+          "key": "战法目标",
+          "value": "敌军群体（2-3人）",
+          "type": 2
+        },
+        {
+          "key": "战法描述",
+          "value": "准备1回合，对敌军群体（2-3人）造成一次兵刃攻击（伤害率81%），使其进入禁疗状态（无法恢复兵力），持续1回合",
+          "type": 2
+        },
+        {
+          "key": "所属赛季",
+          "value": "",
+          "type": 2
+        },
+        {
+          "key": "战法类型",
+          "value": "主动",
+          "type": 3
+        },
+        {
+          "key": "战法品质",
+          "value": "S",
+          "type": 3
+        },
+        {
+          "key": "战法来源",
+          "value": "事件战法",
           "type": 3
         },
         {

@@ -126,7 +126,7 @@ const HERO_VISUAL = {
   '张昭': 'elderly stern scholar-official with disapproving expression, formal court robes, pointing finger',
   'sp袁绍': 'noble aristocratic lord with siege towers behind, grand army banner, regal armor',
   'sp朱儁': 'siege warfare commander with breaking walls, determined fierce expression, heavy armor',
-;
+};
 
 function getDefaultVisual(hero) {
   const tagVisual = {
@@ -159,7 +159,7 @@ ${visual}.
 Half-body portrait, wearing ornate armor with gold trim.
 ${color}, dark moody atmospheric background.
 Cinematic lighting, highly detailed face and armor, professional digital painting, 4K quality.
-Elegant gold card frame border around the portrait. Hero name ${hero.name} written in Chinese calligraphy on the card. Faction badge ${hero.faction} in top left corner. Command cost number ${hero.cost} displayed in a circular gold badge in the top right corner. NO health bars, NO skill icons, NO mana cost numbers, NO game UI elements.`;
+Elegant gold card frame border around the portrait. Layout: Faction badge ${hero.faction} in TOP LEFT corner, Hero name ${hero.name} written in Chinese calligraphy DIRECTLY BELOW the faction badge in TOP LEFT area. Command cost number ${hero.cost} displayed in a circular gold badge in the TOP RIGHT corner. Text positions must be consistent: badge and name ALWAYS top left (name below badge), cost ALWAYS top right. NO health bars, NO skill icons, NO mana cost numbers, NO game UI elements.`;
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

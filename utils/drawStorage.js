@@ -27,6 +27,100 @@ function nowTimeStr() {
   return hh + ":" + mm;
 }
 
+// --- season management ---
+
+var SEASONS_KEY = "drawSeasons";
+var CURRENT_SEASON_KEY = "currentSeason";
+
+function getSeasons() {
+  if (!hasWx()) return [];
+  try {
+    return wx.getStorageSync(SEASONS_KEY) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveSeasons(seasons) {
+  if (!hasWx()) return;
+  try {
+    wx.setStorageSync(SEASONS_KEY, seasons);
+  } catch (e) {}
+}
+
+function getCurrentSeason() {
+  if (!hasWx()) return null;
+  try {
+    return wx.getStorageSync(CURRENT_SEASON_KEY) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCurrentSeason(seasonId) {
+  if (!hasWx()) return;
+  try {
+    wx.setStorageSync(CURRENT_SEASON_KEY, seasonId);
+  } catch (e) {}
+}
+
+function createSeason(name, startDate) {
+  var seasons = getSeasons();
+  var season = {
+    id: uid(),
+    name: name || "S" + (seasons.length + 1),
+    startDate: startDate || todayStr(),
+    endDate: null,
+    createdAt: new Date().toISOString()
+  };
+  seasons.push(season);
+  saveSeasons(seasons);
+  setCurrentSeason(season.id);
+  return season;
+}
+
+function endCurrentSeason() {
+  var currentId = getCurrentSeason();
+  if (!currentId) return;
+  var seasons = getSeasons();
+  var updated = seasons.map(function(s) {
+    if (s.id === currentId && !s.endDate) {
+      return Object.assign({}, s, { endDate: todayStr() });
+    }
+    return s;
+  });
+  saveSeasons(updated);
+  setCurrentSeason(null);
+}
+
+function getActiveSeason() {
+  var currentId = getCurrentSeason();
+  if (!currentId) return null;
+  var seasons = getSeasons();
+  return seasons.find(function(s) { return s.id === currentId; }) || null;
+}
+
+function ensureDefaultSeason() {
+  var seasons = getSeasons();
+  var currentId = getCurrentSeason();
+
+  // If there's a current season, return it
+  if (currentId) {
+    var current = seasons.find(function(s) { return s.id === currentId; });
+    if (current) return current;
+  }
+
+  // Find an active season (no end date)
+  var active = seasons.find(function(s) { return !s.endDate; });
+  if (active) {
+    setCurrentSeason(active.id);
+    return active;
+  }
+
+  // Create a new season
+  return createSeason("S1");
+}
+
 // --- storage keys ---
 
 var POOLS_KEY = "drawPools";
@@ -241,6 +335,129 @@ function buildCalendarDays(poolId, year, month) {
   };
 }
 
+// --- statistics ---
+
+function getSeasonStats(poolId, seasonId) {
+  var records = getRecords(poolId);
+  var seasons = getSeasons();
+  var season = seasons.find(function(s) { return s.id === seasonId; });
+
+  if (!season) {
+    return {
+      totalDraws: 0,
+      orangeCount: 0,
+      purpleCount: 0,
+      blueCount: 0,
+      orangeRate: 0,
+      freeDraws: 0,
+      halfDraws: 0,
+      byMonth: [],
+      byGroup: { group1: 0, group2: 0 },
+      orangeGenerals: []
+    };
+  }
+
+  // Filter records by season date range
+  var seasonRecords = records.filter(function(r) {
+    if (r.date < season.startDate) return false;
+    if (season.endDate && r.date > season.endDate) return false;
+    return true;
+  });
+
+  var orangeRecords = seasonRecords.filter(function(r) { return r.quality === "orange"; });
+
+  // Group by month
+  var byMonth = {};
+  seasonRecords.forEach(function(r) {
+    var monthKey = r.date.substring(0, 7); // YYYY-MM
+    if (!byMonth[monthKey]) {
+      byMonth[monthKey] = { month: monthKey, total: 0, orange: 0, purple: 0, blue: 0 };
+    }
+    byMonth[monthKey].total++;
+    if (r.quality === "orange") byMonth[monthKey].orange++;
+    else if (r.quality === "purple") byMonth[monthKey].purple++;
+    else byMonth[monthKey].blue++;
+  });
+
+  // Sort months
+  var monthStats = Object.values(byMonth).sort(function(a, b) {
+    return a.month.localeCompare(b.month);
+  });
+
+  // Orange generals
+  var generalCount = {};
+  orangeRecords.forEach(function(r) {
+    var name = r.generalName || "未记录";
+    generalCount[name] = (generalCount[name] || 0) + 1;
+  });
+  var orangeGenerals = Object.entries(generalCount).map(function(entry) {
+    return { name: entry[0], count: entry[1] };
+  }).sort(function(a, b) { return b.count - a.count; });
+
+  return {
+    totalDraws: seasonRecords.length,
+    orangeCount: orangeRecords.length,
+    purpleCount: seasonRecords.filter(function(r) { return r.quality === "purple"; }).length,
+    blueCount: seasonRecords.filter(function(r) { return r.quality === "blue"; }).length,
+    orangeRate: seasonRecords.length > 0 ? (orangeRecords.length / seasonRecords.length * 100).toFixed(1) : 0,
+    freeDraws: seasonRecords.filter(function(r) { return r.drawType === "free"; }).length,
+    halfDraws: seasonRecords.filter(function(r) { return r.drawType === "half"; }).length,
+    byMonth: monthStats,
+    byGroup: {
+      group1: seasonRecords.filter(function(r) { return r.group === 1; }).length,
+      group2: seasonRecords.filter(function(r) { return r.group === 2; }).length
+    },
+    orangeGenerals: orangeGenerals
+  };
+}
+
+function getAllTimeStats(poolId) {
+  var records = getRecords(poolId);
+  var orangeRecords = records.filter(function(r) { return r.quality === "orange"; });
+
+  // Group by month
+  var byMonth = {};
+  records.forEach(function(r) {
+    var monthKey = r.date.substring(0, 7);
+    if (!byMonth[monthKey]) {
+      byMonth[monthKey] = { month: monthKey, total: 0, orange: 0, purple: 0, blue: 0 };
+    }
+    byMonth[monthKey].total++;
+    if (r.quality === "orange") byMonth[monthKey].orange++;
+    else if (r.quality === "purple") byMonth[monthKey].purple++;
+    else byMonth[monthKey].blue++;
+  });
+
+  var monthStats = Object.values(byMonth).sort(function(a, b) {
+    return a.month.localeCompare(b.month);
+  });
+
+  var generalCount = {};
+  orangeRecords.forEach(function(r) {
+    var name = r.generalName || "未记录";
+    generalCount[name] = (generalCount[name] || 0) + 1;
+  });
+  var orangeGenerals = Object.entries(generalCount).map(function(entry) {
+    return { name: entry[0], count: entry[1] };
+  }).sort(function(a, b) { return b.count - a.count; });
+
+  return {
+    totalDraws: records.length,
+    orangeCount: orangeRecords.length,
+    purpleCount: records.filter(function(r) { return r.quality === "purple"; }).length,
+    blueCount: records.filter(function(r) { return r.quality === "blue"; }).length,
+    orangeRate: records.length > 0 ? (orangeRecords.length / records.length * 100).toFixed(1) : 0,
+    freeDraws: records.filter(function(r) { return r.drawType === "free"; }).length,
+    halfDraws: records.filter(function(r) { return r.drawType === "half"; }).length,
+    byMonth: monthStats,
+    byGroup: {
+      group1: records.filter(function(r) { return r.group === 1; }).length,
+      group2: records.filter(function(r) { return r.group === 2; }).length
+    },
+    orangeGenerals: orangeGenerals
+  };
+}
+
 module.exports = {
   QUALITY_MAP: QUALITY_MAP,
   DRAW_TYPE_MAP: DRAW_TYPE_MAP,
@@ -259,5 +476,16 @@ module.exports = {
   getDrawWindow: getDrawWindow,
   getDrawDate: getDrawDate,
   getTodayGroupRecords: getTodayGroupRecords,
-  buildCalendarDays: buildCalendarDays
+  buildCalendarDays: buildCalendarDays,
+  // Season management
+  getSeasons: getSeasons,
+  getCurrentSeason: getCurrentSeason,
+  setCurrentSeason: setCurrentSeason,
+  createSeason: createSeason,
+  endCurrentSeason: endCurrentSeason,
+  getActiveSeason: getActiveSeason,
+  ensureDefaultSeason: ensureDefaultSeason,
+  // Statistics
+  getSeasonStats: getSeasonStats,
+  getAllTimeStats: getAllTimeStats
 };

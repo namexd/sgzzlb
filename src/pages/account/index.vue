@@ -8,13 +8,14 @@
     <view class="section band">
       <view class="card-title">账号</view>
       <view v-if="loggedIn && userProfile" class="user-info">
-        <view class="user-id">用户 ID：{{ userProfile.id }}</view>
+        <view class="user-id">{{ userProfile.nickname || userProfile.username || userProfile.id }}</view>
         <view class="muted">保存阵容 {{ userProfile.lineupCount }} 套 · 抽卡记录 {{ userProfile.drawCount }} 条</view>
       </view>
       <view v-else-if="loggedIn" class="muted">已登录，正在加载用户信息...</view>
       <view v-else class="muted">未登录。登录后数据可云端同步。</view>
       <view class="config-actions">
-        <button v-if="!loggedIn" class="mini-btn" @tap="doLogin" :loading="loginLoading" :disabled="loginLoading">微信登录</button>
+        <button v-if="!loggedIn" class="mini-btn" @tap="goToLogin">登录 / 注册</button>
+        <button v-if="loggedIn" class="mini-btn" @tap="syncData" :loading="syncing">同步数据</button>
         <button v-if="loggedIn" class="mini-btn" @tap="doLogout">退出登录</button>
       </view>
     </view>
@@ -29,21 +30,14 @@
       </view>
     </view>
 
-    <view class="section band">
+    <view class="section band" @tap="goToDrawStats">
       <view class="row-between">
         <view>
-          <view class="card-title">服务端连接</view>
-          <view class="muted">{{ apiConfig.mode === 'remote' ? '远程 API 模式' : '本地快照模式' }}</view>
+          <view class="card-title">抽卡统计</view>
+          <view class="muted">查看抽卡概率、月度趋势和橙卡记录</view>
         </view>
-        <switch :checked="apiConfig.mode === 'remote'" color="#d6a85d" @change="toggleApiMode" />
+        <view class="arrow">→</view>
       </view>
-      <input class="config-input" :value="apiDraftBaseUrl" @input="onApiBaseUrlInput" placeholder="http://127.0.0.1:8787" />
-      <view class="config-actions">
-        <button class="mini-btn" @tap="saveApiConfig">保存地址</button>
-        <button class="mini-btn" @tap="pingApi">检测连接</button>
-      </view>
-      <view v-if="apiStatus" class="note">{{ apiStatus }}</view>
-      <view v-if="apiRemoteSummary" class="note">远程摘要：武将 {{ apiRemoteSummary.generalsCount }}，战法 {{ apiRemoteSummary.tacticsCount }}，装备 {{ apiRemoteSummary.equipmentCount }}，兵种 {{ apiRemoteSummary.troopTacticsCount }}。</view>
     </view>
 
     <view class="section band">
@@ -71,7 +65,6 @@
           <view class="card-title">账号级共存分析</view>
           <view class="muted">库存：{{ inventorySummary }}</view>
         </view>
-        <button class="mini-btn" @tap="seedInventory">导入示例</button>
       </view>
       <button class="btn secondary" @tap="previewOptimize" :loading="optimizeLoading" :disabled="optimizeLoading">生成共存方案</button>
       <view v-if="optimizeHint" class="note">{{ optimizeHint }}</view>
@@ -111,6 +104,16 @@
       </view>
     </view>
 
+    <view class="section band" @tap="goToFeedback">
+      <view class="row-between">
+        <view>
+          <view class="card-title">意见反馈</view>
+          <view class="muted">功能建议、使用问题或优化需求</view>
+        </view>
+        <view class="arrow">→</view>
+      </view>
+    </view>
+
     <view class="section band">
       <view class="card-title">数据快照</view>
       <view class="note">武将 {{ meta.generalsCount }}，战法 {{ meta.tacticsCount }}，装备 {{ meta.equipmentCount }}，兵种 {{ meta.troopTacticsCount }}。</view>
@@ -121,10 +124,7 @@
 <script>
 import catalog from "../../utils/catalog";
 import { getEntitlements, setTier, syncEntitlements } from "../../utils/subscription";
-import { getApiConfig, setApiConfig, isLoggedIn, logout, wxLogin, getProfile, getCatalogSummary, optimizeAccountAsync, deleteLineupAsync } from "../../services/api";
-
-const EXAMPLE_GENERALS = ["曹操", "刘备", "孙权", "关羽", "张飞", "诸葛亮", "周瑜", "司马懿", "陆逊"];
-const EXAMPLE_TACTICS = ["乱世奸雄", "梦中弑臣", "义心昭烈", "卧薪尝胆", "横扫千军", "盛气凌敌", "刮骨疗毒", "暂避其锋", "锋矢阵", "八门金锁阵", "婴城自守", "白马义从"];
+import { isLoggedIn, logout, getProfile, optimizeAccountAsync, deleteLineupAsync, requestRemote } from "../../services/api";
 
 export default {
   data() {
@@ -133,10 +133,7 @@ export default {
       loggedIn: false,
       userProfile: null,
       loginLoading: false,
-      apiConfig: { mode: "local", baseUrl: "http://127.0.0.1:8787" },
-      apiDraftBaseUrl: "http://127.0.0.1:8787",
-      apiStatus: "",
-      apiRemoteSummary: null,
+      syncing: false,
       savedLineupsView: [],
       generalIds: [],
       tacticIds: [],
@@ -154,8 +151,6 @@ export default {
     refresh() {
       this.loggedIn = isLoggedIn();
       this.entitlements = getEntitlements();
-      this.apiConfig = getApiConfig();
-      this.apiDraftBaseUrl = this.apiConfig.baseUrl;
       this.meta = catalog.getMeta() || {};
       this.loadSaved();
       if (this.loggedIn) this.loadProfile();
@@ -163,38 +158,101 @@ export default {
     loadProfile() {
       getProfile().then((d) => { this.userProfile = d; }).catch(() => {});
     },
-    doLogin() {
-      this.loginLoading = true;
-      wxLogin().then(() => {
-        this.loginLoading = false;
-        this.loggedIn = true;
-        syncEntitlements().then((e) => { this.entitlements = e; });
-        this.loadProfile();
-      }).catch((err) => {
-        this.loginLoading = false;
-        uni.showToast({ title: "登录失败", icon: "none" });
-      });
+    goToLogin() {
+      uni.navigateTo({ url: "/pages/login/index" });
     },
     doLogout() {
       logout();
       this.loggedIn = false;
       this.userProfile = null;
+      uni.showToast({ title: "已退出", icon: "success" });
+    },
+    async syncData() {
+      if (!this.loggedIn) return;
+      this.syncing = true;
+      try {
+        // Upload local lineups
+        const savedLineups = uni.getStorageSync("savedLineups") || [];
+        if (savedLineups.length > 0) {
+          await requestRemote("/api/v1/lineups/sync", { method: "POST", data: { lineups: savedLineups } });
+        }
+        // Upload local draw records
+        const drawPools = uni.getStorageSync("drawPools") || [];
+        for (const pool of drawPools) {
+          const records = uni.getStorageSync(`drawRecords_${pool.id}`) || [];
+          if (records.length > 0) {
+            await requestRemote("/api/v1/draw-records/sync", { method: "POST", data: { records } });
+          }
+        }
+        // Download from server
+        await this.loadFromCloud();
+        uni.showToast({ title: "同步完成", icon: "success" });
+      } catch (e) {
+        uni.showToast({ title: "同步失败", icon: "none" });
+      } finally {
+        this.syncing = false;
+      }
+    },
+    async loadFromCloud() {
+      try {
+        // Load lineups from server
+        const lineupsRes = await requestRemote("/api/v1/lineups");
+        const lineups = lineupsRes.items || [];
+        if (lineups.length > 0) {
+          const localLineups = uni.getStorageSync("savedLineups") || [];
+          const localMap = new Map(localLineups.map(l => [l.id, l]));
+          lineups.forEach(l => {
+            if (!localMap.has(l.id)) {
+              localLineups.push({
+                id: l.id,
+                createdAt: l.created_at,
+                scenario: l.scenario,
+                troop: l.troop,
+                score: l.score,
+                generals: typeof l.generals === 'string' ? JSON.parse(l.generals) : l.generals,
+                tactics: typeof l.tactics === 'string' ? JSON.parse(l.tactics) : l.tactics
+              });
+            }
+          });
+          uni.setStorageSync("savedLineups", localLineups);
+        }
+        // Load draw records from server
+        const drawRes = await requestRemote("/api/v1/draw-records");
+        const records = drawRes.items || [];
+        if (records.length > 0) {
+          // Group by pool and merge
+          const poolMap = {};
+          records.forEach(r => {
+            const poolId = r.pool_id || "default";
+            if (!poolMap[poolId]) poolMap[poolId] = [];
+            poolMap[poolId].push({
+              id: r.id,
+              poolId: r.pool_id,
+              date: r.date,
+              time: r.time,
+              quality: r.quality,
+              generalName: r.general_name,
+              drawType: r.draw_type,
+              group: r.group_num
+            });
+          });
+          for (const [poolId, serverRecords] of Object.entries(poolMap)) {
+            const localRecords = uni.getStorageSync(`drawRecords_${poolId}`) || [];
+            const localIds = new Set(localRecords.map(r => r.id));
+            serverRecords.forEach(r => {
+              if (!localIds.has(r.id)) localRecords.push(r);
+            });
+            uni.setStorageSync(`drawRecords_${poolId}`, localRecords);
+          }
+        }
+        this.loadSaved();
+      } catch (e) {
+        console.error("Load from cloud failed:", e);
+      }
     },
     togglePremium(e) {
       setTier(e.detail.value ? "premium" : "free");
       this.entitlements = getEntitlements();
-    },
-    toggleApiMode(e) {
-      this.apiConfig = setApiConfig({ mode: e.detail.value ? "remote" : "local" });
-    },
-    onApiBaseUrlInput(e) { this.apiDraftBaseUrl = e.detail.value; },
-    saveApiConfig() {
-      this.apiConfig = setApiConfig({ baseUrl: this.apiDraftBaseUrl });
-      uni.showToast({ title: "已保存", icon: "success" });
-    },
-    pingApi() {
-      this.apiStatus = "正在检测...";
-      getCatalogSummary().then((d) => { this.apiStatus = "连接成功。"; this.apiRemoteSummary = d; }).catch((err) => { this.apiStatus = "失败：" + err.message; this.apiRemoteSummary = null; });
     },
     loadSaved() {
       const saved = uni.getStorageSync("savedLineups") || [];
@@ -206,14 +264,6 @@ export default {
     },
     deleteLineup(id) {
       deleteLineupAsync(id).then(() => this.loadSaved());
-    },
-    seedInventory() {
-      const generals = catalog.getGenerals();
-      const tactics = catalog.getAllTactics();
-      this.generalIds = EXAMPLE_GENERALS.map((n) => (generals.find((g) => g.name === n) || {}).id).filter(Boolean);
-      this.tacticIds = EXAMPLE_TACTICS.map((n) => (tactics.find((t) => t.name === n) || {}).id).filter(Boolean);
-      this.inventorySummary = `${this.generalIds.length} 武将 · ${this.tacticIds.length} 战法`;
-      this.optimizeResult = null;
     },
     previewOptimize() {
       if (this.generalIds.length < 3) { this.optimizeHint = "请先导入库存。"; return; }
@@ -231,42 +281,48 @@ export default {
       uni.setStorageSync("savedLineups", [item, ...saved]);
       this.loadSaved();
       uni.showToast({ title: "已保存", icon: "success" });
+    },
+    goToDrawStats() {
+      uni.navigateTo({ url: "/pages/draw/stats" });
+    },
+    goToFeedback() {
+      uni.navigateTo({ url: "/pages/feedback/index" });
     }
   }
 };
 </script>
 
-<style>
-.account-page { padding: 24rpx; }
-.section { margin-bottom: 24rpx; }
-.band { background: rgba(255, 255, 255, 0.04); border-radius: 12rpx; padding: 24rpx; border: 1rpx solid rgba(255, 255, 255, 0.08); }
-.title { color: #f7e4bc; font-size: 36rpx; font-weight: 700; }
-.subtitle { color: #8d97a5; font-size: 24rpx; margin-top: 8rpx; margin-bottom: 16rpx; }
-.card-title { color: #f7e4bc; font-size: 28rpx; font-weight: 600; margin-bottom: 12rpx; }
-.muted { color: #8d97a5; font-size: 24rpx; line-height: 1.6; }
-.note { color: #6b7a8d; font-size: 22rpx; margin-top: 10rpx; }
-.empty { color: #6b7a8d; font-size: 24rpx; padding: 20rpx 0; }
+<style scoped>
+.account-page { min-height: 100vh; padding: var(--sp-lg); padding-bottom: 60rpx; }
+.section { margin-bottom: var(--sp-lg); }
+.band { background: var(--ink-surface); border-radius: var(--r-md); padding: var(--sp-lg); border: 1rpx solid var(--border-faint); box-shadow: var(--shadow-sm); transition: box-shadow var(--ease); }
+.title { color: var(--gold-bright); font-size: 36rpx; font-weight: 700; }
+.subtitle { color: var(--text-stone); font-size: 24rpx; margin-top: var(--sp-xs); margin-bottom: var(--sp-md); }
+.card-title { color: var(--gold-bright); font-size: 28rpx; font-weight: 600; margin-bottom: var(--sp-sm); }
+.muted { color: var(--text-stone); font-size: 24rpx; line-height: 1.6; }
+.note { color: var(--text-fade); font-size: 22rpx; margin-top: 10rpx; }
+.empty { color: var(--text-fade); font-size: 24rpx; padding: 20rpx 0; }
 .row-between { display: flex; justify-content: space-between; align-items: center; }
-.config-input { width: 100%; height: 72rpx; padding: 0 18rpx; border: 1rpx solid rgba(214, 168, 93, 0.22); border-radius: 6rpx; color: #f4ead8; background: rgba(8, 12, 18, 0.45); font-size: 26rpx; box-sizing: border-box; margin-top: 12rpx; }
 .config-actions { display: flex; gap: 14rpx; margin-top: 14rpx; }
-.mini-btn { font-size: 24rpx; padding: 10rpx 24rpx; background: rgba(214, 168, 93, 0.15); border: 1rpx solid rgba(214, 168, 93, 0.3); color: #d6a85d; border-radius: 6rpx; line-height: 1.4; }
-.btn { background: rgba(214, 168, 93, 0.2); border: 1rpx solid #d6a85d; color: #d6a85d; border-radius: 8rpx; font-size: 28rpx; margin-top: 16rpx; }
-.btn.secondary { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.15); color: #b9c2cf; }
-.pill { background: rgba(214, 168, 93, 0.2); color: #d6a85d; font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 4rpx; }
-.saved-item { padding: 16rpx 0; border-bottom: 1rpx solid rgba(255, 255, 255, 0.06); }
-.saved-title { color: #f4ead8; font-size: 26rpx; font-weight: 600; }
+.mini-btn { font-size: 24rpx; padding: 10rpx var(--sp-lg); background: var(--gold-ghost); border: 1rpx solid var(--border-accent); color: var(--gold); border-radius: var(--r-sm); line-height: 1.4; transition: all var(--ease); }
+.btn { background: var(--gold-ghost); border: 1rpx solid var(--gold); color: var(--gold); border-radius: var(--r-md); font-size: 28rpx; margin-top: var(--sp-md); transition: all var(--ease); }
+.btn.secondary { background: var(--ink-surface); border-color: var(--border-subtle); color: var(--text-ink); }
+.pill { background: var(--gold-ghost); color: var(--gold); font-size: 22rpx; padding: var(--sp-xxs) 14rpx; border-radius: var(--sp-xxs); }
+.saved-item { padding: var(--sp-md) 0; border-bottom: 1rpx solid var(--border-faint); }
+.saved-title { color: var(--text-ink); font-size: 26rpx; font-weight: 600; }
 .saved-actions { display: flex; gap: 14rpx; align-items: center; }
-.delete-btn { color: #e74c3c; font-size: 22rpx; }
-.user-info { margin-bottom: 12rpx; }
-.user-id { color: #f4ead8; font-size: 26rpx; }
+.delete-btn { color: var(--loss); font-size: 22rpx; }
+.user-info { margin-bottom: var(--sp-sm); }
+.user-id { color: var(--text-ink); font-size: 26rpx; }
 .optimize-results { margin-top: 18rpx; }
-.optimize-lineup { margin-bottom: 16rpx; }
-.lineup-role { color: #d6a85d; font-size: 26rpx; font-weight: 600; }
-.lineup-score-pill { color: #f4ca78; font-size: 26rpx; font-weight: 700; }
+.optimize-lineup { margin-bottom: var(--sp-md); }
+.lineup-role { color: var(--gold); font-size: 26rpx; font-weight: 600; }
+.lineup-score-pill { color: var(--gold-bright); font-size: 26rpx; font-weight: 700; }
 .lineup-info { margin-top: 10rpx; }
-.lineup-weakness { margin-top: 8rpx; }
+.lineup-weakness { margin-top: var(--sp-xs); }
 .conflict-section { margin-top: 18rpx; }
-.conflict-item { padding: 8rpx 0; }
+.conflict-item { padding: var(--sp-xs) 0; }
 .unused-section { margin-top: 18rpx; }
 .summary-section { margin-top: 14rpx; }
+.arrow { color: var(--text-stone); font-size: 28rpx; }
 </style>

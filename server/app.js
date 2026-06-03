@@ -15,8 +15,17 @@ const {
 } = require("./store");
 const dbModule = require("./db");
 
-const DEFAULT_ADMIN_TOKEN = "dev-admin-token";
+const DEFAULT_ADMIN_TOKEN = "";
 const DEFAULT_TOKEN_SECRET = "sgzzlb-token-secret-dev";
+
+function safeCompare(a, b) {
+  if (!a || !b) return false;
+  const crypto = require("node:crypto");
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 function generateToken(userId, secret) {
   const payload = `${userId}:${Date.now()}`;
@@ -412,17 +421,29 @@ function createApp(options = {}) {
   const staticRoot = options.staticRoot || path.join(__dirname, "..", "admin");
   const admin = createAdminHandlers({ store });
 
-  // Initialize SQLite database
-  const db = dbModule.createDatabase(options.dbPath);
+  // Startup warnings for missing config
+  if (!adminToken) {
+    console.warn("[WARN] ADMIN_TOKEN 未设置，管理后台将无法访问。请设置环境变量 ADMIN_TOKEN。");
+  }
+  if (!process.env.TOKEN_SECRET) {
+    console.warn("[WARN] TOKEN_SECRET 未设置，使用默认签名密钥。请在生产环境设置 TOKEN_SECRET。");
+  }
+  if (!process.env.MYSQL_PASSWORD) {
+    console.warn("[WARN] MYSQL_PASSWORD 未设置，数据库连接可能失败。");
+  }
+
+  // Initialize MySQL database (returns pool)
+  let db = null;
+  const dbReady = dbModule.createDatabase(options.dbConfig).then((pool) => { db = pool; });
 
   // Get or create user from request (openid from header or query)
-  function getUser(req, url) {
+  async function getUser(req, url) {
     const openid = req.headers["x-user-id"] || url.searchParams.get("userId") || "anonymous";
     return dbModule.getOrCreateUser(db, openid);
   }
 
   // Extract authenticated user from Bearer token
-  function getAuthUser(req) {
+  async function getAuthUser(req) {
     const authHeader = req.headers["authorization"] || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     if (!token) return null;
@@ -433,6 +454,9 @@ function createApp(options = {}) {
   }
 
   async function handle(req, res) {
+    // Wait for DB pool to be ready
+    await dbReady;
+
     applyCors(res, req.headers.origin);
 
     if (req.method === "OPTIONS") {
@@ -451,6 +475,61 @@ function createApp(options = {}) {
       }
 
       // --- Auth endpoints ---
+
+      // Register with username/password
+      if (req.method === "POST" && path === "/api/v1/auth/register") {
+        const body = await readJsonBody(req);
+        const username = (body.username || "").trim();
+        const password = body.password || "";
+        const nickname = (body.nickname || "").trim();
+
+        if (!username || username.length < 3) {
+          sendJson(res, 400, { ok: false, message: "用户名至少 3 个字符。" });
+          return;
+        }
+        if (!password || password.length < 6) {
+          sendJson(res, 400, { ok: false, message: "密码至少 6 个字符。" });
+          return;
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+          sendJson(res, 400, { ok: false, message: "用户名只能包含字母、数字和下划线。" });
+          return;
+        }
+
+        const result = await dbModule.registerUser(db, username, password, nickname);
+        if (result.error) {
+          sendJson(res, 400, { ok: false, message: result.error });
+          return;
+        }
+
+        const tokenSecret = process.env.TOKEN_SECRET || DEFAULT_TOKEN_SECRET;
+        const token = generateToken(result.user.id, tokenSecret);
+        sendJson(res, 200, { ok: true, token, user: result.user });
+        return;
+      }
+
+      // Login with username/password
+      if (req.method === "POST" && path === "/api/v1/auth/login") {
+        const body = await readJsonBody(req);
+        const username = (body.username || "").trim();
+        const password = body.password || "";
+
+        if (!username || !password) {
+          sendJson(res, 400, { ok: false, message: "请输入用户名和密码。" });
+          return;
+        }
+
+        const result = await dbModule.loginUser(db, username, password);
+        if (result.error) {
+          sendJson(res, 401, { ok: false, message: result.error });
+          return;
+        }
+
+        const tokenSecret = process.env.TOKEN_SECRET || DEFAULT_TOKEN_SECRET;
+        const token = generateToken(result.user.id, tokenSecret);
+        sendJson(res, 200, { ok: true, token, user: result.user });
+        return;
+      }
 
       if (req.method === "POST" && path === "/api/v1/auth/wechat-login") {
         const body = await readJsonBody(req);
@@ -487,7 +566,7 @@ function createApp(options = {}) {
           openid = "dev_" + code;
         }
 
-        const user = dbModule.getOrCreateUser(db, openid);
+        const user = await dbModule.getOrCreateUser(db, openid);
         const tokenSecret = process.env.TOKEN_SECRET || DEFAULT_TOKEN_SECRET;
         const token = generateToken(user.id, tokenSecret);
         sendJson(res, 200, { ok: true, token, userId: user.id });
@@ -497,7 +576,7 @@ function createApp(options = {}) {
       if (req.method === "POST" && path === "/api/v1/auth/anonymous-login") {
         const body = await readJsonBody(req);
         const userId = body.userId || "anonymous_" + Date.now();
-        const user = dbModule.getOrCreateUser(db, userId);
+        const user = await dbModule.getOrCreateUser(db, userId);
         const tokenSecret = process.env.TOKEN_SECRET || DEFAULT_TOKEN_SECRET;
         const token = generateToken(user.id, tokenSecret);
         sendJson(res, 200, { ok: true, token, userId: user.id });
@@ -505,22 +584,22 @@ function createApp(options = {}) {
       }
 
       if (req.method === "GET" && path === "/api/v1/auth/profile") {
-        const user = getAuthUser(req);
+        const user = await getAuthUser(req);
         if (!user) {
           sendJson(res, 401, { ok: false, message: "未登录或 token 已过期。" });
           return;
         }
-        const lineupCount = db.prepare("SELECT COUNT(*) as cnt FROM lineups WHERE user_id = ?").get(user.id).cnt;
-        const drawCount = db.prepare("SELECT COUNT(*) as cnt FROM draw_records WHERE user_id = ?").get(user.id).cnt;
-        const tierInfo = dbModule.getUserTier(db, user.id);
+        const [lineupCountRows] = await db.execute("SELECT COUNT(*) as cnt FROM lineups WHERE user_id = ?", [user.id]);
+        const [drawCountRows] = await db.execute("SELECT COUNT(*) as cnt FROM draw_records WHERE user_id = ?", [user.id]);
+        const tierInfo = await dbModule.getUserTier(db, user.id);
         sendJson(res, 200, {
           ok: true,
           user: {
             id: user.id,
             nickname: user.nickname,
             createdAt: user.created_at,
-            lineupCount,
-            drawCount
+            lineupCount: lineupCountRows[0].cnt,
+            drawCount: drawCountRows[0].cnt
           },
           entitlements: dbModule.getEntitlements(tierInfo.tier)
         });
@@ -528,28 +607,34 @@ function createApp(options = {}) {
       }
 
       if (req.method === "GET" && path === "/api/v1/auth/entitlements") {
-        const user = getAuthUser(req);
+        const user = await getAuthUser(req);
         if (!user) {
           sendJson(res, 200, { ok: true, entitlements: dbModule.getEntitlements("free") });
           return;
         }
-        const tierInfo = dbModule.getUserTier(db, user.id);
+        const tierInfo = await dbModule.getUserTier(db, user.id);
         sendJson(res, 200, { ok: true, entitlements: dbModule.getEntitlements(tierInfo.tier) });
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/auth/set-tier") {
-        const user = getAuthUser(req);
-        if (!user) {
-          sendJson(res, 401, { ok: false, message: "未登录。" });
+        const token = req.headers["x-admin-token"];
+        if (!safeCompare(token, adminToken)) {
+          sendJson(res, 401, { error: "需要管理员权限。" });
           return;
         }
         const body = await readJsonBody(req);
+        const targetUserId = (body.userId || "").trim();
+        if (!targetUserId) {
+          sendJson(res, 400, { ok: false, message: "缺少 userId 参数。" });
+          return;
+        }
         const tier = body.tier === "premium" ? "premium" : "free";
         const expiresAt = tier === "premium" && body.days
           ? new Date(Date.now() + body.days * 86400000).toISOString()
           : null;
-        const result = dbModule.setUserTier(db, user.id, tier, expiresAt);
+        const result = await dbModule.setUserTier(db, targetUserId, tier, expiresAt);
+        addAuditLog(store, "tier.changed", { targetUserId, tier, expiresAt, admin: true });
         sendJson(res, 200, { ok: true, tier: result.tier, expiresAt: result.expiresAt });
         return;
       }
@@ -617,6 +702,38 @@ function createApp(options = {}) {
         return;
       }
 
+      // Sync lineups from local to server
+      if (req.method === "POST" && path === "/api/v1/lineups/sync") {
+        const user = await getUser(req, url);
+        const body = await readJsonBody(req);
+        const lineups = Array.isArray(body.lineups) ? body.lineups : [];
+        let added = 0;
+        let failed = 0;
+        const errors = [];
+        for (const l of lineups) {
+          try {
+            await dbModule.saveLineup(db, user.id, {
+              id: l.id,
+              scenario: l.scenario,
+              troop: l.troop,
+              score: l.score,
+              generals: l.generals,
+              tactics: l.tactics,
+              source: "h5-local"
+            });
+            added++;
+          } catch (e) {
+            failed++;
+            if (errors.length < 5) errors.push({ id: l.id, error: e.message });
+          }
+        }
+        if (failed > 0) {
+          addAuditLog(store, "lineups.sync.partial", { added, failed, userId: user.id });
+        }
+        sendJson(res, 200, { ok: true, added, failed, errors: errors.length > 0 ? errors : undefined });
+        return;
+      }
+
       if (req.method === "POST" && path === "/api/v1/matchups/preview") {
         sendJson(res, 200, api.previewMatchup(await readJsonBody(req)));
         return;
@@ -628,39 +745,39 @@ function createApp(options = {}) {
       }
 
       if (req.method === "POST" && path === "/api/v1/battle-reports") {
-        const user = getAuthUser(req) || getUser(req, url);
+        const user = await getAuthUser(req) || await getUser(req, url);
         const body = await readJsonBody(req);
         if (!body.result || !["win", "loss", "draw"].includes(body.result)) {
           sendJson(res, 400, { ok: false, message: "result 必须是 win/loss/draw。" });
           return;
         }
-        const saved = dbModule.addBattleReport(db, user.id, body);
+        const saved = await dbModule.addBattleReport(db, user.id, body);
         addAuditLog(store, "battleReports.created", { id: saved.id, result: body.result, userId: user.id });
         sendJson(res, 200, { ok: true, item: saved });
         return;
       }
 
       if (req.method === "GET" && path === "/api/v1/battle-reports") {
-        const user = getAuthUser(req) || getUser(req, url);
+        const user = await getAuthUser(req) || await getUser(req, url);
         const limit = parsePositiveInteger(url.searchParams.get("limit"), 50, 200);
         const offset = parsePositiveInteger(url.searchParams.get("offset"), 0);
-        const reports = dbModule.getBattleReports(db, user.id, limit, offset);
+        const reports = await dbModule.getBattleReports(db, user.id, limit, offset);
         sendJson(res, 200, { items: reports });
         return;
       }
 
       if (req.method === "GET" && path === "/api/v1/battle-reports/stats") {
-        const user = getAuthUser(req) || getUser(req, url);
-        const stats = dbModule.getBattleReportStats(db, user.id);
+        const user = await getAuthUser(req) || await getUser(req, url);
+        const stats = await dbModule.getBattleReportStats(db, user.id);
         sendJson(res, 200, { ok: true, stats });
         return;
       }
 
       const battleReportDeleteMatch = path.match(/^\/api\/v1\/battle-reports\/([^/]+)$/);
       if (req.method === "DELETE" && battleReportDeleteMatch) {
-        const user = getAuthUser(req) || getUser(req, url);
+        const user = await getAuthUser(req) || await getUser(req, url);
         const reportId = decodeURIComponent(battleReportDeleteMatch[1]);
-        const result = dbModule.deleteBattleReport(db, reportId, user.id);
+        const result = await dbModule.deleteBattleReport(db, reportId, user.id);
         sendJson(res, 200, { ok: true, deleted: result.deleted });
         return;
       }
@@ -670,20 +787,72 @@ function createApp(options = {}) {
         return;
       }
 
-      // --- Draw pools (SQLite) ---
+      // --- Feedback ---
+
+      if (req.method === "POST" && path === "/api/v1/feedback") {
+        const body = await readJsonBody(req);
+        const content = (body.content || "").trim();
+        if (!content || content.length < 5) {
+          sendJson(res, 400, { ok: false, message: "反馈内容至少 5 个字。" });
+          return;
+        }
+        if (content.length > 1000) {
+          sendJson(res, 400, { ok: false, message: "反馈内容不能超过 1000 字。" });
+          return;
+        }
+        const contact = (body.contact || "").trim().slice(0, 128);
+        const user = await getAuthUser(req);
+        const saved = await dbModule.addFeedback(db, user ? user.id : null, content, contact);
+        sendJson(res, 200, { ok: true, item: saved });
+        return;
+      }
+
+      if (req.method === "GET" && path === "/api/v1/feedback") {
+        const token = req.headers["x-admin-token"];
+        if (!safeCompare(token, adminToken)) {
+          sendJson(res, 401, { error: "需要管理员权限。" });
+          return;
+        }
+        const limit = parsePositiveInteger(url.searchParams.get("limit"), 50, 200);
+        const offset = parsePositiveInteger(url.searchParams.get("offset"), 0);
+        const items = await dbModule.getFeedbackList(db, limit, offset);
+        sendJson(res, 200, { items });
+        return;
+      }
+
+      const feedbackStatusMatch = path.match(/^\/api\/v1\/feedback\/([^/]+)\/status$/);
+      if (req.method === "PUT" && feedbackStatusMatch) {
+        const token = req.headers["x-admin-token"];
+        if (!safeCompare(token, adminToken)) {
+          sendJson(res, 401, { error: "需要管理员权限。" });
+          return;
+        }
+        const body = await readJsonBody(req);
+        const validStatuses = ["pending", "read", "resolved", "rejected"];
+        if (!validStatuses.includes(body.status)) {
+          sendJson(res, 400, { ok: false, message: "无效状态。" });
+          return;
+        }
+        const feedbackId = decodeURIComponent(feedbackStatusMatch[1]);
+        const updated = await dbModule.updateFeedbackStatus(db, feedbackId, body.status);
+        sendJson(res, 200, { ok: true, item: updated });
+        return;
+      }
+
+      // --- Draw pools (MySQL) ---
 
       if (req.method === "GET" && path === "/api/v1/draw-pools") {
-        const user = getUser(req, url);
-        const pools = dbModule.getDrawPools(db, user.id);
+        const user = await getUser(req, url);
+        const pools = await dbModule.getDrawPools(db, user.id);
         sendJson(res, 200, { items: pools });
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/draw-pools") {
-        const user = getUser(req, url);
+        const user = await getUser(req, url);
         const body = await readJsonBody(req);
         const name = normalizeText(body.name, "新卡池", 60);
-        const pool = dbModule.createDrawPool(db, user.id, name);
+        const pool = await dbModule.createDrawPool(db, user.id, name);
         addAuditLog(store, "drawPools.created", { id: pool.id, name: pool.name, userId: user.id });
         sendJson(res, 200, { ok: true, item: pool });
         return;
@@ -691,9 +860,9 @@ function createApp(options = {}) {
 
       const drawPoolDeleteMatch = path.match(/^\/api\/v1\/draw-pools\/([^/]+)$/);
       if (req.method === "DELETE" && drawPoolDeleteMatch) {
-        const user = getUser(req, url);
+        const user = await getUser(req, url);
         const poolId = decodeURIComponent(drawPoolDeleteMatch[1]);
-        const result = dbModule.deleteDrawPool(db, poolId, user.id);
+        const result = await dbModule.deleteDrawPool(db, poolId, user.id);
         if (result.deleted > 0) {
           addAuditLog(store, "drawPools.deleted", { id: poolId, recordsDeleted: result.recordsDeleted, userId: user.id });
         }
@@ -701,23 +870,23 @@ function createApp(options = {}) {
         return;
       }
 
-      // --- Draw records (SQLite) ---
+      // --- Draw records (MySQL) ---
 
       if (req.method === "GET" && path === "/api/v1/draw-records") {
-        const user = getUser(req, url);
+        const user = await getUser(req, url);
         const poolId = url.searchParams.get("poolId");
         let records;
         if (poolId) {
-          records = dbModule.getDrawRecords(db, poolId, user.id);
+          records = await dbModule.getDrawRecords(db, poolId, user.id);
         } else {
-          records = dbModule.getAllDrawRecords(db, user.id);
+          records = await dbModule.getAllDrawRecords(db, user.id);
         }
         sendJson(res, 200, { items: records });
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/draw-records") {
-        const user = getUser(req, url);
+        const user = await getUser(req, url);
         const body = await readJsonBody(req);
         const record = {
           poolId: body.poolId || "default",
@@ -728,27 +897,27 @@ function createApp(options = {}) {
           drawType: body.drawType || "free",
           group: body.group || 1
         };
-        const saved = dbModule.addDrawRecord(db, user.id, record);
+        const saved = await dbModule.addDrawRecord(db, user.id, record);
         sendJson(res, 200, { ok: true, item: saved });
         return;
       }
 
       const drawRecordDeleteMatch = path.match(/^\/api\/v1\/draw-records\/([^/]+)$/);
       if (req.method === "DELETE" && drawRecordDeleteMatch) {
-        const user = getUser(req, url);
+        const user = await getUser(req, url);
         const recordId = decodeURIComponent(drawRecordDeleteMatch[1]);
-        const result = dbModule.deleteDrawRecord(db, recordId, user.id);
+        const result = await dbModule.deleteDrawRecord(db, recordId, user.id);
         sendJson(res, 200, { ok: true, deleted: result.deleted });
         return;
       }
 
-      // --- Draw records sync (batch upload, SQLite) ---
+      // --- Draw records sync (batch upload, MySQL) ---
 
       if (req.method === "POST" && path === "/api/v1/draw-records/sync") {
-        const user = getUser(req, url);
+        const user = await getUser(req, url);
         const body = await readJsonBody(req);
         const records = Array.isArray(body.records) ? body.records : [];
-        const result = dbModule.syncDrawRecords(db, user.id, records);
+        const result = await dbModule.syncDrawRecords(db, user.id, records);
         if (result.added > 0) {
           addAuditLog(store, "drawRecords.synced", { added: result.added, total: result.total, userId: user.id });
         }
@@ -758,7 +927,7 @@ function createApp(options = {}) {
 
       if (path.startsWith("/api/admin/")) {
         const token = req.headers["x-admin-token"];
-        if (token !== adminToken) {
+        if (!safeCompare(token, adminToken)) {
           sendJson(res, 401, { error: "缺少或无效的管理后台令牌。" });
           return;
         }

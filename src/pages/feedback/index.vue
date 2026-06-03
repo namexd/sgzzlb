@@ -1,0 +1,272 @@
+<template>
+  <view class="page feedback-page">
+    <view class="section header">
+      <view class="back-btn" @tap="goBack">← 返回</view>
+      <view class="title">意见反馈</view>
+    </view>
+
+    <view class="section tip-card">
+      <view class="tip-text">感谢你的反馈！请描述你希望新增的功能、使用中遇到的问题或优化建议。</view>
+    </view>
+
+    <view class="section form-card">
+      <view class="form-label">反馈内容</view>
+      <textarea
+        class="feedback-input"
+        v-model="content"
+        placeholder="请详细描述你的建议或问题..."
+        :maxlength="1000"
+        auto-height
+      />
+      <view class="char-count">{{ content.length }}/1000</view>
+
+      <view v-if="errorMsg" class="error-msg">{{ errorMsg }}</view>
+
+      <view class="form-label">联系方式（选填）</view>
+      <input
+        class="contact-input"
+        v-model="contact"
+        placeholder="微信号或邮箱，方便我们联系你"
+        :maxlength="128"
+      />
+
+      <button class="submit-btn" @tap="submitFeedback" :loading="submitting" :disabled="submitting">
+        提交反馈
+      </button>
+    </view>
+
+    <view v-if="submitted" class="section success-card">
+      <view class="success-icon">✓</view>
+      <view class="success-text">反馈已提交，感谢你的建议！</view>
+    </view>
+  </view>
+</template>
+
+<script>
+const PROFANITY_LIST = [
+  "操你", "你妈", "他妈", "狗日", "傻逼", "煞笔", "牛逼", "卧槽", "我靠",
+  "草泥马", "尼玛", "妈的", "妈逼", "fuck", "shit", "bitch", "ass", "damn",
+  "sb", "nmsl", "wocao", "cnm", "nmb", "tmd", "jj", "jb", "dick",
+  "垃圾", "废物", "蠢货", "白痴", "智障", "脑残", "弱智",
+  "滚蛋", "去死", "混蛋", "王八蛋", "贱人", "婊子"
+];
+
+// Must contain at least some Chinese characters
+const CHINESE_REGEX = /[一-鿿]/;
+// Detect meaningless repeated chars (e.g., "aaaaaa", "111111")
+const REPEATED_CHAR = /(.)\1{4,}/;
+// Detect random keyboard mashing (e.g., "asdfgh", "qwerty")
+const MASHING_PATTERNS = /^(asdf|qwer|zxcv|hjkl|uiop|nm,.)/i;
+// Too few unique characters relative to length
+function isMeaningless(text) {
+  const cleaned = text.replace(/[\s\.,!?，。！？、\-\n]/g, "");
+  if (cleaned.length < 5) return true;
+  const uniqueChars = new Set(cleaned).size;
+  if (uniqueChars < 3 && cleaned.length > 5) return true;
+  if (REPEATED_CHAR.test(cleaned)) return true;
+  if (MASHING_PATTERNS.test(cleaned)) return true;
+  // Mostly numbers or letters
+  const chineseCount = (cleaned.match(/[一-鿿]/g) || []).length;
+  if (cleaned.length > 10 && chineseCount < cleaned.length * 0.2) return true;
+  return false;
+}
+
+function containsProfanity(text) {
+  const lower = text.toLowerCase();
+  return PROFANITY_LIST.some(word => lower.includes(word));
+}
+
+function validateContent(text) {
+  const trimmed = text.trim();
+  if (trimmed.length < 5) return "反馈内容至少需要 5 个字。";
+  if (trimmed.length > 1000) return "反馈内容不能超过 1000 字。";
+  if (!CHINESE_REGEX.test(trimmed)) return "请用中文描述你的反馈。";
+  if (isMeaningless(trimmed)) return "反馈内容需要是有意义的文字描述，不能是无意义的重复或乱码。";
+  if (containsProfanity(trimmed)) return "请文明用语，感谢理解。";
+  return "";
+}
+
+export default {
+  data() {
+    return {
+      content: "",
+      contact: "",
+      errorMsg: "",
+      submitting: false,
+      submitted: false
+    };
+  },
+  methods: {
+    goBack() {
+      uni.navigateBack();
+    },
+    async submitFeedback() {
+      this.errorMsg = "";
+      const validation = validateContent(this.content);
+      if (validation) {
+        this.errorMsg = validation;
+        return;
+      }
+      this.submitting = true;
+      try {
+        const { requestRemote } = await import("../../services/api");
+        const res = await requestRemote("/api/v1/feedback", {
+          method: "POST",
+          data: { content: this.content.trim(), contact: this.contact.trim() }
+        });
+        if (res.ok) {
+          this.submitted = true;
+          this.content = "";
+          this.contact = "";
+          setTimeout(() => { this.submitted = false; }, 3000);
+        } else {
+          this.errorMsg = res.message || "提交失败，请重试。";
+        }
+      } catch (e) {
+        this.errorMsg = "网络错误，请重试。";
+      } finally {
+        this.submitting = false;
+      }
+    }
+  }
+};
+</script>
+
+<style scoped>
+.feedback-page {
+  min-height: 100vh;
+  padding: var(--sp-lg);
+  padding-bottom: 100rpx;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: var(--sp-lg);
+}
+
+.back-btn {
+  color: var(--gold);
+  font-size: 28rpx;
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+
+.tip-card {
+  background: var(--gold-ghost);
+  border: 1rpx solid var(--border-accent);
+  border-radius: var(--r-md);
+  padding: 20rpx var(--sp-lg);
+  margin-bottom: var(--sp-lg);
+}
+
+.tip-text {
+  color: var(--gold);
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.form-card {
+  background: var(--ink-surface);
+  border: 1rpx solid var(--border-faint);
+  border-radius: var(--r-md);
+  padding: var(--sp-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-label {
+  color: var(--gold-bright);
+  font-size: 26rpx;
+  font-weight: 600;
+  margin-bottom: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+
+.form-label:first-child {
+  margin-top: 0;
+}
+
+.feedback-input {
+  width: 100%;
+  min-height: 240rpx;
+  background: var(--ink-surface);
+  border: 1rpx solid var(--border-faint);
+  border-radius: var(--r-md);
+  padding: 20rpx;
+  color: var(--text-ink);
+  font-size: 28rpx;
+  line-height: 1.6;
+  box-sizing: border-box;
+  transition: border-color var(--ease);
+}
+
+.char-count {
+  text-align: right;
+  color: var(--text-fade);
+  font-size: 22rpx;
+  margin-top: var(--sp-xs);
+}
+
+.contact-input {
+  width: 100%;
+  height: 80rpx;
+  background: var(--ink-surface);
+  border: 1rpx solid var(--border-faint);
+  border-radius: var(--r-md);
+  padding: 0 20rpx;
+  color: var(--text-ink);
+  font-size: 28rpx;
+  box-sizing: border-box;
+  transition: border-color var(--ease);
+}
+
+.error-msg {
+  color: var(--loss);
+  font-size: 24rpx;
+  margin-top: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  background: rgba(231, 76, 60, 0.1);
+  border-radius: var(--r-sm);
+}
+
+.submit-btn {
+  margin-top: var(--sp-xl);
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-dim) 100%);
+  color: var(--ink-deepest);
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: var(--r-md);
+  height: 88rpx;
+  line-height: 88rpx;
+  transition: opacity var(--ease);
+}
+
+.submit-btn[disabled] {
+  opacity: 0.5;
+}
+
+.success-card {
+  text-align: center;
+  padding: 40rpx;
+  background: rgba(46, 204, 113, 0.1);
+  border: 1rpx solid rgba(46, 204, 113, 0.3);
+  border-radius: var(--r-md);
+  margin-top: var(--sp-lg);
+}
+
+.success-icon {
+  font-size: 60rpx;
+  color: var(--win);
+  margin-bottom: var(--sp-sm);
+}
+
+.success-text {
+  color: var(--win);
+  font-size: 28rpx;
+}
+</style>

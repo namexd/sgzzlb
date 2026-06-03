@@ -1,1 +1,30 @@
-<!DOCTYPE html><html><head></head><body><div id="app"></div><script type="module" src="./main.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>三战配将分析</title>
+  <script>
+    // Set root font-size for rpx to rem conversion
+    // uni-app default: 750rpx = 100vw, so 1rpx = 100/750 vw
+    (function() {
+      function setRem() {
+        var designWidth = 750;
+        var clientWidth = document.documentElement.clientWidth;
+        // Limit max width for tablet
+        var width = Math.min(clientWidth, 750);
+        document.documentElement.style.fontSize = (width / 750 * 100) + 'px';
+      }
+      setRem();
+      window.addEventListener('resize', setRem);
+      window.addEventListener('pageshow', function(e) {
+        if (e.persisted) setRem();
+      });
+    })();
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

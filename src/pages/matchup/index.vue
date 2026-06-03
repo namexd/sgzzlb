@@ -81,7 +81,7 @@
       <view class="summary">{{ result.summary }}</view>
       <view class="summary">{{ result.risk }}</view>
       <view class="summary">{{ result.troopNote }}</view>
-      <view class="confidence">可信度：{{ result.confidence }}。这不是完整战斗引擎，正式结论仍需真实战报校验。</view>
+      <view class="confidence">可信度：{{ result.confidence }}</view>
       <view class="battle-actions">
         <button class="mini-btn" @click="openBattleForm">记录战斗结果</button>
         <button class="mini-btn" @click="loadBattleStats">查看战报统计</button>
@@ -198,11 +198,7 @@
       </view>
     </view>
 
-    <view class="section band">
-      <view class="side-title">当前数据来源</view>
-      <view class="summary">本方优先使用你在评分页保存的最新阵容；如果还没保存，会使用默认示例阵容。</view>
-      <view class="muted">已保存阵容：{{ savedCount }} 套</view>
-    </view>
+    <view class="feedback-entry" @tap="goToFeedback">对功能有意见？去反馈 →</view>
   </view>
 </template>
 
@@ -211,7 +207,6 @@ import catalog from "../../utils/catalog";
 import { getEntitlements } from "../../utils/subscription";
 import {
   previewMatchupAsync,
-  isRemoteMode,
   addBattleReportAsync,
   getBattleReportStatsAsync,
   getBattleReportsAsync,
@@ -317,7 +312,6 @@ export default {
       ownSummary: null,
       enemySummary: null,
       result: null,
-      savedCount: 0,
       isLoading: false,
       apiStatus: "",
       showBattleForm: false,
@@ -356,7 +350,7 @@ export default {
     },
 
     refresh() {
-      const saved = uni.getStorageSync("savedLineups") || [];
+      const saved = this.savedLineups.length ? this.savedLineups : [];
       const ownInput = saved.length ? this.savedToInput(saved[0]) : this.defaultOwnInput();
 
       let enemyInput;
@@ -373,35 +367,29 @@ export default {
       }
 
       const payload = { own: ownInput, enemy: enemyInput };
-      const remote = isRemoteMode();
       this.savedCount = saved.length;
       this.isLoading = true;
-      this.apiStatus = remote ? "正在请求远程对位服务..." : "使用本地规则预览对位。";
+      this.apiStatus = "";
 
       previewMatchupAsync(payload)
         .then((preview) => {
-          this.applyPreview(saved[0], ownInput, enemyInput, preview, remote ? "对位结果来自远程 API。" : "对位结果来自本地规则。", enemyName);
-        })
-        .catch((error) => {
           this.isLoading = false;
-          this.apiStatus = `对位请求失败：${error.message}`;
+          this.ownSummary = this.toSummary(saved[0], ownInput, preview.own);
+          this.enemySummary = this.toSummary({ name: enemyName }, enemyInput, preview.enemy);
+          this.result = preview.result;
+        })
+        .catch(() => {
+          this.isLoading = false;
+          this.apiStatus = "对位分析失败，请稍后重试。";
         });
-    },
-
-    applyPreview(saved, ownInput, enemyInput, preview, statusText, enemyName) {
-      this.isLoading = false;
-      this.apiStatus = statusText;
-      this.ownSummary = this.toSummary(saved, ownInput, preview.own);
-      this.enemySummary = this.toSummary({ name: enemyName }, enemyInput, preview.enemy);
-      this.result = preview.result;
     },
 
     defaultOwnInput() {
       return this.templateToInput({
-        troop: "盾兵",
+        troop: "弓兵",
         scenario: "pk",
-        generals: ["曹操", "刘备", "孙权"],
-        tactics: ["乱世奸雄", "梦中弑臣", "义心昭烈", "义心昭烈", "坐断东南", "卧薪尝胆"]
+        generals: ["赵云", "诸葛亮", "周瑜"],
+        tactics: ["一身是胆", "卧薪尝胆", "神机妙算", "刮骨疗毒", "火炽原燎", "焰逐风飞"]
       });
     },
 
@@ -504,20 +492,18 @@ export default {
         note: form.note
       };
 
-      this.apiStatus = "正在记录战报...";
       addBattleReportAsync(report)
         .then(() => {
           this.showBattleForm = false;
           this.battleForm = null;
-          this.apiStatus = "战报已记录。";
+          uni.showToast({ title: "战报已记录", icon: "success" });
         })
-        .catch((err) => {
-          this.apiStatus = `战报记录失败：${err.message}`;
+        .catch(() => {
+          uni.showToast({ title: "记录失败", icon: "none" });
         });
     },
 
     loadBattleStats() {
-      this.apiStatus = "正在加载战报统计...";
       Promise.all([
         getBattleReportStatsAsync(),
         getBattleReportsAsync({ limit: 20 })
@@ -526,15 +512,18 @@ export default {
           this.battleStats = statsRes.stats || statsRes;
           this.battleRecords = reportsRes.items || [];
           this.showStats = true;
-          this.apiStatus = "";
         })
-        .catch((err) => {
-          this.apiStatus = `加载战报失败：${err.message}`;
+        .catch(() => {
+          uni.showToast({ title: "加载失败", icon: "none" });
         });
     },
 
     closeStats() {
       this.showStats = false;
+    },
+
+    goToFeedback() {
+      uni.navigateTo({ url: "/pages/feedback/index" });
     },
 
     deleteBattleRecord(id) {
@@ -550,33 +539,34 @@ export default {
 <style scoped>
 .matchup-page {
   min-height: 100vh;
-  padding: 24rpx;
-  background: #0e1520;
-  color: #e0d6c6;
+  padding: var(--sp-lg);
+  padding-bottom: 60rpx;
 }
 
 .title {
   font-size: 36rpx;
   font-weight: 700;
-  color: #f7e4bc;
+  color: var(--gold-bright);
 }
 
 .subtitle {
-  margin-top: 8rpx;
+  margin-top: var(--sp-xs);
   font-size: 24rpx;
-  color: #98a3b3;
-  margin-bottom: 24rpx;
+  color: var(--text-stone);
+  margin-bottom: var(--sp-lg);
 }
 
 .section {
-  margin-bottom: 24rpx;
+  margin-bottom: var(--sp-lg);
 }
 
 .band {
-  padding: 24rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.22);
-  background: rgba(249, 239, 216, 0.06);
-  border-radius: 8rpx;
+  padding: var(--sp-lg);
+  border: 1rpx solid var(--border-accent);
+  background: var(--ink-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--ease);
 }
 
 .row-between {
@@ -588,44 +578,45 @@ export default {
 .pill {
   padding: 6rpx 18rpx;
   border-radius: 20rpx;
-  background: rgba(214, 168, 93, 0.15);
-  color: #d6a85d;
+  background: var(--gold-ghost);
+  color: var(--gold);
   font-size: 22rpx;
   white-space: nowrap;
 }
 
 .label {
   margin-bottom: 10rpx;
-  color: #8d97a5;
+  color: var(--text-stone);
   font-size: 22rpx;
 }
 
 .field {
-  padding: 16rpx 20rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.22);
-  border-radius: 6rpx;
-  color: #f4ead8;
-  background: rgba(8, 12, 18, 0.45);
+  padding: var(--sp-md) 20rpx;
+  border: 1rpx solid var(--border-accent);
+  border-radius: var(--r-sm);
+  color: var(--text-ink);
+  background: var(--ink-deep);
   font-size: 26rpx;
+  transition: border-color var(--ease);
 }
 
 .empty {
   padding: 20rpx;
-  color: #8d97a5;
+  color: var(--text-stone);
   font-size: 24rpx;
   text-align: center;
 }
 
 .gate {
-  margin-top: 16rpx;
-  color: #d6a85d;
+  margin-top: var(--sp-md);
+  color: var(--gold);
   font-size: 24rpx;
   line-height: 1.5;
 }
 
 .sync-status {
   margin-top: 14rpx;
-  color: #d6a85d;
+  color: var(--gold);
   font-size: 24rpx;
   line-height: 1.5;
 }
@@ -633,7 +624,7 @@ export default {
 .compare-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16rpx;
+  gap: var(--sp-md);
 }
 
 .side {
@@ -641,21 +632,21 @@ export default {
 }
 
 .side-title {
-  color: #f7e4bc;
+  color: var(--gold-bright);
   font-size: 28rpx;
   font-weight: 700;
 }
 
 .score {
-  margin-top: 12rpx;
-  color: #f4ca78;
+  margin-top: var(--sp-sm);
+  color: var(--gold-bright);
   font-size: 56rpx;
   font-weight: 800;
   line-height: 1;
 }
 
 .muted {
-  color: #8d97a5;
+  color: var(--text-stone);
   font-size: 24rpx;
 }
 
@@ -664,50 +655,51 @@ export default {
 .summary,
 .confidence {
   margin-top: 14rpx;
-  color: #b9c2cf;
+  color: var(--text-ink);
   font-size: 24rpx;
   line-height: 1.55;
 }
 
 .risk {
-  color: #e2b884;
+  color: var(--gold-dim);
 }
 
 .verdict-title {
-  color: #f4ca78;
+  color: var(--gold-bright);
   font-size: 40rpx;
   font-weight: 800;
 }
 
 .confidence {
-  color: #8d97a5;
+  color: var(--text-stone);
 }
 
 .card-title {
-  color: #f7e4bc;
+  color: var(--gold-bright);
   font-size: 30rpx;
   font-weight: 700;
 }
 
 .source-tabs {
   display: flex;
-  gap: 16rpx;
+  gap: var(--sp-md);
   margin-top: 10rpx;
   margin-bottom: 14rpx;
 }
 
 .source-tab {
-  padding: 8rpx 24rpx;
-  border-radius: 6rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.22);
-  color: #8d97a5;
+  padding: var(--sp-xs) var(--sp-lg);
+  border-radius: var(--r-sm);
+  border: 1rpx solid var(--border-accent);
+  color: var(--text-stone);
   font-size: 24rpx;
+  transition: all var(--ease);
 }
 
 .source-tab.active {
-  border-color: #d6a85d;
-  color: #d6a85d;
-  background: rgba(214, 168, 93, 0.1);
+  border-color: var(--gold);
+  color: var(--gold);
+  background: var(--gold-ghost);
 }
 
 .enemy-picker {
@@ -721,18 +713,19 @@ export default {
 }
 
 .mini-btn {
-  padding: 10rpx 24rpx;
+  padding: 10rpx var(--sp-lg);
   font-size: 24rpx;
-  color: #d6a85d;
-  border: 1rpx solid rgba(214, 168, 93, 0.3);
-  border-radius: 6rpx;
+  color: var(--gold);
+  border: 1rpx solid var(--border-accent);
+  border-radius: var(--r-sm);
   background: transparent;
   line-height: 1.6;
+  transition: all var(--ease);
 }
 
 .mini-btn.primary {
-  background: rgba(214, 168, 93, 0.2);
-  border-color: #d6a85d;
+  background: var(--gold-ghost);
+  border-color: var(--gold);
 }
 
 .modal-mask {
@@ -741,7 +734,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--ink-deepest);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -752,10 +745,11 @@ export default {
   width: 640rpx;
   max-height: 80vh;
   overflow-y: auto;
-  background: #1a2332;
-  border-radius: 12rpx;
-  padding: 30rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.2);
+  background: var(--ink-mid);
+  border-radius: var(--r-md);
+  padding: var(--sp-xl);
+  border: 1rpx solid var(--border-accent);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal-large {
@@ -763,43 +757,44 @@ export default {
 }
 
 .modal-title {
-  color: #f7e4bc;
+  color: var(--gold-bright);
   font-size: 30rpx;
   font-weight: 700;
-  margin-bottom: 24rpx;
+  margin-bottom: var(--sp-lg);
 }
 
 .result-tabs {
   display: flex;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-lg);
 }
 
 .result-tab {
   flex: 1;
   text-align: center;
   padding: 14rpx 0;
-  border-radius: 8rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.15);
-  color: #8d97a5;
+  border-radius: var(--r-md);
+  border: 1rpx solid var(--border-subtle);
+  color: var(--text-stone);
   font-size: 26rpx;
+  transition: all var(--ease);
 }
 
 .result-tab.win {
-  border-color: #27ae60;
-  color: #27ae60;
+  border-color: var(--win);
+  color: var(--win);
   background: rgba(39, 174, 96, 0.1);
 }
 
 .result-tab.loss {
-  border-color: #e74c3c;
-  color: #e74c3c;
+  border-color: var(--loss);
+  color: var(--loss);
   background: rgba(231, 76, 60, 0.1);
 }
 
 .result-tab.draw {
-  border-color: #f39c12;
-  color: #f39c12;
+  border-color: var(--draw);
+  color: var(--draw);
   background: rgba(243, 156, 18, 0.1);
 }
 
@@ -808,9 +803,9 @@ export default {
 }
 
 .form-label {
-  color: #8d97a5;
+  color: var(--text-stone);
   font-size: 22rpx;
-  margin-bottom: 8rpx;
+  margin-bottom: var(--sp-xs);
   display: block;
 }
 
@@ -818,18 +813,19 @@ export default {
   width: 100%;
   height: 72rpx;
   padding: 0 18rpx;
-  border: 1rpx solid rgba(214, 168, 93, 0.22);
-  border-radius: 6rpx;
-  color: #f4ead8;
-  background: rgba(8, 12, 18, 0.45);
+  border: 1rpx solid var(--border-accent);
+  border-radius: var(--r-sm);
+  color: var(--text-ink);
+  background: var(--ink-deep);
   font-size: 26rpx;
   box-sizing: border-box;
+  transition: border-color var(--ease);
 }
 
 .modal-actions {
   display: flex;
   gap: 14rpx;
-  margin-top: 24rpx;
+  margin-top: var(--sp-lg);
   justify-content: flex-end;
 }
 
@@ -837,39 +833,39 @@ export default {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 14rpx;
-  margin-bottom: 24rpx;
+  margin-bottom: var(--sp-lg);
 }
 
 .stat-item {
   text-align: center;
   padding: 14rpx 0;
-  background: rgba(8, 12, 18, 0.35);
-  border-radius: 8rpx;
+  background: var(--ink-deep);
+  border-radius: var(--r-md);
 }
 
 .stat-value {
-  color: #f4ca78;
+  color: var(--gold-bright);
   font-size: 32rpx;
   font-weight: 700;
 }
 
 .stat-label {
-  color: #8d97a5;
+  color: var(--text-stone);
   font-size: 20rpx;
-  margin-top: 4rpx;
+  margin-top: var(--sp-xxs);
 }
 
 .troop-stats,
 .recent-records {
   margin-top: 18rpx;
   padding-top: 14rpx;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-top: 1rpx solid var(--border-faint);
 }
 
 .troop-row {
   display: flex;
   justify-content: space-between;
-  padding: 8rpx 0;
+  padding: var(--sp-xs) 0;
 }
 
 .record-row {
@@ -877,7 +873,7 @@ export default {
   align-items: center;
   gap: 14rpx;
   padding: 10rpx 0;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1rpx solid var(--border-faint);
 }
 
 .record-result {
@@ -888,20 +884,46 @@ export default {
 }
 
 .record-result.win {
-  color: #27ae60;
+  color: var(--win);
 }
 
 .record-result.loss {
-  color: #e74c3c;
+  color: var(--loss);
 }
 
 .record-result.draw {
-  color: #f39c12;
+  color: var(--draw);
 }
 
 .delete-btn {
   margin-left: auto;
-  color: #e74c3c;
+  color: var(--loss);
   font-size: 22rpx;
+}
+
+@media screen and (min-width: 768px) {
+  .score {
+    font-size: 72rpx;
+  }
+
+  .verdict-title {
+    font-size: 52rpx;
+  }
+
+  .mini-btn {
+    font-size: 28rpx;
+    padding: 14rpx var(--sp-xl);
+  }
+
+  .field {
+    font-size: 30rpx;
+  }
+}
+
+.feedback-entry {
+  text-align: center;
+  color: var(--text-fade);
+  font-size: 24rpx;
+  padding: var(--sp-xl) 0 var(--sp-md);
 }
 </style>

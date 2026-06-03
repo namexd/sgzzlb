@@ -5,7 +5,7 @@ const require = createRequire(import.meta.url);
 const catalog = require("../data/catalog.json");
 
 assert.equal(catalog.meta.generalsCount, 112, "武将数量应与官方快照一致");
-assert.equal(catalog.meta.tacticsCount, 174, "战法数量应与官方快照一致");
+assert.equal(catalog.meta.tacticsCount, 209, "战法数量应与官方快照一致");
 assert.equal(catalog.meta.equipmentCount, 57, "装备数量应与官方快照一致");
 assert.equal(catalog.meta.troopTacticsCount, 12, "兵种数量应与官方快照一致");
 assert.equal(catalog.meta.officialMediaUrlsExcluded, true, "必须剔除官方图片 URL");

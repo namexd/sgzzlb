@@ -19,6 +19,12 @@
       }
     },
     {
+      "path": "pages/draw/stats",
+      "style": {
+        "navigationBarTitleText": "抽卡统计"
+      }
+    },
+    {
       "path": "pages/matchup/index",
       "style": {
         "navigationBarTitleText": "对位"
@@ -31,9 +37,15 @@
       }
     },
     {
-      "path": "pages/roadmap/index",
+      "path": "pages/feedback/index",
       "style": {
-        "navigationBarTitleText": "路线"
+        "navigationBarTitleText": "意见反馈"
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录"
       }
     }
   ],

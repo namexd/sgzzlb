@@ -1,4 +1,4 @@
-import { getStorage, setStorage } from "./storage";
+import { getStorage, setStorage, removeStorage } from "./storage";
 import * as api from "../services/api";
 
 const DEFAULT_POOL_NAME = "主卡池";
@@ -182,6 +182,182 @@ export function buildCalendarDays(poolId, year, month) {
     orangeCount: monthRecords.filter(r => r.quality === "orange").length,
     purpleCount: monthRecords.filter(r => r.quality === "purple").length,
     blueCount: monthRecords.filter(r => r.quality === "blue").length
+  };
+}
+
+// Season management
+const SEASONS_KEY = "drawSeasons";
+const CURRENT_SEASON_KEY = "currentSeason";
+
+export function getSeasons() {
+  return getStorage(SEASONS_KEY) || [];
+}
+
+function saveSeasons(seasons) {
+  setStorage(SEASONS_KEY, seasons);
+}
+
+export function getCurrentSeason() {
+  return getStorage(CURRENT_SEASON_KEY) || null;
+}
+
+export function setCurrentSeason(seasonId) {
+  setStorage(CURRENT_SEASON_KEY, seasonId);
+}
+
+export function createSeason(name, startDate) {
+  const seasons = getSeasons();
+  const season = {
+    id: uid(),
+    name: name || "S" + (seasons.length + 1),
+    startDate: startDate || todayStr(),
+    endDate: null,
+    createdAt: new Date().toISOString()
+  };
+  seasons.push(season);
+  saveSeasons(seasons);
+  setCurrentSeason(season.id);
+  return season;
+}
+
+export function endCurrentSeason() {
+  const currentId = getCurrentSeason();
+  if (!currentId) return;
+  const seasons = getSeasons();
+  const updated = seasons.map(s => {
+    if (s.id === currentId && !s.endDate) {
+      return { ...s, endDate: todayStr() };
+    }
+    return s;
+  });
+  saveSeasons(updated);
+  setCurrentSeason(null);
+}
+
+export function getActiveSeason() {
+  const currentId = getCurrentSeason();
+  if (!currentId) return null;
+  const seasons = getSeasons();
+  return seasons.find(s => s.id === currentId) || null;
+}
+
+export function ensureDefaultSeason() {
+  const seasons = getSeasons();
+  const currentId = getCurrentSeason();
+
+  if (currentId) {
+    const current = seasons.find(s => s.id === currentId);
+    if (current) return current;
+  }
+
+  const active = seasons.find(s => !s.endDate);
+  if (active) {
+    setCurrentSeason(active.id);
+    return active;
+  }
+
+  return createSeason("S1");
+}
+
+// Statistics
+export function getSeasonStats(poolId, seasonId) {
+  const records = getRecords(poolId);
+  const seasons = getSeasons();
+  const season = seasons.find(s => s.id === seasonId);
+
+  if (!season) {
+    return {
+      totalDraws: 0, orangeCount: 0, purpleCount: 0, blueCount: 0,
+      orangeRate: 0, freeDraws: 0, halfDraws: 0,
+      byMonth: [], byGroup: { group1: 0, group2: 0 }, orangeGenerals: []
+    };
+  }
+
+  const seasonRecords = records.filter(r => {
+    if (r.date < season.startDate) return false;
+    if (season.endDate && r.date > season.endDate) return false;
+    return true;
+  });
+
+  const orangeRecords = seasonRecords.filter(r => r.quality === "orange");
+
+  const byMonth = {};
+  seasonRecords.forEach(r => {
+    const monthKey = r.date.substring(0, 7);
+    if (!byMonth[monthKey]) byMonth[monthKey] = { month: monthKey, total: 0, orange: 0, purple: 0, blue: 0 };
+    byMonth[monthKey].total++;
+    if (r.quality === "orange") byMonth[monthKey].orange++;
+    else if (r.quality === "purple") byMonth[monthKey].purple++;
+    else byMonth[monthKey].blue++;
+  });
+
+  const monthStats = Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month));
+
+  const generalCount = {};
+  orangeRecords.forEach(r => {
+    const name = r.generalName || "未记录";
+    generalCount[name] = (generalCount[name] || 0) + 1;
+  });
+  const orangeGenerals = Object.entries(generalCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    totalDraws: seasonRecords.length,
+    orangeCount: orangeRecords.length,
+    purpleCount: seasonRecords.filter(r => r.quality === "purple").length,
+    blueCount: seasonRecords.filter(r => r.quality === "blue").length,
+    orangeRate: seasonRecords.length > 0 ? (orangeRecords.length / seasonRecords.length * 100).toFixed(1) : 0,
+    freeDraws: seasonRecords.filter(r => r.drawType === "free").length,
+    halfDraws: seasonRecords.filter(r => r.drawType === "half").length,
+    byMonth: monthStats,
+    byGroup: {
+      group1: seasonRecords.filter(r => r.group === 1).length,
+      group2: seasonRecords.filter(r => r.group === 2).length
+    },
+    orangeGenerals
+  };
+}
+
+export function getAllTimeStats(poolId) {
+  const records = getRecords(poolId);
+  const orangeRecords = records.filter(r => r.quality === "orange");
+
+  const byMonth = {};
+  records.forEach(r => {
+    const monthKey = r.date.substring(0, 7);
+    if (!byMonth[monthKey]) byMonth[monthKey] = { month: monthKey, total: 0, orange: 0, purple: 0, blue: 0 };
+    byMonth[monthKey].total++;
+    if (r.quality === "orange") byMonth[monthKey].orange++;
+    else if (r.quality === "purple") byMonth[monthKey].purple++;
+    else byMonth[monthKey].blue++;
+  });
+
+  const monthStats = Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month));
+
+  const generalCount = {};
+  orangeRecords.forEach(r => {
+    const name = r.generalName || "未记录";
+    generalCount[name] = (generalCount[name] || 0) + 1;
+  });
+  const orangeGenerals = Object.entries(generalCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    totalDraws: records.length,
+    orangeCount: orangeRecords.length,
+    purpleCount: records.filter(r => r.quality === "purple").length,
+    blueCount: records.filter(r => r.quality === "blue").length,
+    orangeRate: records.length > 0 ? (orangeRecords.length / records.length * 100).toFixed(1) : 0,
+    freeDraws: records.filter(r => r.drawType === "free").length,
+    halfDraws: records.filter(r => r.drawType === "half").length,
+    byMonth: monthStats,
+    byGroup: {
+      group1: records.filter(r => r.group === 1).length,
+      group2: records.filter(r => r.group === 2).length
+    },
+    orangeGenerals
   };
 }
 

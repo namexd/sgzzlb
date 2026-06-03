@@ -27,6 +27,11 @@
           "changeOrigin": true
         }
       }
+    },
+    "optimization": {
+      "treeShaking": {
+        "enable": false
+      }
     }
   }
 }

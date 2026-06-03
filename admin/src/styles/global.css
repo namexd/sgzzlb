@@ -1,0 +1,263 @@
+/*
+ * 墨金古韵 — Admin Panel Design System
+ * 水墨留白 × 古铜金锚点 × 深色管理后台
+ */
+
+:root {
+  /* Surface layers */
+  --ink-deepest: #0c0f14;
+  --ink-deep: #11161d;
+  --ink-mid: #161c26;
+  --ink-surface: #1b2230;
+  --ink-raised: #212a38;
+  --ink-overlay: #283244;
+
+  /* Text */
+  --text-ink: #e8dcc8;
+  --text-stone: #97a0b0;
+  --text-fade: #5e6a7a;
+
+  /* Gold */
+  --gold: #c9983a;
+  --gold-bright: #e4b84d;
+  --gold-dim: #8a6b2a;
+  --gold-ghost: rgba(201, 152, 58, 0.06);
+
+  /* Secondary */
+  --stone: #5a8faf;
+  --stone-dim: #3d6a85;
+
+  /* Semantic */
+  --win: #5aad6a;
+  --loss: #c45a4a;
+  --draw: #c49a3a;
+
+  /* Borders */
+  --border-faint: rgba(255, 255, 255, 0.04);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-accent: rgba(201, 152, 58, 0.25);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.45);
+
+  /* Transition */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--ink-deep);
+  color: var(--text-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== Element Plus Dark Theme ===== */
+
+/* Menu */
+.el-menu {
+  background-color: transparent !important;
+  border-right: none !important;
+}
+
+.el-menu-item,
+.el-sub-menu__title {
+  color: var(--text-stone) !important;
+  transition: all 0.2s var(--ease) !important;
+}
+
+.el-menu-item:hover,
+.el-sub-menu__title:hover {
+  background-color: var(--gold-ghost) !important;
+  color: var(--gold) !important;
+}
+
+.el-menu-item.is-active {
+  color: var(--gold) !important;
+  background-color: var(--gold-ghost) !important;
+  border-right: 3px solid var(--gold) !important;
+}
+
+/* Card */
+.el-card {
+  background: var(--ink-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 12px !important;
+  color: var(--text-ink) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: border-color 0.2s var(--ease) !important;
+}
+
+.el-card:hover {
+  border-color: var(--border-accent) !important;
+}
+
+.el-card__header {
+  border-bottom: 1px solid var(--border-faint) !important;
+  color: var(--text-ink) !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Table */
+.el-table {
+  --el-table-bg-color: transparent !important;
+  --el-table-tr-bg-color: transparent !important;
+  --el-table-header-bg-color: var(--ink-mid) !important;
+  --el-table-row-hover-bg-color: var(--gold-ghost) !important;
+  --el-table-border-color: var(--border-faint) !important;
+  --el-table-text-color: var(--text-ink) !important;
+  --el-table-header-text-color: var(--text-stone) !important;
+}
+
+/* Input */
+.el-input__wrapper {
+  background-color: var(--ink-deep) !important;
+  box-shadow: 0 0 0 1px var(--border-subtle) inset !important;
+  border-radius: 8px !important;
+  transition: box-shadow 0.2s var(--ease) !important;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--border-accent) inset !important;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--gold) inset !important;
+}
+
+.el-input__inner {
+  color: var(--text-ink) !important;
+}
+
+.el-input__inner::placeholder {
+  color: var(--text-fade) !important;
+}
+
+/* Button Primary */
+.el-button--primary {
+  --el-button-bg-color: var(--gold) !important;
+  --el-button-border-color: var(--gold) !important;
+  --el-button-text-color: #121008 !important;
+  --el-button-hover-bg-color: var(--gold-bright) !important;
+  --el-button-hover-border-color: var(--gold-bright) !important;
+  --el-button-hover-text-color: #121008 !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Button Default */
+.el-button--default {
+  border-color: var(--border-subtle) !important;
+  color: var(--text-stone) !important;
+}
+
+.el-button--default:hover {
+  border-color: var(--border-accent) !important;
+  color: var(--gold) !important;
+  background: var(--gold-ghost) !important;
+}
+
+/* Button Danger */
+.el-button--danger.is-text {
+  color: var(--loss) !important;
+}
+
+.el-button--danger.is-text:hover {
+  background: rgba(196, 90, 74, 0.08) !important;
+}
+
+/* Tag */
+.el-tag {
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+}
+
+.el-tag--success {
+  --el-tag-bg-color: rgba(90, 173, 106, 0.1) !important;
+  --el-tag-border-color: rgba(90, 173, 106, 0.25) !important;
+  --el-tag-text-color: var(--win) !important;
+}
+
+.el-tag--danger {
+  --el-tag-bg-color: rgba(196, 90, 74, 0.1) !important;
+  --el-tag-border-color: rgba(196, 90, 74, 0.25) !important;
+  --el-tag-text-color: var(--loss) !important;
+}
+
+/* Pagination */
+.el-pagination {
+  --el-pagination-bg-color: transparent !important;
+  --el-pagination-button-bg-color: var(--ink-raised) !important;
+  --el-pagination-text-color: var(--text-stone) !important;
+  --el-pagination-button-color: var(--text-stone) !important;
+  --el-pagination-hover-color: var(--gold) !important;
+}
+
+/* Dialog */
+.el-dialog {
+  background: var(--ink-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.el-dialog__title {
+  color: var(--text-ink) !important;
+  font-weight: 600 !important;
+}
+
+.el-dialog__body {
+  color: var(--text-ink) !important;
+}
+
+/* Form */
+.el-form-item__label {
+  color: var(--text-stone) !important;
+}
+
+/* Select */
+.el-select__wrapper {
+  background-color: var(--ink-deep) !important;
+  box-shadow: 0 0 0 1px var(--border-subtle) inset !important;
+  border-radius: 8px !important;
+}
+
+.el-select__placeholder {
+  color: var(--text-fade) !important;
+}
+
+.el-select__selected-item span {
+  color: var(--text-ink) !important;
+}
+
+/* Empty */
+.el-empty__description p {
+  color: var(--text-fade) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink-overlay);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-fade);
+}

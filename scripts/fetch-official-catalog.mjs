@@ -15,7 +15,7 @@ const TABLES = [
     key: "tactics",
     name: "战法库",
     tbId: "350659307657771017",
-    categoryIds: "352052655832446980,352052655832446981"
+    categoryIds: "" // 不过滤分类，获取全部战法（含事件战法）
   },
   {
     key: "equipment",
@@ -76,23 +76,21 @@ async function callOfficialApi(api, params, retries = 3) {
 async function fetchList(table) {
   // 官方前端使用 20；更大的 size 会返回 5000004。
   const size = 20;
-  const first = await callOfficialApi("/api/l/owresource/getQueryDataInfoListByCategory", {
-    tbId: table.tbId,
-    categoryIds: table.categoryIds,
-    page: 0,
-    size
-  });
+  const params = { tbId: table.tbId, page: 0, size };
+  if (table.categoryIds) {
+    params.categoryIds = table.categoryIds;
+  }
+  const first = await callOfficialApi("/api/l/owresource/getQueryDataInfoListByCategory", params);
   const total = first.totalCount || 0;
   const pages = Math.ceil(total / size);
   const items = [...(first.items || [])];
 
   for (let page = 1; page < pages; page += 1) {
-    const result = await callOfficialApi("/api/l/owresource/getQueryDataInfoListByCategory", {
-      tbId: table.tbId,
-      categoryIds: table.categoryIds,
-      page,
-      size
-    });
+    const pageParams = { tbId: table.tbId, page, size };
+    if (table.categoryIds) {
+      pageParams.categoryIds = table.categoryIds;
+    }
+    const result = await callOfficialApi("/api/l/owresource/getQueryDataInfoListByCategory", pageParams);
     items.push(...(result.items || []));
   }
 

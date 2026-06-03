@@ -25,6 +25,7 @@
       </view>
 
       <view class="picker-count">显示 {{ filtered.length }} / {{ totalCount }} 条</view>
+      <view v-if="filtered.length < totalCount" class="picker-hint">输入关键词缩小搜索范围</view>
 
       <scroll-view class="picker-list" scroll-y>
         <view
@@ -51,7 +52,7 @@ import catalog from "../utils/catalog";
 
 const FACTION_CHIPS = ["全部", "魏", "蜀", "吴", "群"];
 const QUALITY_CHIPS = ["全部", "S", "A", "B"];
-const DISPLAY_LIMIT = 60;
+const DISPLAY_LIMIT = 100;
 
 export default {
   props: {
@@ -194,4 +195,5 @@ export default {
 .item-sub { color: #8d97a5; font-size: 22rpx; }
 .item-check { color: #d6a85d; font-size: 32rpx; font-weight: 700; }
 .picker-empty { text-align: center; color: #6b7a8d; font-size: 26rpx; padding: 60rpx 0; }
+.picker-hint { color: #6b7a8d; font-size: 20rpx; margin-top: 4rpx; }
 </style>
