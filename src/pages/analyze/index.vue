@@ -1,18 +1,20 @@
 <template>
   <view class="page analyze-page">
-    <!-- Controls -->
-    <view class="section controls band">
-      <view class="ctrl-row">
-        <picker :range="scenarios" range-key="name" :value="scenarioIndex" @change="onScenarioChange">
-          <view class="field ctrl-field">{{ scenarios[scenarioIndex].name }}</view>
-        </picker>
-        <text class="pill">{{ entitlements.tier === 'premium' ? '高级' : '免费' }}</text>
+    <view class="analyze-bg"></view>
+
+    <view class="lineup-header">
+      <view class="back-btn" @tap="goToFeedback">‹</view>
+      <view class="header-center">
+        <view class="page-title">阵容配置</view>
+        <view class="page-subtitle">LINEUP</view>
       </view>
+      <view class="share-btn" @tap="saveLineup">阵容分享</view>
     </view>
 
-    <!-- Team troop type -->
-    <view class="section troop-row">
-      <text class="troop-label">队伍兵种</text>
+    <view class="selector-panel">
+      <picker :range="scenarios" range-key="name" :value="scenarioIndex" @change="onScenarioChange">
+        <view class="select-field">{{ currentScenarioName }}</view>
+      </picker>
       <view class="troop-options">
         <view
           v-for="(t, idx) in troops"
@@ -23,119 +25,99 @@
       </view>
     </view>
 
-    <!-- 3 Generals horizontal -->
-    <view class="section lineup-row">
-      <view v-for="(general, slot) in selectedGeneralsView" :key="general.id" class="general-col">
-        <!-- Card -->
-        <view class="general-card" @tap="openGeneralPicker(slot)">
-          <image v-if="general.cardImageUrl" class="general-card-img" :src="general.cardImageUrl" mode="widthFix" />
-          <view v-else class="general-card-placeholder">
-            <text class="placeholder-initial">{{ general.name[0] }}</text>
-            <text class="placeholder-name">{{ general.name }}</text>
+    <view class="section-title">当前阵容</view>
+    <view class="lineup-cards">
+      <view v-for="(general, slot) in selectedGeneralsView" :key="general.id" :class="['lineup-card', 'slot-' + slot]" @tap="openGeneralPicker(slot)">
+        <view v-if="!general.cardImageUrl" class="cost-badge">御{{ general.cost || '-' }}</view>
+        <image v-if="general.cardImageUrl" class="general-card-img" :src="general.cardImageUrl" mode="aspectFill" />
+        <view v-else class="general-card-placeholder">
+          <text class="placeholder-initial">{{ general.name[0] }}</text>
+        </view>
+        <view v-if="!general.cardImageUrl" class="card-shade">
+          <view class="faction-line">{{ general.faction || '群' }}</view>
+          <view class="general-name">{{ general.name }}</view>
+          <view class="star-row">
+            <text v-for="star in 5" :key="star">●</text>
           </view>
-          <view class="aptitudes">
+          <view class="level-text">50级</view>
+          <view class="arms-row">
             <text>骑{{ general.arms.cavalry || '-' }}</text>
             <text>盾{{ general.arms.shield || '-' }}</text>
             <text>弓{{ general.arms.bow || '-' }}</text>
-            <text>枪{{ general.arms.spear || '-' }}</text>
           </view>
         </view>
+      </view>
+    </view>
 
-        <!-- Swap buttons -->
-        <view v-if="slot < 2" class="swap-btn" @tap="swapGenerals(slot, slot + 1)">
-          <text class="swap-icon">⇄</text>
-        </view>
-
-        <!-- Tactics: innate + 2 manual -->
-        <view class="tactic-section">
-          <view class="tactic-innate">{{ general.tactics.innate || '自带战法' }}</view>
+    <view class="section-panel tactic-panel">
+      <view class="section-title inline">战法配置</view>
+      <view class="tactic-grid">
+        <view v-for="group in tacticsByGeneral" :key="group.general.id" class="tactic-column">
+          <view class="tactic-heading">{{ group.general.name }}战法</view>
+          <view class="tactic-row innate">
+            <view class="tactic-dot"></view>
+            <text>{{ group.general.tactics.innate || '自带战法' }}</text>
+            <text class="grade">S</text>
+          </view>
           <view
-            v-for="tacticSlot in general.tacticSlots"
+            v-for="tacticSlot in group.general.tacticSlots"
             :key="tacticSlot.slot"
-            class="tactic-manual"
+            class="tactic-row"
             @tap="openTacticPicker(tacticSlot.slot)"
           >
-            <text class="tactic-name">{{ tacticSlot.tactic ? tacticSlot.tactic.name : '选择战法' }}</text>
+            <view class="tactic-dot"></view>
+            <text>{{ tacticSlot.tactic ? tacticSlot.tactic.name : '选择战法' }}</text>
+            <text class="grade">{{ tacticSlot.tactic && tacticSlot.tactic.quality ? tacticSlot.tactic.quality : 'A' }}</text>
           </view>
-        </view>
-
-        <!-- Red level -->
-        <view class="red-section">
-          <text class="red-label">红度 {{ general.red }}</text>
-          <slider
-            class="red-slider"
-            :min="0"
-            :max="5"
-            :step="1"
-            :value="general.red"
-            activeColor="#d6a85d"
-            backgroundColor="#35404d"
-            :block-size="16"
-            @change="onRedChange($event, slot)"
-          />
         </view>
       </view>
     </view>
 
-    <!-- Actions -->
-    <view class="section action-row">
-      <button class="btn" :loading="isAnalyzing" :disabled="isAnalyzing" @tap="analyze">生成评分报告</button>
-      <button class="btn secondary" :disabled="!report" @tap="saveLineup">保存阵容</button>
+    <view class="section-panel bonus-panel">
+      <view class="section-title inline">阵容加成</view>
+      <view class="bonus-row">
+        <view v-for="item in lineupBonuses" :key="item.name" class="bonus-item">
+          <view class="bonus-mark">{{ item.mark }}</view>
+          <view>
+            <view class="bonus-name">{{ item.name }}</view>
+            <view :class="['bonus-status', { active: item.active }]">{{ item.active ? '激活' : '未激活' }}</view>
+          </view>
+        </view>
+      </view>
     </view>
-    <view v-if="apiStatus" class="section api-message">{{ apiStatus }}</view>
-    <view v-if="savedMessage" class="section saved-message">{{ savedMessage }}</view>
 
-    <!-- Report -->
-    <view v-if="report" class="section report">
-      <view class="score-band">
-        <view>
-          <view class="score">{{ report.totalScore }}</view>
-          <view class="subtitle">{{ report.scenarioName }} · {{ report.troop }} · 可信度 {{ report.confidence }}</view>
-        </view>
-        <view class="cost">统御 {{ report.totalCost }}</view>
-      </view>
-
-      <view v-if="report.validation && report.validation.length" class="band warning">
-        <view v-for="(item, idx) in report.validation" :key="idx">⚠ {{ item }}</view>
-      </view>
-
-      <view class="band report-block">
-        <view class="block-title">维度拆解</view>
-        <view v-for="(dim, idx) in report.dimensions" :key="idx" class="dimension">
-          <view class="row-between">
-            <text>{{ dim.label }}</text>
-            <text>{{ dim.score }}</text>
-          </view>
-          <view class="bar">
-            <view class="bar-inner" :style="{ width: dim.score + '%' }"></view>
-          </view>
-          <view class="dimension-reason">{{ dim.reason }}</view>
+    <view class="section-panel overview-panel">
+      <view class="section-title inline">阵容总览</view>
+      <view class="overview-grid">
+        <view v-for="item in overviewMetrics" :key="item.label" class="overview-item">
+          <view class="overview-label">{{ item.label }}</view>
+          <view class="overview-value">{{ item.value }}</view>
         </view>
       </view>
+    </view>
 
-      <view class="band report-block">
-        <view class="block-title">为什么这么评</view>
-        <view v-for="(item, idx) in report.explanations" :key="idx" class="bullet">· {{ item }}</view>
-      </view>
+    <view v-if="apiStatus" class="api-message">{{ apiStatus }}</view>
+    <view v-if="savedMessage" class="saved-message">{{ savedMessage }}</view>
 
-      <view class="band report-block">
-        <view class="block-title">短板和风险</view>
-        <view v-for="(item, idx) in report.weaknesses" :key="idx" class="bullet danger">· {{ item }}</view>
-      </view>
+    <view class="action-row">
+      <button class="primary-cta" :loading="isAnalyzing" :disabled="isAnalyzing" @tap="analyze">开始评分</button>
+      <button class="save-cta" :disabled="!report" @tap="saveLineup">保存阵容</button>
+    </view>
 
-      <view class="band report-block">
+    <view v-if="report" class="report-panel">
+      <view class="report-score">{{ report.totalScore }}</view>
+      <view class="report-meta">{{ report.scenarioName }} · {{ report.troop }} · 可信度 {{ report.confidence }}</view>
+      <view v-for="(dim, idx) in report.dimensions" :key="idx" class="dimension">
         <view class="row-between">
-          <view class="block-title">替代战法</view>
-          <text v-if="!entitlements.canSeeAllReplacements" class="pill">高级解锁完整列表</text>
+          <text>{{ dim.label }}</text>
+          <text>{{ dim.score }}</text>
         </view>
-        <view v-for="item in visibleReplacements" :key="item.id" class="replacement">
-          <view>{{ item.name }}</view>
-          <view class="muted">{{ item.quality }} · {{ item.type }} · {{ item.reason }}</view>
+        <view class="bar">
+          <view class="bar-inner" :style="{ width: dim.score + '%' }"></view>
         </view>
       </view>
     </view>
 
-    <!-- Search picker -->
     <search-picker
       :type="pickerType"
       :selected-id="pickerSelectedId"
@@ -143,8 +125,6 @@
       @select="onPickerSelect"
       @close="closePicker"
     />
-
-    <view class="feedback-entry" @tap="goToFeedback">对功能有意见？去反馈 →</view>
   </view>
 </template>
 
@@ -191,6 +171,50 @@ export default {
       pickerSlot: -1,
       pickerSelectedId: ""
     };
+  },
+
+  computed: {
+    currentScenarioName() {
+      return this.scenarios[this.scenarioIndex] ? this.scenarios[this.scenarioIndex].name : "PK赛季";
+    },
+
+    currentTroopName() {
+      return this.troops[this.troopIndex] || "骑兵";
+    },
+
+    tacticsByGeneral() {
+      return this.selectedGeneralsView.map((general) => ({ general }));
+    },
+
+    totalCost() {
+      return this.selectedGeneralsView.reduce((sum, general) => sum + (Number(general.cost) || 0), 0);
+    },
+
+    lineupPower() {
+      if (this.report && this.report.totalScore) return this.report.totalScore;
+      return 26000 + this.selectedGeneralsView.length * 850 + this.totalCost * 300;
+    },
+
+    lineupBonuses() {
+      const factions = this.selectedGeneralsView.map((item) => item.faction).filter(Boolean);
+      const factionSet = new Set(factions);
+      return [
+        { name: "同阵营", mark: factions[0] || "阵", active: factionSet.size === 1 && factions.length === 3 },
+        { name: "统御均衡", mark: "御", active: this.totalCost <= 20 },
+        { name: "兵种契合", mark: "兵", active: this.currentTroopName !== "器械" }
+      ];
+    },
+
+    overviewMetrics() {
+      return [
+        { label: "总兵力", value: this.lineupPower },
+        { label: "统御值", value: `${this.totalCost}/20` },
+        { label: "总战法加成", value: this.report ? "已评分" : "待评分" },
+        { label: "攻城值", value: this.currentTroopName === "器械" ? 180 : 136 },
+        { label: "行军速度", value: this.currentTroopName === "骑兵" ? 132 : 120 },
+        { label: "战斗评分", value: this.report ? "S+" : "A+" }
+      ];
+    }
   },
 
   onLoad() {
@@ -392,7 +416,7 @@ export default {
       if (!this.report) return;
       const saved = getStorage(SAVED_LINEUPS_KEY) || [];
       if (!this.entitlements.canSaveUnlimitedLineups && saved.length >= 3) {
-        this.savedMessage = "免费层最多保存 3 套阵容。高级订阅可无限保存。";
+        this.savedMessage = "保存位已满";
         return;
       }
       const lineup = {
@@ -405,7 +429,7 @@ export default {
         tactics: this.selectedTacticsView.map((item) => item.name)
       };
       setStorage(SAVED_LINEUPS_KEY, [lineup, ...saved.filter((item) => item.id !== lineup.id)]);
-      this.savedMessage = '已保存，可在"我的"里查看。';
+      this.savedMessage = "已保存";
 
       if (isRemoteMode()) {
         saveLineupAsync({ lineup }).catch(() => {});
@@ -424,6 +448,21 @@ export default {
   min-height: 100vh;
   padding: var(--sp-lg);
   padding-bottom: 60rpx;
+  background: linear-gradient(135deg, #0a0e1a 0%, #1a0a2e 50%, #0d1f3c 100%);
+  position: relative;
+}
+
+.analyze-page::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+              radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .section {
@@ -469,9 +508,10 @@ export default {
   padding: 6rpx var(--sp-md);
   border-radius: var(--r-sm);
   font-size: 22rpx;
-  color: var(--gold);
-  border: 1rpx solid var(--border-accent);
-  background: var(--gold-ghost);
+  color: #a5b4fc;
+  border: 1rpx solid rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.15);
+  backdrop-filter: blur(5px);
 }
 
 .controls .ctrl-row {
@@ -483,12 +523,17 @@ export default {
 .ctrl-field {
   flex: 1;
   padding: 14rpx var(--sp-md);
-  border: 1rpx solid var(--border-accent);
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
   border-radius: var(--r-md);
-  background: var(--ink-surface);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-ink);
   font-size: 24rpx;
-  transition: border-color var(--ease);
+  backdrop-filter: blur(10px);
+  transition: all var(--ease);
+}
+
+.ctrl-field:active {
+  border-color: rgba(99, 102, 241, 0.5);
 }
 
 .muted {
@@ -511,24 +556,32 @@ export default {
 
 .general-card {
   position: relative;
-  border: 2rpx solid var(--gold);
-  border-radius: var(--r-sm);
+  border: 2rpx solid rgba(201, 152, 58, 0.5);
+  border-radius: var(--r-md);
   overflow: hidden;
-  background: var(--ink-mid);
-  box-shadow: var(--shadow-sm);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  transition: all var(--ease);
+}
+
+.general-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .aptitudes {
   display: flex;
   justify-content: center;
   gap: 6rpx;
-  padding: 6rpx 0;
-  background: rgba(0, 0, 0, 0.6);
+  padding: 8rpx 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
 }
 
 .aptitudes text {
   font-size: 18rpx;
-  color: var(--gold);
+  color: var(--gold-bright);
   padding: 2rpx var(--sp-xs);
 }
 
@@ -544,12 +597,14 @@ export default {
   justify-content: center;
   padding: 40rpx 10rpx;
   min-height: 280rpx;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
 }
 
 .placeholder-initial {
   font-size: 64rpx;
   font-weight: 800;
-  color: var(--gold);
+  color: var(--gold-bright);
+  text-shadow: 0 0 20px rgba(201, 152, 58, 0.5);
 }
 
 .placeholder-name {
@@ -565,9 +620,9 @@ export default {
 
 .tactic-innate {
   font-size: 20rpx;
-  color: var(--gold);
-  background: var(--gold-ghost);
-  border: 1rpx solid var(--border-accent);
+  color: var(--gold-bright);
+  background: rgba(201, 152, 58, 0.15);
+  border: 1rpx solid rgba(201, 152, 58, 0.4);
   border-radius: var(--r-sm);
   padding: var(--sp-xs) 10rpx;
   text-align: center;
@@ -580,15 +635,20 @@ export default {
   margin-top: 6rpx;
   font-size: 20rpx;
   color: var(--text-ink);
-  background: var(--ink-surface);
-  border: 1rpx solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
   border-radius: var(--r-sm);
   padding: var(--sp-xs) 10rpx;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: border-color var(--ease);
+  backdrop-filter: blur(5px);
+  transition: all var(--ease);
+}
+
+.tactic-manual:active {
+  border-color: rgba(99, 102, 241, 0.5);
 }
 
 .tactic-name {
@@ -622,24 +682,36 @@ export default {
 
 .btn {
   flex: 1;
-  color: var(--ink-deepest);
-  background: linear-gradient(135deg, var(--gold-bright), var(--gold-dim));
-  border-radius: var(--r-sm);
+  color: #ffffff;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: var(--r-lg);
   font-size: 28rpx;
   font-weight: 700;
   border: none;
   padding: 18rpx 0;
-  transition: opacity var(--ease);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  transition: all var(--ease);
+}
+
+.btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
 }
 
 .btn.secondary {
   color: var(--gold-bright);
-  background: var(--gold-ghost);
-  border: 1rpx solid var(--border-accent);
+  background: rgba(201, 152, 58, 0.15);
+  border: 1rpx solid rgba(201, 152, 58, 0.4);
+  box-shadow: none;
+}
+
+.btn.secondary:active {
+  background: rgba(201, 152, 58, 0.25);
 }
 
 .btn[disabled] {
   opacity: 0.45;
+  box-shadow: none;
 }
 
 .saved-message {
@@ -648,7 +720,7 @@ export default {
 }
 
 .api-message {
-  color: var(--gold);
+  color: var(--gold-bright);
   font-size: 24rpx;
   line-height: 1.5;
 }
@@ -658,32 +730,51 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 26rpx;
-  border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--gold-ghost), var(--ink-surface));
-  border: 1rpx solid var(--border-accent);
-  box-shadow: var(--shadow-sm);
+  padding: 30rpx;
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, rgba(201, 152, 58, 0.15) 0%, rgba(255, 255, 255, 0.06) 100%);
+  border: 1rpx solid rgba(201, 152, 58, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
 }
 
 .score {
   color: var(--gold-bright);
-  font-size: 72rpx;
+  font-size: 80rpx;
   font-weight: 800;
   line-height: 1;
+  text-shadow: 0 0 30px rgba(201, 152, 58, 0.5);
 }
 
 .cost {
   color: var(--gold-bright);
   font-size: 26rpx;
+  background: rgba(201, 152, 58, 0.15);
+  padding: 8rpx 16rpx;
+  border-radius: var(--r-sm);
+  border: 1rpx solid rgba(201, 152, 58, 0.3);
 }
 
 .band {
   padding: var(--sp-lg);
-  border: 1rpx solid var(--border-accent);
-  background: var(--ink-surface);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--ease);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  transition: all var(--ease);
+  position: relative;
+  overflow: hidden;
+}
+
+.band::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
 }
 
 .warning {
@@ -702,6 +793,7 @@ export default {
   color: var(--gold-bright);
   font-size: 28rpx;
   font-weight: 700;
+  text-shadow: 0 0 10px rgba(201, 152, 58, 0.3);
 }
 
 .row-between {
@@ -718,14 +810,15 @@ export default {
   height: 12rpx;
   margin: 10rpx 0;
   border-radius: var(--r-md);
-  background: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
 .bar-inner {
   height: 100%;
   border-radius: var(--r-md);
-  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, var(--gold-bright));
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
 }
 
 .dimension-reason,
@@ -742,7 +835,7 @@ export default {
 
 .replacement {
   padding: 14rpx 0;
-  border-top: 1rpx solid var(--border-faint);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 /* Troop type row */
@@ -751,10 +844,11 @@ export default {
   align-items: center;
   gap: var(--sp-md);
   padding: 18rpx var(--sp-lg);
-  background: var(--ink-surface);
-  border: 1rpx solid var(--border-faint);
-  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
   margin-bottom: var(--sp-xl);
+  backdrop-filter: blur(10px);
 }
 
 .troop-label {
@@ -774,15 +868,16 @@ export default {
   border-radius: var(--r-sm);
   font-size: 24rpx;
   color: var(--text-stone);
-  background: var(--ink-surface);
-  border: 1rpx solid var(--border-faint);
+  background: transparent;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
   transition: all var(--ease);
 }
 
 .troop-chip.active {
-  color: var(--ink-deepest);
-  background: var(--gold);
-  border-color: var(--gold);
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.8) 0%, rgba(139, 92, 246, 0.8) 100%);
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
   font-weight: 700;
 }
 
@@ -793,19 +888,19 @@ export default {
   top: 40%;
   transform: translateY(-50%);
   z-index: 10;
-  width: 44rpx;
-  height: 44rpx;
+  width: 48rpx;
+  height: 48rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gold);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   border-radius: 50%;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
 }
 
 .swap-icon {
   font-size: 24rpx;
-  color: var(--ink-deepest);
+  color: #ffffff;
   font-weight: 700;
 }
 
@@ -814,5 +909,652 @@ export default {
   color: var(--text-fade);
   font-size: 24rpx;
   padding: var(--sp-xl) 0 var(--sp-md);
+}
+
+.analyze-page {
+  min-height: 100vh;
+  padding: 64rpx 28rpx 148rpx;
+  background:
+    linear-gradient(180deg, rgba(5, 12, 26, 0.96), rgba(7, 16, 34, 0.98) 52%, #061122 100%),
+    linear-gradient(120deg, #06111f 0%, #141037 48%, #052a4d 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.analyze-page::before {
+  display: none;
+}
+
+.analyze-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(32, 119, 230, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(32, 119, 230, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 20% 14%, rgba(45, 126, 255, 0.18), transparent 38%),
+    radial-gradient(circle at 76% 18%, rgba(134, 57, 255, 0.2), transparent 34%);
+  background-size: 54rpx 54rpx, 54rpx 54rpx, auto, auto;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.lineup-header,
+.selector-panel,
+.section-title,
+.lineup-cards,
+.section-panel,
+.action-row,
+.report-panel,
+.api-message,
+.saved-message {
+  position: relative;
+  z-index: 1;
+}
+
+.lineup-header {
+  display: grid;
+  grid-template-columns: 92rpx 1fr 160rpx;
+  align-items: center;
+  margin-bottom: 26rpx;
+}
+
+.back-btn {
+  color: #f4d58b;
+  font-size: 58rpx;
+  line-height: 1;
+}
+
+.header-center {
+  text-align: center;
+}
+
+.page-title {
+  color: #f2d8a0;
+  font-size: 40rpx;
+  font-weight: 900;
+  text-shadow: 0 0 18rpx rgba(219, 169, 76, 0.22);
+}
+
+.page-subtitle {
+  color: rgba(242, 216, 160, 0.64);
+  font-size: 20rpx;
+  margin-top: 4rpx;
+}
+
+.share-btn {
+  height: 52rpx;
+  border-radius: 6rpx;
+  border: 1rpx solid rgba(222, 181, 94, 0.44);
+  color: #f2d58d;
+  background: rgba(15, 21, 33, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+}
+
+.selector-panel {
+  display: grid;
+  grid-template-columns: 190rpx 1fr;
+  gap: 16rpx;
+  margin-bottom: 22rpx;
+  padding: 16rpx;
+  border: 1rpx solid rgba(42, 128, 231, 0.34);
+  background: rgba(5, 18, 39, 0.72);
+  box-shadow: inset 0 0 30rpx rgba(26, 114, 226, 0.1);
+}
+
+.select-field {
+  height: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(222, 181, 94, 0.34);
+  color: #f2d58d;
+  background: rgba(222, 181, 94, 0.1);
+  font-size: 24rpx;
+}
+
+.troop-options {
+  display: flex;
+  gap: 10rpx;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.troop-chip {
+  min-width: 82rpx;
+  height: 62rpx;
+  padding: 0 16rpx;
+  border-radius: 4rpx;
+  border: 1rpx solid rgba(67, 123, 188, 0.38);
+  color: #8fa9ca;
+  background: rgba(11, 26, 50, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  white-space: nowrap;
+}
+
+.troop-chip.active {
+  color: #f3d58d;
+  border-color: rgba(222, 181, 94, 0.62);
+  background: linear-gradient(180deg, rgba(173, 119, 30, 0.46), rgba(22, 45, 82, 0.78));
+  box-shadow: 0 0 16rpx rgba(222, 181, 94, 0.2);
+}
+
+.section-title {
+  color: #e9eef7;
+  font-size: 28rpx;
+  font-weight: 800;
+  margin: 24rpx 0 16rpx;
+}
+
+.section-title.inline {
+  margin-top: 0;
+}
+
+.lineup-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18rpx;
+  margin-bottom: 22rpx;
+}
+
+.lineup-card {
+  position: relative;
+  min-height: 382rpx;
+  overflow: hidden;
+  border-radius: 8rpx;
+  border: 2rpx solid rgba(78, 157, 255, 0.62);
+  background: #071326;
+  box-shadow: 0 14rpx 34rpx rgba(0, 0, 0, 0.42), 0 0 22rpx rgba(35, 129, 255, 0.16);
+}
+
+.lineup-card.slot-0 {
+  border-color: rgba(232, 183, 78, 0.72);
+  box-shadow: 0 14rpx 34rpx rgba(0, 0, 0, 0.42), 0 0 26rpx rgba(232, 183, 78, 0.2);
+}
+
+.lineup-card.slot-1 {
+  border-color: rgba(188, 73, 255, 0.72);
+}
+
+.role-badge,
+.cost-badge {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  height: 48rpx;
+  padding: 0 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f7dda0;
+  font-size: 22rpx;
+  background: rgba(13, 18, 30, 0.86);
+  border-bottom: 1rpx solid rgba(242, 216, 160, 0.22);
+}
+
+.role-badge {
+  left: 0;
+}
+
+.cost-badge {
+  right: 0;
+}
+
+.general-card-img,
+.general-card-placeholder {
+  width: 100%;
+  height: 382rpx;
+}
+
+.general-card-img {
+  object-fit: cover;
+}
+
+.general-card-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #1b2a42, #070d17);
+}
+
+.placeholder-initial {
+  color: #f2d58d;
+  font-size: 72rpx;
+  font-weight: 900;
+}
+
+.card-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 70rpx 10rpx 14rpx;
+  text-align: center;
+  background: linear-gradient(180deg, transparent, rgba(3, 7, 14, 0.92) 58%, #03070e);
+}
+
+.faction-line {
+  color: #5be681;
+  font-size: 22rpx;
+}
+
+.general-name {
+  color: #f3d58d;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.star-row {
+  color: #ffd45e;
+  font-size: 20rpx;
+}
+
+.level-text,
+.arms-row {
+  color: #e4d9c2;
+  font-size: 22rpx;
+}
+
+.arms-row {
+  display: flex;
+  justify-content: center;
+  gap: 8rpx;
+  margin-top: 8rpx;
+}
+
+.section-panel {
+  margin-bottom: 22rpx;
+  padding: 22rpx;
+  border: 1rpx solid rgba(42, 128, 231, 0.42);
+  background: rgba(5, 18, 39, 0.72);
+  box-shadow: inset 0 0 32rpx rgba(31, 128, 255, 0.1);
+}
+
+.tactic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18rpx;
+}
+
+.tactic-column {
+  padding: 14rpx;
+  border: 1rpx solid rgba(84, 142, 206, 0.35);
+  background: rgba(4, 14, 30, 0.66);
+}
+
+.tactic-column:nth-child(1) {
+  border-color: rgba(222, 181, 94, 0.42);
+}
+
+.tactic-column:nth-child(2) {
+  border-color: rgba(174, 85, 244, 0.42);
+}
+
+.tactic-heading {
+  text-align: center;
+  color: #f3d58d;
+  font-size: 24rpx;
+  font-weight: 800;
+  padding-bottom: 12rpx;
+}
+
+.tactic-row {
+  min-height: 70rpx;
+  display: grid;
+  grid-template-columns: 42rpx 1fr 28rpx;
+  align-items: center;
+  gap: 8rpx;
+  color: #e7edf6;
+  font-size: 22rpx;
+  border-top: 1rpx solid rgba(96, 146, 204, 0.18);
+}
+
+.tactic-row text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tactic-dot {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #d8b765, #493415);
+  border: 1rpx solid rgba(242, 216, 160, 0.5);
+}
+
+.grade {
+  color: #f3d58d;
+  font-weight: 900;
+}
+
+.bonus-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.bonus-item {
+  min-height: 86rpx;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 0 12rpx;
+  border-right: 1rpx solid rgba(96, 146, 204, 0.2);
+}
+
+.bonus-item:last-child {
+  border-right: 0;
+}
+
+.bonus-mark {
+  width: 50rpx;
+  height: 50rpx;
+  border: 1rpx solid rgba(222, 181, 94, 0.58);
+  color: #f3d58d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.bonus-name {
+  color: #f3d58d;
+  font-size: 24rpx;
+}
+
+.bonus-status {
+  color: #75879f;
+  font-size: 22rpx;
+}
+
+.bonus-status.active {
+  color: #52df75;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx 24rpx;
+}
+
+.overview-label {
+  color: #8fa1ba;
+  font-size: 22rpx;
+}
+
+.overview-value {
+  color: #f3d58d;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 180rpx;
+  gap: 18rpx;
+  margin: 26rpx 0;
+}
+
+.primary-cta,
+.save-cta {
+  height: 90rpx;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 231, 158, 0.58);
+  font-weight: 900;
+}
+
+.primary-cta {
+  color: #fff2c2;
+  font-size: 38rpx;
+  background: linear-gradient(180deg, #c89737 0%, #8a5816 100%);
+  box-shadow: 0 0 28rpx rgba(242, 177, 45, 0.32);
+}
+
+.save-cta {
+  color: #f3d58d;
+  font-size: 26rpx;
+  background: rgba(222, 181, 94, 0.12);
+}
+
+.api-message,
+.saved-message {
+  color: #f3d58d;
+  font-size: 24rpx;
+  margin-top: 14rpx;
+}
+
+.report-panel {
+  padding: 24rpx;
+  border: 1rpx solid rgba(222, 181, 94, 0.36);
+  background: rgba(8, 17, 31, 0.82);
+}
+
+.report-score {
+  color: #f3d58d;
+  font-size: 72rpx;
+  font-weight: 900;
+}
+
+.report-meta {
+  color: #8fa1ba;
+  font-size: 24rpx;
+  margin-bottom: 18rpx;
+}
+
+.bar {
+  height: 12rpx;
+  margin: 8rpx 0 14rpx;
+  background: rgba(62, 86, 120, 0.58);
+  border-radius: 999rpx;
+  overflow: hidden;
+}
+
+.bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, #3277ff, #f0c966);
+}
+
+.analyze-page {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(72, 128, 255, 0.28), transparent 34%),
+    radial-gradient(circle at 90% 18%, rgba(151, 77, 255, 0.2), transparent 28%),
+    linear-gradient(180deg, rgba(5, 12, 26, 0.96), rgba(7, 16, 34, 0.98) 52%, #061122 100%),
+    linear-gradient(120deg, #06111f 0%, #141037 48%, #052a4d 100%);
+}
+
+.page-title {
+  color: transparent;
+  background: linear-gradient(180deg, #fff0bd 0%, #d6a852 55%, #fff0bd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 0 18rpx rgba(242, 216, 160, 0.24), 0 8rpx 18rpx rgba(0, 0, 0, 0.52);
+}
+
+.selector-panel,
+.section-panel,
+.report-panel {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  background:
+    linear-gradient(#06182f, #071326) padding-box,
+    linear-gradient(135deg, rgba(61, 148, 255, 0.82), rgba(222, 181, 94, 0.36) 42%, rgba(125, 62, 255, 0.6) 100%) border-box;
+  border: 2rpx solid transparent;
+  box-shadow:
+    0 16rpx 34rpx rgba(0, 0, 0, 0.42),
+    inset 0 0 34rpx rgba(35, 116, 255, 0.14),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.12);
+}
+
+.selector-panel::before,
+.section-panel::before,
+.report-panel::before {
+  content: "";
+  position: absolute;
+  inset: 8rpx;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #42a1ff 0 30rpx, transparent 30rpx) left top / 90rpx 2rpx no-repeat,
+    linear-gradient(#42a1ff 0 30rpx, transparent 30rpx) left top / 2rpx 90rpx no-repeat,
+    linear-gradient(270deg, #42a1ff 0 30rpx, transparent 30rpx) right top / 90rpx 2rpx no-repeat,
+    linear-gradient(#42a1ff 0 30rpx, transparent 30rpx) right top / 2rpx 90rpx no-repeat,
+    linear-gradient(90deg, #42a1ff 0 30rpx, transparent 30rpx) left bottom / 90rpx 2rpx no-repeat,
+    linear-gradient(0deg, #42a1ff 0 30rpx, transparent 30rpx) left bottom / 2rpx 90rpx no-repeat,
+    linear-gradient(270deg, #42a1ff 0 30rpx, transparent 30rpx) right bottom / 90rpx 2rpx no-repeat,
+    linear-gradient(0deg, #42a1ff 0 30rpx, transparent 30rpx) right bottom / 2rpx 90rpx no-repeat;
+  opacity: 0.46;
+}
+
+.selector-panel::after,
+.section-panel::after,
+.report-panel::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 56rpx;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(92, 167, 255, 0.16), transparent);
+}
+
+.select-field,
+.troop-chip,
+.share-btn {
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.14), inset 0 -10rpx 18rpx rgba(0, 0, 0, 0.24);
+}
+
+.troop-chip.active {
+  background:
+    linear-gradient(180deg, rgba(255, 235, 169, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(194, 135, 38, 0.62), rgba(22, 45, 82, 0.9));
+  box-shadow: 0 0 18rpx rgba(222, 181, 94, 0.28), inset 0 1rpx 0 rgba(255, 241, 185, 0.4);
+}
+
+.lineup-card {
+  border: 0;
+  background:
+    linear-gradient(#071326, #071326) padding-box,
+    linear-gradient(145deg, #ffe59b 0%, #2b86ff 35%, #1c2240 52%, #8d45ff 100%) border-box;
+  border: 2rpx solid transparent;
+  box-shadow:
+    0 18rpx 34rpx rgba(0, 0, 0, 0.52),
+    0 0 24rpx rgba(49, 130, 255, 0.18),
+    inset 0 0 0 1rpx rgba(255, 255, 255, 0.08);
+}
+
+.lineup-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #f4d58b 0 20rpx, transparent 20rpx) left top / 60rpx 2rpx no-repeat,
+    linear-gradient(#f4d58b 0 20rpx, transparent 20rpx) left top / 2rpx 60rpx no-repeat,
+    linear-gradient(270deg, #f4d58b 0 20rpx, transparent 20rpx) right top / 60rpx 2rpx no-repeat,
+    linear-gradient(#f4d58b 0 20rpx, transparent 20rpx) right top / 2rpx 60rpx no-repeat,
+    linear-gradient(90deg, #f4d58b 0 20rpx, transparent 20rpx) left bottom / 60rpx 2rpx no-repeat,
+    linear-gradient(0deg, #f4d58b 0 20rpx, transparent 20rpx) left bottom / 2rpx 60rpx no-repeat,
+    linear-gradient(270deg, #f4d58b 0 20rpx, transparent 20rpx) right bottom / 60rpx 2rpx no-repeat,
+    linear-gradient(0deg, #f4d58b 0 20rpx, transparent 20rpx) right bottom / 2rpx 60rpx no-repeat;
+  opacity: 0.8;
+}
+
+.lineup-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.15), transparent 28%, transparent 72%, rgba(87, 170, 255, 0.12));
+  mix-blend-mode: screen;
+}
+
+.role-badge,
+.cost-badge {
+  box-shadow: inset 0 1rpx 0 rgba(255, 239, 180, 0.32), 0 4rpx 10rpx rgba(0, 0, 0, 0.32);
+}
+
+.tactic-column {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(18, 37, 65, 0.92), rgba(5, 14, 30, 0.96));
+  box-shadow: inset 0 0 20rpx rgba(49, 130, 255, 0.1);
+}
+
+.tactic-column::before {
+  content: "";
+  position: absolute;
+  inset: 4rpx;
+  border: 1rpx solid rgba(91, 166, 255, 0.16);
+  pointer-events: none;
+}
+
+.tactic-dot {
+  box-shadow: 0 0 14rpx rgba(222, 181, 94, 0.32), inset 0 2rpx 5rpx rgba(255, 255, 255, 0.24);
+}
+
+.bonus-mark {
+  box-shadow: 0 0 16rpx rgba(222, 181, 94, 0.22), inset 0 0 12rpx rgba(222, 181, 94, 0.12);
+}
+
+.primary-cta,
+.save-cta {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  box-shadow:
+    0 14rpx 30rpx rgba(0, 0, 0, 0.42),
+    0 0 22rpx rgba(242, 177, 45, 0.28),
+    inset 0 1rpx 0 rgba(255, 245, 190, 0.58),
+    inset 0 -10rpx 18rpx rgba(61, 31, 6, 0.42);
+}
+
+.primary-cta {
+  clip-path: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%);
+  background:
+    linear-gradient(180deg, rgba(255, 246, 194, 0.22) 0%, transparent 36%),
+    linear-gradient(180deg, #d6a13a 0%, #8b5516 58%, #4a2c10 100%);
+  text-shadow: 0 3rpx 8rpx rgba(80, 40, 4, 0.72);
+}
+
+.primary-cta::before,
+.save-cta::before {
+  content: "";
+  position: absolute;
+  inset: 6rpx;
+  border: 1rpx solid rgba(255, 230, 150, 0.34);
+  pointer-events: none;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.share-btn {
+  gap: 8rpx;
+}
+
+.tactic-dot {
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(239, 205, 127, 0.42);
+  background:
+    radial-gradient(circle at 35% 30%, #ffe6a1 0%, #c18a34 42%, #58330d 100%);
+  box-shadow: 0 0 14rpx rgba(222, 181, 94, 0.32), inset 0 2rpx 5rpx rgba(255, 255, 255, 0.24);
 }
 </style>

@@ -174,6 +174,14 @@ export function getLineupsAsync(params = {}) {
 export function saveLineupAsync(payload = {}) {
   if (shouldUseRemote()) return requestRemote("/api/v1/lineups", { method: "POST", data: payload });
   const item = payload.lineup || payload;
+  const saved = getStorage("savedLineups") || [];
+  const idx = saved.findIndex((l) => l.id === item.id);
+  if (idx >= 0) {
+    saved[idx] = { ...saved[idx], ...item, updatedAt: new Date().toISOString() };
+  } else {
+    saved.unshift({ ...item, createdAt: item.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() });
+  }
+  setStorage("savedLineups", saved);
   return Promise.resolve({ ok: true, item });
 }
 
@@ -188,7 +196,15 @@ export function deleteLineupAsync(id) {
 // --- Battle Reports ---
 export function addBattleReportAsync(report) {
   if (shouldUseRemote()) return requestRemote("/api/v1/battle-reports", { method: "POST", data: report });
-  return Promise.resolve({ ok: true, item: report });
+  const item = {
+    ...report,
+    id: report.id || "br_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+    createdAt: new Date().toISOString()
+  };
+  const saved = getStorage("battleReports") || [];
+  saved.unshift(item);
+  setStorage("battleReports", saved);
+  return Promise.resolve({ ok: true, item });
 }
 
 export function getBattleReportsAsync(params = {}) {
@@ -198,17 +214,41 @@ export function getBattleReportsAsync(params = {}) {
     if (params.offset) query.offset = params.offset;
     return requestRemote(withQuery("/api/v1/battle-reports", query));
   }
-  return Promise.resolve({ items: [] });
+  const saved = getStorage("battleReports") || [];
+  const limit = params.limit || 50;
+  const offset = params.offset || 0;
+  return Promise.resolve({ items: saved.slice(offset, offset + limit) });
 }
 
 export function getBattleReportStatsAsync() {
   if (shouldUseRemote()) return requestRemote("/api/v1/battle-reports/stats");
-  return Promise.resolve({ ok: true, stats: { total: 0, wins: 0, losses: 0, draws: 0, winRate: 0, byTroop: [], recentTrend: "0/0" } });
+  const saved = getStorage("battleReports") || [];
+  const total = saved.length;
+  const wins = saved.filter((r) => r.result === "win").length;
+  const losses = saved.filter((r) => r.result === "loss").length;
+  const draws = saved.filter((r) => r.result === "draw").length;
+  const recent = saved.slice(0, 10);
+  const recentWins = recent.filter((r) => r.result === "win").length;
+  return Promise.resolve({
+    ok: true,
+    stats: {
+      total,
+      wins,
+      losses,
+      draws,
+      winRate: total > 0 ? Math.round((wins / total) * 100) : 0,
+      byTroop: [],
+      recentTrend: `${recentWins}/${recent.length}`
+    }
+  });
 }
 
 export function deleteBattleReportAsync(id) {
   if (shouldUseRemote()) return requestRemote(`/api/v1/battle-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
-  return Promise.resolve({ ok: true, deleted: 1 });
+  const saved = getStorage("battleReports") || [];
+  const next = saved.filter((r) => r.id !== id);
+  setStorage("battleReports", next);
+  return Promise.resolve({ ok: true, deleted: saved.length - next.length });
 }
 
 // --- Draw Pools & Records ---

@@ -5,16 +5,12 @@
       <view class="title">意见反馈</view>
     </view>
 
-    <view class="section tip-card">
-      <view class="tip-text">感谢你的反馈！请描述你希望新增的功能、使用中遇到的问题或优化建议。</view>
-    </view>
-
     <view class="section form-card">
       <view class="form-label">反馈内容</view>
       <textarea
         class="feedback-input"
         v-model="content"
-        placeholder="请详细描述你的建议或问题..."
+        placeholder="建议或问题"
         :maxlength="1000"
         auto-height
       />
@@ -26,7 +22,7 @@
       <input
         class="contact-input"
         v-model="contact"
-        placeholder="微信号或邮箱，方便我们联系你"
+        placeholder="微信号或邮箱"
         :maxlength="128"
       />
 
@@ -37,7 +33,7 @@
 
     <view v-if="submitted" class="section success-card">
       <view class="success-icon">✓</view>
-      <view class="success-text">反馈已提交，感谢你的建议！</view>
+      <view class="success-text">反馈已提交</view>
     </view>
   </view>
 </template>
@@ -51,13 +47,13 @@ const PROFANITY_LIST = [
   "滚蛋", "去死", "混蛋", "王八蛋", "贱人", "婊子"
 ];
 
-// Must contain at least some Chinese characters
+// 至少包含一个中文字符
 const CHINESE_REGEX = /[一-鿿]/;
-// Detect meaningless repeated chars (e.g., "aaaaaa", "111111")
+// 过滤连续重复字符
 const REPEATED_CHAR = /(.)\1{4,}/;
-// Detect random keyboard mashing (e.g., "asdfgh", "qwerty")
+// 过滤键盘连续乱输
 const MASHING_PATTERNS = /^(asdf|qwer|zxcv|hjkl|uiop|nm,.)/i;
-// Too few unique characters relative to length
+// 字符种类过少时视为无效内容
 function isMeaningless(text) {
   const cleaned = text.replace(/[\s\.,!?，。！？、\-\n]/g, "");
   if (cleaned.length < 5) return true;
@@ -65,7 +61,7 @@ function isMeaningless(text) {
   if (uniqueChars < 3 && cleaned.length > 5) return true;
   if (REPEATED_CHAR.test(cleaned)) return true;
   if (MASHING_PATTERNS.test(cleaned)) return true;
-  // Mostly numbers or letters
+  // 大量数字或字母通常不是有效中文反馈
   const chineseCount = (cleaned.match(/[一-鿿]/g) || []).length;
   if (cleaned.length > 10 && chineseCount < cleaned.length * 0.2) return true;
   return false;
@@ -78,11 +74,11 @@ function containsProfanity(text) {
 
 function validateContent(text) {
   const trimmed = text.trim();
-  if (trimmed.length < 5) return "反馈内容至少需要 5 个字。";
-  if (trimmed.length > 1000) return "反馈内容不能超过 1000 字。";
-  if (!CHINESE_REGEX.test(trimmed)) return "请用中文描述你的反馈。";
-  if (isMeaningless(trimmed)) return "反馈内容需要是有意义的文字描述，不能是无意义的重复或乱码。";
-  if (containsProfanity(trimmed)) return "请文明用语，感谢理解。";
+  if (trimmed.length < 5) return "至少 5 个字";
+  if (trimmed.length > 1000) return "最多 1000 字";
+  if (!CHINESE_REGEX.test(trimmed)) return "仅支持中文反馈";
+  if (isMeaningless(trimmed)) return "内容无效";
+  if (containsProfanity(trimmed)) return "请文明用语";
   return "";
 }
 
@@ -109,21 +105,33 @@ export default {
       }
       this.submitting = true;
       try {
-        const { requestRemote } = await import("../../services/api");
-        const res = await requestRemote("/api/v1/feedback", {
-          method: "POST",
-          data: { content: this.content.trim(), contact: this.contact.trim() }
-        });
-        if (res.ok) {
+        const { requestRemote, shouldUseRemote } = await import("../../services/api");
+        const payload = { content: this.content.trim(), contact: this.contact.trim() };
+        let res;
+        if (shouldUseRemote()) {
+          res = await requestRemote("/api/v1/feedback", { method: "POST", data: payload });
+        } else {
+          // 本地模式：尝试直连本地服务器，失败则存本地
+          try {
+            res = await requestRemote("/api/v1/feedback", { method: "POST", data: payload });
+          } catch (serverErr) {
+            const { getStorage, setStorage } = await import("../../utils/storage");
+            const pending = getStorage("pendingFeedback") || [];
+            pending.push({ ...payload, createdAt: new Date().toLocaleString("zh-CN", { hour12: false }).replace(/\//g, "-") });
+            setStorage("pendingFeedback", pending);
+            res = { ok: true };
+          }
+        }
+        if (res && res.ok) {
           this.submitted = true;
           this.content = "";
           this.contact = "";
           setTimeout(() => { this.submitted = false; }, 3000);
         } else {
-          this.errorMsg = res.message || "提交失败，请重试。";
+          this.errorMsg = (res && res.message) || "提交失败，请重试。";
         }
       } catch (e) {
-        this.errorMsg = "网络错误，请重试。";
+        this.errorMsg = "提交失败：" + (e.message || "请重试");
       } finally {
         this.submitting = false;
       }

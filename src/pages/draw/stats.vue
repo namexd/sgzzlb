@@ -1,11 +1,6 @@
 <template>
   <view class="page stats-page">
-    <view class="section header">
-      <view class="back-btn" @tap="goBack">← 返回</view>
-      <view class="title">抽卡统计</view>
-    </view>
-
-    <!-- Season selector -->
+    <!-- 赛季切换 -->
     <view class="section">
       <view class="season-tabs">
         <view :class="['season-tab', { active: viewMode === 'current' }]" @tap="viewMode = 'current'; refreshStats()">
@@ -17,7 +12,7 @@
       </view>
     </view>
 
-    <!-- Overview cards -->
+    <!-- 数据总览 -->
     <view class="section overview-grid">
       <view class="overview-card">
         <view class="card-value">{{ stats.totalDraws }}</view>
@@ -37,7 +32,7 @@
       </view>
     </view>
 
-    <!-- Rate card -->
+    <!-- 出橙概率 -->
     <view class="section rate-card">
       <view class="rate-header">
         <view class="rate-title">出橙概率</view>
@@ -46,12 +41,12 @@
       <view class="rate-bar">
         <view class="rate-fill" :style="{ width: stats.orangeRate + '%' }"></view>
       </view>
-      <view class="rate-desc">
+      <view v-if="stats.orangeCount > 0" class="rate-desc">
         平均每 {{ stats.orangeCount > 0 ? Math.round(stats.totalDraws / stats.orangeCount) : '-' }} 抽出一张橙卡
       </view>
     </view>
 
-    <!-- Draw type breakdown -->
+    <!-- 抽卡类型 -->
     <view class="section breakdown-card">
       <view class="breakdown-title">抽卡类型</view>
       <view class="breakdown-grid">
@@ -78,7 +73,7 @@
       </view>
     </view>
 
-    <!-- Orange generals -->
+    <!-- 橙卡武将 -->
     <view v-if="stats.orangeGenerals.length > 0" class="section generals-card">
       <view class="generals-title">橙卡武将</view>
       <view class="generals-list">
@@ -90,7 +85,7 @@
       </view>
     </view>
 
-    <!-- Monthly trend -->
+    <!-- 月度趋势 -->
     <view v-if="stats.byMonth.length > 0" class="section trend-card">
       <view class="trend-title">月度趋势</view>
       <view class="trend-chart">
@@ -115,11 +110,10 @@
       </view>
     </view>
 
-    <!-- Empty state -->
+    <!-- 空状态 -->
     <view v-if="stats.totalDraws === 0" class="section empty-state">
-      <view class="empty-icon">📊</view>
-      <view class="empty-text">暂无抽卡记录</view>
-      <view class="empty-hint">返回抽卡页面记录你的抽卡数据</view>
+      <view class="empty-icon">统</view>
+      <view class="empty-text">记录为空</view>
     </view>
   </view>
 </template>
@@ -162,10 +156,6 @@ export default {
   },
 
   methods: {
-    goBack() {
-      uni.navigateBack();
-    },
-
     refreshStats() {
       const pools = drawStorage.getPools();
       if (pools.length === 0) {
@@ -213,25 +203,7 @@ export default {
   padding-bottom: 100rpx;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  margin-bottom: 24rpx;
-}
-
-.back-btn {
-  color: #f1d29a;
-  font-size: 28rpx;
-}
-
-.title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #f7e4bc;
-}
-
-/* Season tabs */
+/* 赛季切换 */
 .season-tabs {
   display: flex;
   gap: 12rpx;
@@ -296,7 +268,7 @@ export default {
   color: #6ea8dc;
 }
 
-/* Rate card */
+/* 出橙概率 */
 .rate-card {
   background: rgba(255, 255, 255, 0.04);
   border: 1rpx solid rgba(255, 255, 255, 0.08);
@@ -541,15 +513,25 @@ export default {
   background: #f1a64e;
 }
 
-/* Empty state */
+/* 空状态 */
 .empty-state {
   text-align: center;
   padding: 80rpx 40rpx;
 }
 
 .empty-icon {
-  font-size: 80rpx;
-  margin-bottom: 20rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 auto 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(241, 210, 154, 0.42);
+  color: #f7e4bc;
+  background: linear-gradient(180deg, rgba(241, 210, 154, 0.18), rgba(15, 23, 35, 0.72));
+  font-size: 42rpx;
+  font-weight: 800;
 }
 
 .empty-text {
@@ -558,9 +540,4 @@ export default {
   font-weight: 600;
 }
 
-.empty-hint {
-  color: #8d97a5;
-  font-size: 24rpx;
-  margin-top: 12rpx;
-}
 </style>

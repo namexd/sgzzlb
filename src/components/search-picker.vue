@@ -8,7 +8,7 @@
 
       <input
         class="picker-search"
-        :placeholder="type === 'generals' ? '搜索武将名/势力/标签...' : '搜索战法名/类型...'"
+        :placeholder="type === 'generals' ? '搜索武将' : '搜索战法'"
         :value="keyword"
         @input="onKeywordInput"
         confirm-type="search"
@@ -24,8 +24,7 @@
         >{{ chip }}</text>
       </view>
 
-      <view class="picker-count">显示 {{ filtered.length }} / {{ totalCount }} 条</view>
-      <view v-if="filtered.length < totalCount" class="picker-hint">输入关键词缩小搜索范围</view>
+      <view class="picker-count">{{ filtered.length }} / {{ totalCount }}</view>
 
       <scroll-view class="picker-list" scroll-y>
         <view
@@ -41,7 +40,7 @@
           </view>
           <text v-if="item.selected" class="item-check">✓</text>
         </view>
-        <view v-if="filtered.length === 0" class="picker-empty">无匹配结果</view>
+        <view v-if="filtered.length === 0" class="picker-empty">未匹配</view>
       </scroll-view>
     </view>
   </view>
@@ -103,7 +102,7 @@ export default {
         selected: item.id === this.selectedId,
         imageUrl: isGeneral && item.asset ? item.asset.imageUrl || "" : "",
         sub: isGeneral
-          ? `${item.faction || "?"} · ${item.cost || "?"}御`
+          ? [item.star, Array.isArray(item.tags) ? item.tags.join("/") : ""].filter(Boolean).join(" · ")
           : `${item.quality || "-"} · ${item.type || "战法"}${item.troopLimit ? " · " + (Array.isArray(item.troopLimit) ? item.troopLimit.join("/") : item.troopLimit) : ""}`
       }));
     },

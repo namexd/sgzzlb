@@ -1,38 +1,51 @@
 <template>
   <view class="page draw-page">
-    <!-- Header + Pity bar inline -->
-    <view class="hero">
-      <view class="title">抽卡日历</view>
-      <view class="hero-right">
-        <view class="season-badge" @tap="showSeasonModal = true">
-          {{ activeSeason ? activeSeason.name : '设置赛季' }}
+    <view class="draw-bg"></view>
+
+    <view class="draw-topbar">
+      <view class="nav-circle" @tap="goToFeedback">
+        <image src="/static/ui-assets/mockup-icons/nav-back-circle.png" mode="aspectFit" />
+      </view>
+      <view class="brand-block">
+        <view class="brand-title">三国·策略</view>
+        <view class="brand-subtitle">
+          <image src="/static/ui-assets/mockup-icons/title-ornament-left.png" mode="aspectFit" />
+          <text>招贤纳士 · 共谋天下</text>
+          <image src="/static/ui-assets/mockup-icons/title-ornament-right.png" mode="aspectFit" />
         </view>
-        <view class="stats-btn" @tap="goToStats">统计</view>
+      </view>
+      <view class="top-actions">
+        <view class="top-action" @tap="showSeasonModal = true">
+          <image class="top-action-icon" src="/static/ui-assets/mockup-icons/draw-card-detail.png" mode="aspectFit" />
+          <text>卡池详情</text>
+        </view>
+        <view class="top-action" @tap="goToStats">
+          <image class="top-action-icon" src="/static/ui-assets/mockup-icons/draw-gift.png" mode="aspectFit" />
+          <text>奖励预览</text>
+        </view>
       </view>
     </view>
 
-    <!-- Pity bar — 置顶一行 -->
-    <view class="pity-row">
-      <view class="pity-text">
-        <text class="pity-label">保底</text>
+    <view class="pity-panel">
+      <view class="panel-corners"></view>
+      <view class="pity-head">
+        <text class="pity-title">橙卡保底进度</text>
         <text class="pity-count">{{ pity.current }}/{{ pity.total }}</text>
-        <text v-if="pity.guaranteedAt" class="pity-hint">· 预计第{{ pity.guaranteedAt + 1 }}抽</text>
       </view>
-      <view class="pity-bar">
-        <view class="pity-fill" :style="{ width: (pity.current / pity.total * 100) + '%' }"></view>
+      <view class="pity-track">
+        <view class="pity-fill" :style="{ width: pityPercent + '%' }"></view>
       </view>
+      <view class="pity-tip">再招募 <text>{{ pity.remaining }}</text> 次，必得 <text>橙卡武将</text></view>
     </view>
 
-    <!-- Calendar — 紧凑版 -->
-    <view class="calendar-section">
+    <view class="calendar-panel">
       <view class="month-nav">
-        <view class="month-arrow" @tap="prevMonth">◀</view>
-        <view class="month-title" @tap="goToToday">{{ calMonth }}月</view>
-        <view class="month-arrow" @tap="nextMonth">▶</view>
-        <view class="month-summary">
-          <text class="summary-text">{{ calTotalDraws }}抽</text>
-          <text v-if="calOrangeCount > 0" class="summary-orange">橙{{ calOrangeCount }}</text>
-          <text v-if="calPurpleCount > 0" class="summary-purple">紫{{ calPurpleCount }}</text>
+        <view class="month-arrow left" @tap="prevMonth">
+          <image src="/static/ui-assets/mockup-icons/title-ornament-left.png" mode="aspectFit" />
+        </view>
+        <view class="month-title" @tap="goToToday">{{ calYear }}年{{ calMonth }}月</view>
+        <view class="month-arrow right" @tap="nextMonth">
+          <image src="/static/ui-assets/mockup-icons/title-ornament-right.png" mode="aspectFit" />
         </view>
       </view>
 
@@ -41,52 +54,78 @@
       </view>
 
       <view class="calendar-grid">
-        <view v-for="(cell, idx) in calDays" :key="idx"
+        <view
+          v-for="(cell, idx) in calDays"
+          :key="idx"
           :class="['cal-cell', { blank: cell.blank, today: cell.isToday, selected: cell.date === selectedDate }]"
-          @tap="onDateTap(cell)">
+          @tap="onDateTap(cell)"
+        >
           <template v-if="!cell.blank">
             <view class="cal-day-num">{{ cell.day }}</view>
-            <view v-if="cell.hasOrange" class="cal-orange-dot"></view>
-            <view v-else-if="cell.count > 0" class="cal-blue-dot"></view>
+            <view v-if="cell.hasOrange" class="draw-token orange">橙</view>
+            <view v-else-if="cell.count > 0" class="draw-token purple">紫</view>
           </template>
         </view>
       </view>
-    </view>
 
-    <!-- Quick record + Records 合并 -->
-    <view class="content-row">
-      <!-- Quick buttons -->
-      <view class="quick-col">
-        <view class="col-title">快速记录</view>
-        <view class="quick-btn free" @tap="quickRecord(1, 'free')">免费·1</view>
-        <view class="quick-btn half" @tap="quickRecord(1, 'half')">半价·1</view>
-        <view class="quick-btn free" @tap="quickRecord(2, 'free')">免费·2</view>
-        <view class="quick-btn half" @tap="quickRecord(2, 'half')">半价·2</view>
-      </view>
-
-      <!-- Records -->
-      <view class="records-col">
-        <view class="records-header">
-          <view class="col-title">{{ selectedDateText }}</view>
-          <view class="add-btn" @tap="showAddRecord">+</view>
-        </view>
-
-        <view v-if="selectedRecords.length === 0" class="empty-hint">暂无记录</view>
-
-        <view v-for="item in selectedRecords" :key="item.id" class="record-item">
-          <view :class="['q-dot', item.quality]"></view>
-          <view class="record-info">
-            <text class="record-name">{{ item.generalName || '—' }}</text>
-            <text class="record-meta">{{ qualityMap[item.quality] }} · {{ drawTypeMap[item.drawType] }} · 组{{ item.group }}</text>
-          </view>
-          <view class="record-del" @tap="onDeleteRecord(item.id)">✕</view>
-        </view>
+      <view class="legend-row">
+        <view class="legend-item"><text class="draw-token orange">橙</text>橙卡</view>
+        <view class="legend-item"><text class="draw-token purple">紫</text>紫卡</view>
+        <view class="legend-item"><text class="draw-token dim">灰</text>未抽卡</view>
       </view>
     </view>
 
-    <view class="feedback-link" @tap="goToFeedback">反馈 →</view>
+    <view class="quick-title">
+      <image src="/static/ui-assets/mockup-icons/title-ornament-left.png" mode="aspectFit" />
+      <text>快速记录</text>
+      <image src="/static/ui-assets/mockup-icons/title-ornament-right.png" mode="aspectFit" />
+    </view>
+    <view class="quick-grid">
+      <view class="quick-btn free" @tap="quickRecord(1, 'free')">
+        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-free.png" mode="aspectFit" />免费 · 1</view>
+        <view class="quick-sub">第1组</view>
+      </view>
+      <view class="quick-btn half" @tap="quickRecord(1, 'half')">
+        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-half.png" mode="aspectFit" />半价 · 1</view>
+        <view class="quick-sub">第1组</view>
+      </view>
+      <view class="quick-btn free" @tap="quickRecord(2, 'free')">
+        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-free.png" mode="aspectFit" />免费 · 2</view>
+        <view class="quick-sub">第2组</view>
+      </view>
+      <view class="quick-btn half" @tap="quickRecord(2, 'half')">
+        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-half.png" mode="aspectFit" />半价 · 2</view>
+        <view class="quick-sub">第2组</view>
+      </view>
+    </view>
 
-    <!-- Add record modal -->
+    <view class="bottom-console">
+      <view class="side-link" @tap="goToStats">
+        <image class="side-icon-img" src="/static/ui-assets/mockup-icons/draw-side-stats.png" mode="aspectFit" />
+        <view>抽卡统计</view>
+      </view>
+      <view class="recruit-btn" @tap="showAddRecord">添加记录</view>
+      <view class="side-link" @tap="showAddRecord">
+        <image class="side-icon-img" src="/static/ui-assets/mockup-icons/draw-side-record.png" mode="aspectFit" />
+        <view>历史记录</view>
+      </view>
+    </view>
+
+    <view class="record-panel">
+      <view class="records-header">
+        <view class="record-title">{{ selectedDateText }} 记录</view>
+        <view class="add-btn" @tap="showAddRecord">新增</view>
+      </view>
+      <view v-for="item in selectedRecords" :key="item.id" class="record-item">
+        <view :class="['q-dot', item.quality]"></view>
+        <view class="record-info">
+          <text class="record-name">{{ item.generalName || '武将记录' }}</text>
+          <text class="record-meta">{{ qualityMap[item.quality] }} · {{ drawTypeMap[item.drawType] }} · 组{{ item.group }}</text>
+        </view>
+        <view class="record-del" @tap="onDeleteRecord(item.id)">删除</view>
+      </view>
+    </view>
+
     <view v-if="recordForm" class="modal-mask" @tap="recordForm = null">
       <view class="modal-panel" @tap.stop>
         <view class="modal-title">记录抽卡</view>
@@ -119,7 +158,6 @@
       </view>
     </view>
 
-    <!-- Season modal -->
     <view v-if="showSeasonModal" class="modal-mask" @tap="showSeasonModal = false">
       <view class="modal-panel" @tap.stop>
         <view class="modal-title">赛季管理</view>
@@ -147,11 +185,10 @@
       </view>
     </view>
 
-    <!-- End season confirm -->
     <view v-if="showEndSeasonConfirm" class="modal-mask" @tap="showEndSeasonConfirm = false">
       <view class="modal-panel" @tap.stop>
         <view class="modal-title">确认结束赛季</view>
-        <view class="modal-desc">结束后将无法再往「{{ activeSeason.name }}」添加记录，确定要结束吗？</view>
+        <view class="modal-desc">结束「{{ activeSeason.name }}」后停止新增记录</view>
         <view class="form-actions">
           <view class="form-btn cancel" @tap="showEndSeasonConfirm = false">取消</view>
           <view class="form-btn danger" @tap="doEndSeason">确认结束</view>
@@ -191,6 +228,11 @@ export default {
   },
 
   computed: {
+    pityPercent() {
+      if (!this.pity || !this.pity.total) return 0;
+      return Math.max(0, Math.min(100, Math.round((this.pity.current / this.pity.total) * 100)));
+    },
+
     selectedDateText() {
       if (!this.selectedDate) return "选择日期";
       const parts = this.selectedDate.split("-");
@@ -308,7 +350,7 @@ export default {
 
     showAddRecord() {
       if (!this.selectedDate) {
-        uni.showToast({ title: "请先选择日期", icon: "none" });
+        uni.showToast({ title: "选择日期", icon: "none" });
         return;
       }
       this.recordForm = {
@@ -396,6 +438,21 @@ export default {
 .draw-page {
   min-height: 100vh;
   padding: 16rpx 20rpx;
+  background: linear-gradient(135deg, #1a0a0a 0%, #2d1a0a 50%, #1a1a2e 100%);
+  position: relative;
+}
+
+.draw-page::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(201, 152, 58, 0.15) 0%, transparent 50%),
+              radial-gradient(circle at 30% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* Header */
@@ -409,7 +466,8 @@ export default {
 .title {
   font-size: 32rpx;
   font-weight: 700;
-  color: var(--gold-bright);
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .hero-right {
@@ -419,37 +477,40 @@ export default {
 }
 
 .season-badge {
-  padding: 4rpx 14rpx;
-  border: 1px solid var(--border-accent);
+  padding: 6rpx 16rpx;
+  border: 1px solid rgba(201, 152, 58, 0.4);
   border-radius: var(--r-sm);
-  color: var(--gold);
+  color: var(--gold-bright);
   font-size: 20rpx;
-  background: var(--gold-ghost);
+  background: rgba(201, 152, 58, 0.15);
+  backdrop-filter: blur(5px);
 }
 
 .stats-btn {
-  padding: 4rpx 14rpx;
+  padding: 6rpx 16rpx;
   border-radius: var(--r-sm);
-  color: var(--ink-deepest);
-  background: linear-gradient(135deg, var(--gold-bright) 0%, var(--gold-dim) 100%);
+  color: #ffffff;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   font-size: 20rpx;
   font-weight: 600;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
 /* Pity bar — 一行紧凑 */
 .pity-row {
-  background: var(--ink-surface);
-  border: 1px solid var(--border-faint);
-  border-radius: var(--r-sm);
-  padding: 10rpx 16rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
+  padding: 12rpx 16rpx;
   margin-bottom: 12rpx;
+  backdrop-filter: blur(10px);
 }
 
 .pity-text {
   display: flex;
   align-items: center;
   gap: 8rpx;
-  margin-bottom: 6rpx;
+  margin-bottom: 8rpx;
 }
 
 .pity-label {
@@ -458,9 +519,10 @@ export default {
 }
 
 .pity-count {
-  color: var(--gold);
+  color: var(--gold-bright);
   font-size: 22rpx;
   font-weight: 700;
+  text-shadow: 0 0 10px rgba(201, 152, 58, 0.3);
 }
 
 .pity-hint {
@@ -469,26 +531,28 @@ export default {
 }
 
 .pity-bar {
-  height: 6rpx;
-  background: var(--border-faint);
-  border-radius: 3rpx;
+  height: 8rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4rpx;
   overflow: hidden;
 }
 
 .pity-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
-  border-radius: 3rpx;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  border-radius: 4rpx;
   transition: width 0.3s;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
 }
 
 /* Calendar — 紧凑 */
 .calendar-section {
-  background: var(--ink-surface);
-  border: 1px solid var(--border-faint);
-  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
   padding: 12rpx 14rpx;
   margin-bottom: 12rpx;
+  backdrop-filter: blur(10px);
 }
 
 .month-nav {
@@ -499,13 +563,13 @@ export default {
 }
 
 .month-arrow {
-  color: var(--gold);
+  color: var(--gold-bright);
   font-size: 22rpx;
   padding: 4rpx 8rpx;
 }
 
 .month-title {
-  color: var(--gold-bright);
+  color: #ffffff;
   font-size: 26rpx;
   font-weight: 700;
 }
@@ -525,11 +589,13 @@ export default {
 .summary-orange {
   color: var(--gold-bright);
   font-size: 18rpx;
+  font-weight: 600;
 }
 
 .summary-purple {
-  color: #b98cf0;
+  color: #a78bfa;
   font-size: 18rpx;
+  font-weight: 600;
 }
 
 .weekday-row {
@@ -564,13 +630,13 @@ export default {
 }
 
 .cal-cell.today {
-  background: var(--gold-ghost);
+  background: rgba(201, 152, 58, 0.15);
   border-radius: 8rpx;
 }
 
 .cal-cell.selected {
-  background: var(--gold-ghost);
-  border: 1px solid var(--gold);
+  background: rgba(201, 152, 58, 0.2);
+  border: 1px solid rgba(201, 152, 58, 0.5);
   border-radius: 8rpx;
 }
 
@@ -581,7 +647,7 @@ export default {
 }
 
 .cal-cell.today .cal-day-num {
-  color: var(--gold);
+  color: var(--gold-bright);
 }
 
 .cal-orange-dot {
@@ -590,13 +656,14 @@ export default {
   border-radius: 50%;
   background: var(--gold-bright);
   margin-top: 2rpx;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
 }
 
 .cal-blue-dot {
   width: 6rpx;
   height: 6rpx;
   border-radius: 50%;
-  background: rgba(110, 168, 220, 0.5);
+  background: rgba(99, 102, 241, 0.6);
   margin-top: 2rpx;
 }
 
@@ -609,13 +676,14 @@ export default {
 
 .quick-col {
   flex: 0 0 160rpx;
-  background: var(--ink-surface);
-  border: 1px solid var(--border-faint);
-  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
   padding: 12rpx;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
+  backdrop-filter: blur(10px);
 }
 
 .col-title {
@@ -628,30 +696,40 @@ export default {
 
 .quick-btn {
   padding: 10rpx 0;
-  border-radius: 6rpx;
+  border-radius: 8rpx;
   text-align: center;
   font-size: 20rpx;
   font-weight: 600;
 }
 
 .quick-btn.free {
-  color: var(--ink-deepest);
-  background: linear-gradient(135deg, var(--gold-bright), var(--gold-dim));
+  color: #ffffff;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.quick-btn.free:active {
+  transform: scale(0.98);
 }
 
 .quick-btn.half {
-  color: var(--gold);
-  background: var(--gold-ghost);
-  border: 1px solid var(--border-accent);
+  color: var(--gold-bright);
+  background: rgba(201, 152, 58, 0.15);
+  border: 1px solid rgba(201, 152, 58, 0.3);
+}
+
+.quick-btn.half:active {
+  background: rgba(201, 152, 58, 0.25);
 }
 
 .records-col {
   flex: 1;
   min-width: 0;
-  background: var(--ink-surface);
-  border: 1px solid var(--border-faint);
-  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
   padding: 12rpx;
+  backdrop-filter: blur(10px);
 }
 
 .records-header {
@@ -665,13 +743,14 @@ export default {
   width: 36rpx;
   height: 36rpx;
   border-radius: 50%;
-  background: var(--gold);
-  color: var(--ink-deepest);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #ffffff;
   font-size: 24rpx;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
 .empty-hint {
@@ -686,7 +765,7 @@ export default {
   align-items: center;
   gap: 8rpx;
   padding: 8rpx 0;
-  border-bottom: 1px solid var(--border-faint);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .record-item:last-child {
@@ -700,9 +779,20 @@ export default {
   flex-shrink: 0;
 }
 
-.q-dot.orange { background: var(--gold-bright); }
-.q-dot.purple { background: #b98cf0; }
-.q-dot.blue { background: #6ea8dc; }
+.q-dot.orange {
+  background: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.q-dot.purple {
+  background: #a78bfa;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.6);
+}
+
+.q-dot.blue {
+  background: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
 
 .record-info {
   flex: 1;
@@ -745,30 +835,32 @@ export default {
 .modal-mask {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(4, 6, 10, 0.82);
+  background: rgba(4, 6, 10, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 
 .modal-panel {
   width: 560rpx;
   max-height: 80vh;
   padding: 28rpx;
-  border: 1px solid var(--border-accent);
-  border-radius: var(--r-md);
-  background: var(--ink-mid);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--r-lg);
+  background: rgba(30, 30, 50, 0.95);
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
 }
 
 .modal-title {
-  color: var(--gold-bright);
+  color: #ffffff;
   font-size: 28rpx;
   font-weight: 700;
   text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .modal-subtitle {
@@ -799,18 +891,19 @@ export default {
   justify-content: center;
   gap: 6rpx;
   height: 64rpx;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-sm);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
   color: var(--text-stone);
   font-size: 24rpx;
   font-weight: 600;
-  background: var(--ink-surface);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
 }
 
 .quality-opt.active {
-  border-color: var(--gold);
-  background: var(--gold-ghost);
-  color: var(--gold);
+  border-color: rgba(201, 152, 58, 0.5);
+  background: rgba(201, 152, 58, 0.15);
+  color: var(--gold-bright);
 }
 
 .quality-dot {
@@ -819,9 +912,20 @@ export default {
   border-radius: 50%;
 }
 
-.quality-dot.orange { background: var(--gold-bright); }
-.quality-dot.purple { background: #b98cf0; }
-.quality-dot.blue { background: #6ea8dc; }
+.quality-dot.orange {
+  background: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.quality-dot.purple {
+  background: #a78bfa;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.6);
+}
+
+.quality-dot.blue {
+  background: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
 
 /* Form */
 .form-input {
@@ -829,12 +933,17 @@ export default {
   height: 64rpx;
   padding: 0 16rpx;
   margin-top: 16rpx;
-  border: 1px solid var(--border-accent);
-  border-radius: var(--r-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-md);
   color: var(--text-ink);
-  background: var(--ink-deep);
+  background: rgba(255, 255, 255, 0.08);
   font-size: 24rpx;
   box-sizing: border-box;
+  backdrop-filter: blur(5px);
+}
+
+.form-input:focus {
+  border-color: rgba(99, 102, 241, 0.5);
 }
 
 .form-input-group {
@@ -864,25 +973,31 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   font-size: 24rpx;
   font-weight: 600;
 }
 
 .form-btn.cancel {
   color: var(--text-stone);
-  background: var(--ink-surface);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .form-btn.confirm {
-  color: var(--ink-deepest);
-  background: linear-gradient(135deg, var(--gold-bright), var(--gold-dim));
+  color: #ffffff;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.form-btn.confirm:active {
+  transform: scale(0.98);
 }
 
 .form-btn.danger {
   color: #fff;
-  background: linear-gradient(135deg, var(--loss), #8a3530);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
 /* Season */
@@ -897,14 +1012,15 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 12rpx;
-  border: 1px solid var(--border-faint);
-  border-radius: var(--r-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-md);
   margin-bottom: 8rpx;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .season-item.active {
-  border-color: var(--gold);
-  background: var(--gold-ghost);
+  border-color: rgba(201, 152, 58, 0.4);
+  background: rgba(201, 152, 58, 0.1);
 }
 
 .season-info {
@@ -925,11 +1041,11 @@ export default {
 }
 
 .season-action {
-  padding: 4rpx 12rpx;
-  border-radius: 6rpx;
-  color: var(--gold);
-  background: var(--gold-ghost);
-  border: 1px solid var(--border-accent);
+  padding: 6rpx 14rpx;
+  border-radius: 8rpx;
+  color: var(--gold-bright);
+  background: rgba(201, 152, 58, 0.15);
+  border: 1px solid rgba(201, 152, 58, 0.3);
   font-size: 18rpx;
 }
 
@@ -939,7 +1055,775 @@ export default {
   text-align: center;
   color: var(--loss);
   font-size: 22rpx;
-  border: 1px solid rgba(196, 90, 74, 0.3);
-  border-radius: var(--r-sm);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--r-md);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.draw-page {
+  min-height: 100vh;
+  padding: 72rpx 28rpx 150rpx;
+  background:
+    linear-gradient(180deg, rgba(34, 22, 12, 0.9) 0%, rgba(15, 12, 9, 0.98) 42%, #090908 100%),
+    linear-gradient(120deg, #2d1709 0%, #0b1014 48%, #2b1608 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.draw-page::before {
+  display: none;
+}
+
+.draw-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(110deg, rgba(255, 170, 47, 0.08), transparent 34%, rgba(94, 50, 20, 0.18)),
+    linear-gradient(180deg, rgba(255, 218, 134, 0.08), transparent 32%, rgba(255, 113, 24, 0.08));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.draw-topbar,
+.pity-panel,
+.calendar-panel,
+.quick-title,
+.quick-grid,
+.bottom-console,
+.record-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.draw-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 34rpx;
+}
+
+.nav-circle {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(231, 194, 112, 0.36);
+  color: #f2d58d;
+  font-size: 58rpx;
+  line-height: 1;
+  background: rgba(14, 11, 8, 0.58);
+}
+
+.brand-block {
+  flex: 1;
+  text-align: center;
+}
+
+.brand-title {
+  color: #f6d381;
+  font-size: 58rpx;
+  font-weight: 900;
+  line-height: 1.05;
+  text-shadow: 0 7rpx 18rpx rgba(0, 0, 0, 0.65), 0 0 24rpx rgba(245, 183, 67, 0.28);
+}
+
+.brand-subtitle {
+  margin-top: 6rpx;
+  color: rgba(245, 218, 164, 0.78);
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+
+.brand-subtitle image {
+  width: 66rpx;
+  height: 18rpx;
+  display: block;
+  opacity: 0.6;
+  mix-blend-mode: screen;
+}
+
+.brand-subtitle text {
+  flex-shrink: 0;
+}
+
+.top-actions {
+  display: flex;
+  gap: 10rpx;
+}
+
+.top-action {
+  min-width: 88rpx;
+  padding: 10rpx 12rpx;
+  border: 1rpx solid rgba(225, 187, 104, 0.32);
+  border-radius: 999rpx;
+  color: #f0d18d;
+  background: rgba(28, 20, 11, 0.72);
+  font-size: 20rpx;
+  text-align: center;
+}
+
+.pity-panel,
+.calendar-panel,
+.record-panel {
+  border: 1rpx solid rgba(218, 174, 82, 0.42);
+  background: linear-gradient(180deg, rgba(28, 24, 18, 0.88), rgba(12, 12, 10, 0.9));
+  box-shadow: 0 18rpx 40rpx rgba(0, 0, 0, 0.38), inset 0 0 0 1rpx rgba(255, 233, 176, 0.06);
+}
+
+.pity-panel {
+  margin-bottom: 28rpx;
+  padding: 30rpx 34rpx;
+  border-radius: 8rpx;
+}
+
+.pity-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18rpx;
+}
+
+.pity-title {
+  color: #f2d58d;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.pity-count {
+  color: #f8e7b3;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.pity-track {
+  height: 24rpx;
+  border: 1rpx solid rgba(242, 202, 111, 0.44);
+  border-radius: 999rpx;
+  padding: 3rpx;
+  background: rgba(4, 4, 3, 0.8);
+  overflow: hidden;
+}
+
+.pity-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #f28a1b 0%, #ffcf61 72%, #fff0a8 100%);
+  box-shadow: 0 0 18rpx rgba(255, 190, 61, 0.48);
+  transition: width 0.24s ease;
+}
+
+.pity-tip {
+  margin-top: 18rpx;
+  text-align: center;
+  color: #d8c59e;
+  font-size: 26rpx;
+}
+
+.pity-tip text {
+  color: #f1a72c;
+  font-weight: 800;
+}
+
+.calendar-panel {
+  padding: 22rpx 18rpx 24rpx;
+  border-radius: 10rpx;
+  margin-bottom: 24rpx;
+}
+
+.month-nav {
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 42rpx;
+  border-bottom: 1rpx solid rgba(218, 174, 82, 0.18);
+  margin: 0 4rpx 14rpx;
+}
+
+.month-arrow {
+  color: #a8844c;
+  font-size: 48rpx;
+  line-height: 1;
+  padding: 0 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.month-arrow image {
+  width: 58rpx;
+  height: 22rpx;
+  display: block;
+  opacity: 0.78;
+  mix-blend-mode: screen;
+}
+
+.month-title {
+  color: #ead6b0;
+  font-size: 38rpx;
+  font-weight: 800;
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 8rpx;
+}
+
+.weekday {
+  text-align: center;
+  color: #d7b979;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1rpx solid rgba(193, 151, 78, 0.28);
+  border-left: 1rpx solid rgba(193, 151, 78, 0.28);
+}
+
+.cal-cell {
+  width: auto;
+  min-height: 92rpx;
+  padding: 8rpx 4rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8rpx;
+  border-right: 1rpx solid rgba(193, 151, 78, 0.28);
+  border-bottom: 1rpx solid rgba(193, 151, 78, 0.28);
+  background: rgba(11, 11, 9, 0.42);
+}
+
+.cal-cell.blank {
+  opacity: 0.38;
+}
+
+.cal-cell.today,
+.cal-cell.selected {
+  background: rgba(166, 108, 24, 0.24);
+  box-shadow: inset 0 0 0 1rpx rgba(245, 193, 83, 0.38);
+}
+
+.cal-day-num {
+  color: #dcd3c3;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.cal-cell:nth-child(7n + 1) .cal-day-num,
+.cal-cell:nth-child(7n) .cal-day-num {
+  color: #ff8b25;
+}
+
+.draw-token {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  font-weight: 900;
+  color: #fff3d3;
+  border: 1rpx solid rgba(255, 238, 177, 0.55);
+}
+
+.draw-token.orange {
+  background: linear-gradient(145deg, #ff8a17, #a84b08);
+  box-shadow: 0 0 18rpx rgba(255, 129, 21, 0.52);
+}
+
+.draw-token.purple {
+  background: linear-gradient(145deg, #9c68ff, #4a267b);
+  box-shadow: 0 0 18rpx rgba(159, 105, 255, 0.46);
+}
+
+.draw-token.dim {
+  color: #8b7653;
+  background: rgba(72, 58, 36, 0.5);
+  border-color: rgba(120, 99, 62, 0.42);
+  box-shadow: none;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40rpx;
+  padding-top: 24rpx;
+  color: #d6bd83;
+  font-size: 24rpx;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.quick-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  margin-bottom: 18rpx;
+  color: #f3d58d;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.quick-title image {
+  width: 128rpx;
+  height: 28rpx;
+  display: block;
+  opacity: 0.86;
+  mix-blend-mode: screen;
+}
+
+.quick-title text {
+  flex-shrink: 0;
+  text-shadow: 0 0 14rpx rgba(214, 168, 93, 0.28), 0 5rpx 12rpx rgba(0, 0, 0, 0.5);
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14rpx;
+  margin-bottom: 14rpx;
+}
+
+.quick-btn {
+  min-height: 96rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(255, 198, 65, 0.62);
+  background: linear-gradient(180deg, rgba(147, 96, 19, 0.9), rgba(67, 42, 8, 0.95));
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.34), inset 0 0 20rpx rgba(255, 198, 65, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+}
+
+.quick-btn:active,
+.recruit-btn:active,
+.side-link:active {
+  transform: scale(0.98);
+}
+
+.quick-main {
+  color: #fff0be;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
+.quick-sub {
+  color: #f0d59a;
+  font-size: 24rpx;
+}
+
+.bottom-console {
+  display: grid;
+  grid-template-columns: 1fr 2.1fr 1fr;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: -8rpx;
+  margin-bottom: 48rpx;
+}
+
+.side-link {
+  color: #dfc385;
+  font-size: 22rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.side-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(221, 180, 90, 0.36);
+  background: rgba(42, 34, 19, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f0d38c;
+  font-size: 24rpx;
+}
+
+.recruit-btn {
+  height: 86rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff2c2;
+  font-size: 40rpx;
+  font-weight: 900;
+  background: linear-gradient(180deg, #c89737 0%, #8a5816 100%);
+  border: 1rpx solid rgba(255, 231, 158, 0.62);
+  box-shadow: 0 0 28rpx rgba(242, 177, 45, 0.36), inset 0 0 18rpx rgba(255, 239, 179, 0.28);
+}
+
+.record-panel {
+  padding: 24rpx;
+  border-radius: 10rpx;
+}
+
+.record-title {
+  color: #f0d38c;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.add-btn {
+  min-width: 88rpx;
+  width: auto;
+  height: 46rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: rgba(222, 172, 67, 0.18);
+  color: #f4d58b;
+  border: 1rpx solid rgba(222, 172, 67, 0.38);
+  font-size: 22rpx;
+}
+
+.empty-hint {
+  color: #7f7565;
+  font-size: 24rpx;
+  text-align: center;
+  padding: 28rpx 0;
+}
+
+.record-item {
+  gap: 16rpx;
+  padding: 16rpx 0;
+  border-top: 1rpx solid rgba(222, 172, 67, 0.12);
+  border-bottom: 0;
+}
+
+.record-name {
+  color: #eadcc0;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.record-meta {
+  color: #91836d;
+  font-size: 22rpx;
+}
+
+.record-del {
+  color: #d1684d;
+  font-size: 22rpx;
+}
+
+.modal-panel {
+  max-height: 82vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #1d1a14, #0d0d0c);
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(218, 174, 82, 0.5);
+}
+
+.modal-title {
+  color: #f4d58b;
+  font-weight: 900;
+}
+
+.modal-subtitle,
+.modal-desc {
+  color: #a99b83;
+}
+
+.quality-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.quality-opt {
+  min-height: 112rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(218, 174, 82, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  justify-content: center;
+}
+
+.quality-opt.active {
+  border-color: rgba(244, 213, 139, 0.72);
+  background: rgba(183, 126, 28, 0.2);
+  color: #f4d58b;
+}
+
+.form-input {
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(218, 174, 82, 0.22);
+  background: rgba(8, 8, 7, 0.72);
+  color: #eadcc0;
+}
+
+.form-btn.cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #a99b83;
+}
+
+.form-btn.confirm {
+  background: linear-gradient(180deg, #d09934, #8d5a16);
+  color: #fff2c2;
+}
+
+.form-btn.danger {
+  background: linear-gradient(180deg, #d7674b, #912f28);
+  color: #fff2c2;
+}
+
+.season-name {
+  color: #eadcc0;
+  font-weight: 800;
+}
+
+.season-item.active .season-name,
+.season-action {
+  color: #f4d58b;
+}
+
+.season-end {
+  color: #d1684d;
+  border-color: rgba(209, 104, 77, 0.32);
+  background: rgba(209, 104, 77, 0.08);
+}
+
+.draw-page {
+  background:
+    radial-gradient(circle at 50% -6%, rgba(255, 178, 55, 0.26), transparent 32%),
+    radial-gradient(circle at 92% 28%, rgba(255, 111, 24, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(34, 22, 12, 0.9) 0%, rgba(15, 12, 9, 0.98) 42%, #090908 100%),
+    linear-gradient(120deg, #2d1709 0%, #0b1014 48%, #2b1608 100%);
+}
+
+.brand-title {
+  color: transparent;
+  background: linear-gradient(180deg, #fff2ba 0%, #e7b455 46%, #8e551a 64%, #ffe9a6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 0 22rpx rgba(255, 188, 64, 0.28), 0 8rpx 20rpx rgba(0, 0, 0, 0.62);
+}
+
+.nav-circle,
+.top-action,
+.pity-panel,
+.calendar-panel,
+.record-panel {
+  box-shadow:
+    0 18rpx 42rpx rgba(0, 0, 0, 0.45),
+    inset 0 1rpx 0 rgba(255, 242, 185, 0.16),
+    inset 0 -28rpx 46rpx rgba(0, 0, 0, 0.34);
+}
+
+.pity-panel,
+.calendar-panel,
+.record-panel {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  background:
+    linear-gradient(#17120b, #0c0b09) padding-box,
+    linear-gradient(145deg, rgba(255, 230, 150, 0.86), rgba(98, 62, 24, 0.34) 38%, rgba(255, 155, 36, 0.72) 100%) border-box;
+  border: 2rpx solid transparent;
+}
+
+.pity-panel::before,
+.calendar-panel::before,
+.record-panel::before {
+  content: "";
+  position: absolute;
+  inset: 8rpx;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    linear-gradient(90deg, #f7d887 0 28rpx, transparent 28rpx) left top / 82rpx 2rpx no-repeat,
+    linear-gradient(#f7d887 0 28rpx, transparent 28rpx) left top / 2rpx 82rpx no-repeat,
+    linear-gradient(270deg, #f7d887 0 28rpx, transparent 28rpx) right top / 82rpx 2rpx no-repeat,
+    linear-gradient(#f7d887 0 28rpx, transparent 28rpx) right top / 2rpx 82rpx no-repeat,
+    linear-gradient(90deg, #f7d887 0 28rpx, transparent 28rpx) left bottom / 82rpx 2rpx no-repeat,
+    linear-gradient(0deg, #f7d887 0 28rpx, transparent 28rpx) left bottom / 2rpx 82rpx no-repeat,
+    linear-gradient(270deg, #f7d887 0 28rpx, transparent 28rpx) right bottom / 82rpx 2rpx no-repeat,
+    linear-gradient(0deg, #f7d887 0 28rpx, transparent 28rpx) right bottom / 2rpx 82rpx no-repeat;
+  opacity: 0.46;
+}
+
+.pity-panel::after,
+.calendar-panel::after,
+.record-panel::after {
+  content: "";
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  top: 0;
+  height: 64rpx;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 237, 178, 0.12), transparent);
+}
+
+.pity-track {
+  box-shadow: inset 0 0 14rpx rgba(0, 0, 0, 0.86), 0 0 10rpx rgba(255, 199, 65, 0.18);
+}
+
+.pity-fill {
+  background: linear-gradient(180deg, #fff0a5 0%, #ffbd3c 42%, #f47a18 100%);
+  box-shadow: 0 0 24rpx rgba(255, 190, 61, 0.68), inset 0 3rpx 6rpx rgba(255, 255, 255, 0.42);
+}
+
+.cal-cell {
+  box-shadow: inset 0 0 16rpx rgba(0, 0, 0, 0.24);
+}
+
+.cal-cell.today,
+.cal-cell.selected {
+  border-color: rgba(255, 205, 84, 0.72);
+  box-shadow: inset 0 0 0 2rpx rgba(255, 191, 62, 0.58), 0 0 18rpx rgba(255, 140, 23, 0.24);
+}
+
+.draw-token {
+  box-shadow: 0 0 20rpx rgba(255, 202, 86, 0.28), inset 0 0 12rpx rgba(255, 255, 255, 0.18);
+}
+
+.quick-btn,
+.recruit-btn,
+.add-btn,
+.form-btn.confirm {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 246, 194, 0.22) 0%, transparent 34%),
+    linear-gradient(180deg, #e49e30 0%, #935614 54%, #4a2c10 100%);
+  box-shadow:
+    0 12rpx 26rpx rgba(0, 0, 0, 0.44),
+    0 0 18rpx rgba(255, 171, 38, 0.3),
+    inset 0 1rpx 0 rgba(255, 245, 190, 0.58),
+    inset 0 -8rpx 16rpx rgba(61, 31, 6, 0.55);
+}
+
+.quick-btn::before,
+.recruit-btn::before,
+.form-btn.confirm::before {
+  content: "";
+  position: absolute;
+  inset: 4rpx;
+  border: 1rpx solid rgba(255, 230, 150, 0.34);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.quick-btn::after,
+.recruit-btn::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 6rpx;
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, rgba(255, 245, 190, 0.78), transparent);
+}
+
+.recruit-btn {
+  clip-path: polygon(9% 0, 91% 0, 100% 50%, 91% 100%, 9% 100%, 0 50%);
+  letter-spacing: 0;
+  text-shadow: 0 3rpx 8rpx rgba(80, 40, 4, 0.72);
+}
+
+.side-icon {
+  box-shadow: 0 0 18rpx rgba(214, 168, 93, 0.2), inset 0 0 12rpx rgba(255, 235, 170, 0.08);
+}
+
+.nav-circle image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  mix-blend-mode: screen;
+  filter: brightness(1.25) contrast(1.08);
+}
+
+.top-action {
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 76rpx;
+  height: auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.top-action-icon {
+  width: 54rpx;
+  height: 54rpx;
+  display: block;
+  mix-blend-mode: screen;
+  filter: brightness(1.18) contrast(1.08);
+}
+
+.top-action text {
+  color: #f0d8a4;
+  font-size: 20rpx;
+  line-height: 1.2;
+  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.58);
+}
+
+.draw-token.orange,
+.draw-token.purple {
+  color: transparent;
+  border: 0;
+  box-shadow: none;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.draw-token.orange {
+  background-image: url("/static/ui-assets/mockup-icons/draw-token-orange.png");
+}
+
+.draw-token.purple {
+  background-image: url("/static/ui-assets/mockup-icons/draw-token-purple.png");
+}
+
+.quick-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+
+.quick-icon {
+  width: 28rpx;
+  height: 28rpx;
+  display: block;
+  mix-blend-mode: screen;
+}
+
+.side-icon-img {
+  width: 50rpx;
+  height: 50rpx;
+  display: block;
+  mix-blend-mode: screen;
+  filter: brightness(1.2) contrast(1.08);
 }
 </style>

@@ -83,7 +83,7 @@ page {
   background: var(--ink-deep);
   color: var(--text-ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -128,7 +128,7 @@ picker {
   font-weight: 700;
   color: var(--text-ink);
   line-height: 1.2;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
 .subtitle {
@@ -165,7 +165,7 @@ picker {
   background: linear-gradient(135deg, var(--gold-bright) 0%, var(--gold) 60%, var(--gold-dim) 100%);
   font-size: var(--fs-base);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -240,7 +240,7 @@ picker {
   color: var(--text-stone);
   font-size: var(--fs-xs);
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -248,7 +248,7 @@ picker {
   font-size: 36px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   color: var(--gold-bright);
 }
 
