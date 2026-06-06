@@ -1062,7 +1062,7 @@ export default {
 
 .draw-page {
   min-height: 100vh;
-  padding: 72rpx 28rpx 150rpx;
+  padding: 48rpx 28rpx 130rpx;
   background:
     linear-gradient(180deg, rgba(34, 22, 12, 0.9) 0%, rgba(15, 12, 9, 0.98) 42%, #090908 100%),
     linear-gradient(120deg, #2d1709 0%, #0b1014 48%, #2b1608 100%);
@@ -1101,14 +1101,18 @@ export default {
 .draw-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18rpx;
-  margin-bottom: 34rpx;
+  justify-content: center;
+  min-height: 78rpx;
+  margin-bottom: 22rpx;
 }
 
 .nav-circle {
-  width: 64rpx;
-  height: 64rpx;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 56rpx;
+  height: 56rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1121,20 +1125,21 @@ export default {
 }
 
 .brand-block {
-  flex: 1;
+  width: 100%;
+  padding: 0 160rpx;
   text-align: center;
 }
 
 .brand-title {
   color: #f6d381;
-  font-size: 58rpx;
+  font-size: 50rpx;
   font-weight: 900;
   line-height: 1.05;
   text-shadow: 0 7rpx 18rpx rgba(0, 0, 0, 0.65), 0 0 24rpx rgba(245, 183, 67, 0.28);
 }
 
 .brand-subtitle {
-  margin-top: 6rpx;
+  margin-top: 3rpx;
   color: rgba(245, 218, 164, 0.78);
   font-size: 22rpx;
   display: flex;
@@ -1156,6 +1161,10 @@ export default {
 }
 
 .top-actions {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   gap: 10rpx;
 }
@@ -1180,8 +1189,8 @@ export default {
 }
 
 .pity-panel {
-  margin-bottom: 28rpx;
-  padding: 30rpx 34rpx;
+  margin-bottom: 18rpx;
+  padding: 20rpx 26rpx;
   border-radius: 8rpx;
 }
 
@@ -1189,23 +1198,23 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 18rpx;
+  margin-bottom: 12rpx;
 }
 
 .pity-title {
   color: #f2d58d;
-  font-size: 30rpx;
+  font-size: 26rpx;
   font-weight: 800;
 }
 
 .pity-count {
   color: #f8e7b3;
-  font-size: 34rpx;
+  font-size: 30rpx;
   font-weight: 900;
 }
 
 .pity-track {
-  height: 24rpx;
+  height: 18rpx;
   border: 1rpx solid rgba(242, 202, 111, 0.44);
   border-radius: 999rpx;
   padding: 3rpx;
@@ -1222,10 +1231,10 @@ export default {
 }
 
 .pity-tip {
-  margin-top: 18rpx;
+  margin-top: 10rpx;
   text-align: center;
   color: #d8c59e;
-  font-size: 26rpx;
+  font-size: 23rpx;
 }
 
 .pity-tip text {
@@ -1234,19 +1243,19 @@ export default {
 }
 
 .calendar-panel {
-  padding: 22rpx 18rpx 24rpx;
+  padding: 14rpx 12rpx 16rpx;
   border-radius: 10rpx;
-  margin-bottom: 24rpx;
+  margin-bottom: 18rpx;
 }
 
 .month-nav {
-  height: 64rpx;
+  height: 48rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 42rpx;
+  gap: 28rpx;
   border-bottom: 1rpx solid rgba(218, 174, 82, 0.18);
-  margin: 0 4rpx 14rpx;
+  margin: 0 4rpx 8rpx;
 }
 
 .month-arrow {
@@ -1260,8 +1269,8 @@ export default {
 }
 
 .month-arrow image {
-  width: 58rpx;
-  height: 22rpx;
+  width: 48rpx;
+  height: 18rpx;
   display: block;
   opacity: 0.78;
   mix-blend-mode: screen;
@@ -1269,20 +1278,20 @@ export default {
 
 .month-title {
   color: #ead6b0;
-  font-size: 38rpx;
+  font-size: 31rpx;
   font-weight: 800;
 }
 
 .weekday-row {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 8rpx;
+  margin-bottom: 4rpx;
 }
 
 .weekday {
   text-align: center;
   color: #d7b979;
-  font-size: 26rpx;
+  font-size: 22rpx;
   font-weight: 700;
 }
 
@@ -1295,13 +1304,13 @@ export default {
 
 .cal-cell {
   width: auto;
-  min-height: 92rpx;
-  padding: 8rpx 4rpx;
+  min-height: 58rpx;
+  padding: 4rpx 3rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 8rpx;
+  gap: 3rpx;
   border-right: 1rpx solid rgba(193, 151, 78, 0.28);
   border-bottom: 1rpx solid rgba(193, 151, 78, 0.28);
   background: rgba(11, 11, 9, 0.42);
@@ -1319,7 +1328,7 @@ export default {
 
 .cal-day-num {
   color: #dcd3c3;
-  font-size: 30rpx;
+  font-size: 25rpx;
   font-weight: 800;
 }
 
@@ -1329,13 +1338,13 @@ export default {
 }
 
 .draw-token {
-  width: 44rpx;
-  height: 44rpx;
+  width: 32rpx;
+  height: 32rpx;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
+  font-size: 18rpx;
   font-weight: 900;
   color: #fff3d3;
   border: 1rpx solid rgba(255, 238, 177, 0.55);
@@ -1362,32 +1371,32 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 40rpx;
-  padding-top: 24rpx;
+  gap: 28rpx;
+  padding-top: 12rpx;
   color: #d6bd83;
-  font-size: 24rpx;
+  font-size: 21rpx;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 8rpx;
 }
 
 .quick-title {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14rpx;
-  margin-bottom: 18rpx;
+  gap: 10rpx;
+  margin-bottom: 12rpx;
   color: #f3d58d;
-  font-size: 32rpx;
+  font-size: 28rpx;
   font-weight: 800;
 }
 
 .quick-title image {
-  width: 128rpx;
-  height: 28rpx;
+  width: 100rpx;
+  height: 22rpx;
   display: block;
   opacity: 0.86;
   mix-blend-mode: screen;
@@ -1401,12 +1410,12 @@ export default {
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14rpx;
-  margin-bottom: 14rpx;
+  gap: 10rpx;
+  margin-bottom: 10rpx;
 }
 
 .quick-btn {
-  min-height: 96rpx;
+  min-height: 76rpx;
   border-radius: 10rpx;
   border: 1rpx solid rgba(255, 198, 65, 0.62);
   background: linear-gradient(180deg, rgba(147, 96, 19, 0.9), rgba(67, 42, 8, 0.95));
@@ -1415,7 +1424,7 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 4rpx;
 }
 
 .quick-btn:active,
@@ -1426,27 +1435,27 @@ export default {
 
 .quick-main {
   color: #fff0be;
-  font-size: 26rpx;
+  font-size: 23rpx;
   font-weight: 900;
 }
 
 .quick-sub {
   color: #f0d59a;
-  font-size: 24rpx;
+  font-size: 20rpx;
 }
 
 .bottom-console {
   display: grid;
   grid-template-columns: 1fr 2.1fr 1fr;
   align-items: center;
-  gap: 16rpx;
-  margin-top: -8rpx;
-  margin-bottom: 48rpx;
+  gap: 12rpx;
+  margin-top: -4rpx;
+  margin-bottom: 28rpx;
 }
 
 .side-link {
   color: #dfc385;
-  font-size: 22rpx;
+  font-size: 20rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1467,13 +1476,13 @@ export default {
 }
 
 .recruit-btn {
-  height: 86rpx;
+  height: 72rpx;
   border-radius: 14rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff2c2;
-  font-size: 40rpx;
+  font-size: 34rpx;
   font-weight: 900;
   background: linear-gradient(180deg, #c89737 0%, #8a5816 100%);
   border: 1rpx solid rgba(255, 231, 158, 0.62);
@@ -1762,8 +1771,8 @@ export default {
 
 .top-action {
   flex-direction: column;
-  gap: 4rpx;
-  min-width: 76rpx;
+  gap: 2rpx;
+  min-width: 66rpx;
   height: auto;
   padding: 0;
   background: transparent;
@@ -1772,8 +1781,8 @@ export default {
 }
 
 .top-action-icon {
-  width: 54rpx;
-  height: 54rpx;
+  width: 44rpx;
+  height: 44rpx;
   display: block;
   mix-blend-mode: screen;
   filter: brightness(1.18) contrast(1.08);
@@ -1781,7 +1790,7 @@ export default {
 
 .top-action text {
   color: #f0d8a4;
-  font-size: 20rpx;
+  font-size: 18rpx;
   line-height: 1.2;
   text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.58);
 }
@@ -1809,19 +1818,19 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8rpx;
+  gap: 5rpx;
 }
 
 .quick-icon {
-  width: 28rpx;
-  height: 28rpx;
+  width: 24rpx;
+  height: 24rpx;
   display: block;
   mix-blend-mode: screen;
 }
 
 .side-icon-img {
-  width: 50rpx;
-  height: 50rpx;
+  width: 42rpx;
+  height: 42rpx;
   display: block;
   mix-blend-mode: screen;
   filter: brightness(1.2) contrast(1.08);

@@ -29,7 +29,7 @@
     <view class="lineup-cards">
       <view v-for="(general, slot) in selectedGeneralsView" :key="general.id" :class="['lineup-card', 'slot-' + slot]" @tap="openGeneralPicker(slot)">
         <view v-if="!general.cardImageUrl" class="cost-badge">御{{ general.cost || '-' }}</view>
-        <image v-if="general.cardImageUrl" class="general-card-img" :src="general.cardImageUrl" mode="aspectFill" />
+        <image v-if="general.cardImageUrl" class="general-card-img" :src="general.cardImageUrl" mode="aspectFit" />
         <view v-else class="general-card-placeholder">
           <text class="placeholder-initial">{{ general.name[0] }}</text>
         </view>
@@ -46,6 +46,12 @@
             <text>弓{{ general.arms.bow || '-' }}</text>
           </view>
         </view>
+      </view>
+      <view class="swap-btn swap-0" @tap.stop="swapGenerals(0, 1)">
+        <text class="swap-icon">↔</text>
+      </view>
+      <view class="swap-btn swap-1" @tap.stop="swapGenerals(1, 2)">
+        <text class="swap-icon">↔</text>
       </view>
     </view>
 
@@ -347,10 +353,16 @@ export default {
     swapGenerals(a, b) {
       const gi = [...this.selectedGeneralIndexes];
       const rl = [...this.redLevels];
+      const ti = [...this.selectedTacticIndexes];
+      const tacticA = a * 2;
+      const tacticB = b * 2;
       [gi[a], gi[b]] = [gi[b], gi[a]];
       [rl[a], rl[b]] = [rl[b], rl[a]];
+      [ti[tacticA], ti[tacticB]] = [ti[tacticB], ti[tacticA]];
+      [ti[tacticA + 1], ti[tacticB + 1]] = [ti[tacticB + 1], ti[tacticA + 1]];
       this.selectedGeneralIndexes = gi;
       this.redLevels = rl;
+      this.selectedTacticIndexes = ti;
       this.report = null;
       this.refreshSelection();
     },
@@ -884,24 +896,35 @@ export default {
 /* Swap button */
 .swap-btn {
   position: absolute;
-  right: -24rpx;
-  top: 40%;
-  transform: translateY(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   z-index: 10;
-  width: 48rpx;
-  height: 48rpx;
+  width: 42rpx;
+  height: 42rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 238, 169, 0.18), transparent 40%),
+    linear-gradient(180deg, rgba(199, 143, 48, 0.95), rgba(60, 34, 10, 0.96));
+  border: 1rpx solid rgba(255, 226, 148, 0.7);
   border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.44), 0 0 18rpx rgba(222, 181, 94, 0.28);
+}
+
+.swap-btn.swap-0 {
+  left: 33.333%;
+}
+
+.swap-btn.swap-1 {
+  left: 66.666%;
 }
 
 .swap-icon {
-  font-size: 24rpx;
-  color: #ffffff;
-  font-weight: 700;
+  color: #fff2bd;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .feedback-entry {
@@ -952,19 +975,26 @@ export default {
 }
 
 .lineup-header {
-  display: grid;
-  grid-template-columns: 92rpx 1fr 160rpx;
+  min-height: 74rpx;
+  display: flex;
   align-items: center;
+  justify-content: center;
   margin-bottom: 26rpx;
 }
 
 .back-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 64rpx;
   color: #f4d58b;
   font-size: 58rpx;
   line-height: 1;
 }
 
 .header-center {
+  width: 220rpx;
   text-align: center;
 }
 
@@ -982,6 +1012,11 @@ export default {
 }
 
 .share-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 160rpx;
   height: 52rpx;
   border-radius: 6rpx;
   border: 1rpx solid rgba(222, 181, 94, 0.44);
@@ -1060,6 +1095,7 @@ export default {
   grid-template-columns: repeat(3, 1fr);
   gap: 18rpx;
   margin-bottom: 22rpx;
+  position: relative;
 }
 
 .lineup-card {
@@ -1112,7 +1148,8 @@ export default {
 }
 
 .general-card-img {
-  object-fit: cover;
+  object-fit: contain;
+  background: radial-gradient(circle at 50% 40%, rgba(42, 118, 196, 0.2), rgba(3, 8, 16, 0.96));
 }
 
 .general-card-placeholder {

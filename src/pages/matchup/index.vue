@@ -50,7 +50,7 @@
         <view class="camp-title">我方阵容</view>
         <view class="mini-cards">
           <view v-for="item in ownGeneralCards" :key="item.name" class="mini-card">
-            <image v-if="item.imageUrl" class="mini-img" :src="item.imageUrl" mode="aspectFill" />
+            <image v-if="item.imageUrl" class="mini-img" :src="item.imageUrl" mode="aspectFit" />
             <view v-else class="mini-placeholder">{{ item.name[0] }}</view>
             <view v-if="!item.imageUrl" class="mini-name">{{ item.name }}</view>
             <view v-if="!item.imageUrl" class="mini-level">Lv.50</view>
@@ -64,7 +64,7 @@
         <view class="camp-title">敌方阵容</view>
         <view class="mini-cards">
           <view v-for="item in enemyGeneralCards" :key="item.name" class="mini-card">
-            <image v-if="item.imageUrl" class="mini-img" :src="item.imageUrl" mode="aspectFill" />
+            <image v-if="item.imageUrl" class="mini-img" :src="item.imageUrl" mode="aspectFit" />
             <view v-else class="mini-placeholder">{{ item.name[0] }}</view>
             <view v-if="!item.imageUrl" class="mini-name">{{ item.name }}</view>
             <view v-if="!item.imageUrl" class="mini-level">Lv.50</view>
@@ -1161,19 +1161,26 @@ export default {
 }
 
 .match-header {
-  display: grid;
-  grid-template-columns: 64rpx 1fr 60rpx;
+  min-height: 84rpx;
+  display: flex;
   align-items: center;
+  justify-content: center;
   margin-bottom: 30rpx;
 }
 
 .back-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 64rpx;
   color: #d8bb7c;
   font-size: 56rpx;
   line-height: 1;
 }
 
 .header-copy {
+  width: 300rpx;
   text-align: center;
 }
 
@@ -1191,6 +1198,10 @@ export default {
 }
 
 .help-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: 46rpx;
   height: 46rpx;
   border-radius: 50%;
@@ -1250,11 +1261,11 @@ export default {
 
 .battle-stage {
   display: grid;
-  grid-template-columns: 1fr 92rpx 1fr;
-  gap: 14rpx;
+  grid-template-columns: 1fr 60rpx 1fr;
+  gap: 8rpx;
   align-items: center;
-  min-height: 520rpx;
-  margin-bottom: 28rpx;
+  min-height: 360rpx;
+  margin-bottom: 24rpx;
 }
 
 .camp-title {
@@ -1278,12 +1289,12 @@ export default {
 .mini-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10rpx;
+  gap: 6rpx;
 }
 
 .mini-card {
   position: relative;
-  min-height: 258rpx;
+  min-height: 178rpx;
   overflow: hidden;
   border: 1rpx solid rgba(91, 157, 246, 0.44);
   background: #07111f;
@@ -1296,11 +1307,12 @@ export default {
 .mini-img,
 .mini-placeholder {
   width: 100%;
-  height: 258rpx;
+  height: 178rpx;
 }
 
 .mini-img {
-  object-fit: cover;
+  object-fit: contain;
+  background: radial-gradient(circle at 50% 38%, rgba(48, 120, 205, 0.2), rgba(4, 9, 16, 0.96));
 }
 
 .mini-placeholder {

@@ -374,37 +374,9 @@ picker {
   font-size: var(--fs-xs);
 }
 
-/* H5 模式：rpx 转 rem 需要动态根字号 */
-/* 设计稿宽度 750rpx，1rem = 100rpx */
+/* H5 移动画布：内部尺寸按 390px 设计稿还原，桌面只负责居中承载。 */
 html {
   font-size: 16px;
-}
-
-/* iPhone 6/7/8 (375px logical) */
-@media screen and (width: 375px) {
-  html { font-size: 50px; }
-}
-
-/* iPhone 6+/7+/8+ (414px logical) */
-@media screen and (width: 414px) {
-  html { font-size: 55.2px; }
-}
-
-/* 其他手机尺寸动态计算 */
-@media screen and (min-width: 320px) and (max-width: 750px) {
-  html {
-    /* 基于视口宽度计算：fontSize = (vw / 750) * 100 */
-    font-size: calc(100vw / 7.5);
-  }
-}
-
-/* 平板及以上 */
-@media screen and (min-width: 750px) {
-  html { font-size: 100px; }
-}
-
-@media screen and (min-width: 960px) {
-  html { font-size: 128px; }
 }
 
 /* H5 模式：让页面容器撑满视口 */
@@ -412,14 +384,56 @@ uni-page-body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
-/* H5 模式：大屏适配 */
+/* H5 桌面预览：锁回移动画布，避免 rpx 页面被拉成平板布局。 */
 @media screen and (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+
+  body,
+  uni-app {
+    background: #070b12;
+  }
+
   uni-page-body {
-    max-width: 960px;
+    width: 390px;
+    max-width: 390px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  .page {
+    width: 100%;
+    max-width: 390px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .analyze-bg,
+  .catalog-bg,
+  .draw-bg,
+  .match-bg,
+  .account-bg {
+    position: absolute !important;
+  }
+
+  uni-tabbar.uni-tabbar-bottom,
+  uni-tabbar.uni-tabbar-top,
+  uni-tabbar.uni-tabbar-bottom .uni-tabbar,
+  uni-tabbar.uni-tabbar-top .uni-tabbar {
+    left: 50% !important;
+    right: auto !important;
+    width: 390px !important;
+    max-width: 390px !important;
+    transform: translateX(-50%);
+  }
+
+  uni-page-body {
+    box-shadow: 0 0 36px rgba(0, 0, 0, 0.42);
   }
 }
 </style>
