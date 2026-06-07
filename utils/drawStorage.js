@@ -66,15 +66,20 @@ function setCurrentSeason(seasonId) {
 
 function createSeason(name, startDate) {
   var seasons = getSeasons();
+  var effectiveStartDate = startDate || todayStr();
   var season = {
     id: uid(),
     name: name || "S" + (seasons.length + 1),
-    startDate: startDate || todayStr(),
+    startDate: effectiveStartDate,
     endDate: null,
     createdAt: new Date().toISOString()
   };
-  seasons.push(season);
-  saveSeasons(seasons);
+  var updated = seasons.map(function(s) {
+    if (!s.endDate) return Object.assign({}, s, { endDate: effectiveStartDate });
+    return s;
+  });
+  updated.push(season);
+  saveSeasons(updated);
   setCurrentSeason(season.id);
   return season;
 }
@@ -107,7 +112,8 @@ function ensureDefaultSeason() {
   // If there's a current season, return it
   if (currentId) {
     var current = seasons.find(function(s) { return s.id === currentId; });
-    if (current) return current;
+    if (current && !current.endDate) return current;
+    if (current && current.endDate) setCurrentSeason(null);
   }
 
   // Find an active season (no end date)
@@ -118,7 +124,7 @@ function ensureDefaultSeason() {
   }
 
   // Create a new season
-  return createSeason("S1");
+  return createSeason();
 }
 
 // --- storage keys ---
@@ -195,6 +201,7 @@ function addRecord(poolId, record) {
   var item = {
     id: uid(),
     poolId: poolId,
+    seasonId: record.seasonId || getCurrentSeason() || null,
     date: record.date || todayStr(),
     time: record.time || nowTimeStr(),
     quality: record.quality || "blue",
@@ -212,10 +219,32 @@ function deleteRecord(poolId, recordId) {
   saveRecords(poolId, records);
 }
 
+function getSeasonById(seasonId) {
+  if (!seasonId) return null;
+  return getSeasons().find(function(s) { return s.id === seasonId; }) || null;
+}
+
+function recordInSeason(record, season) {
+  if (!record || !season) return false;
+  if (record.seasonId) return record.seasonId === season.id;
+  if (!record.date) return false;
+  if (record.date < season.startDate) return false;
+  if (season.endDate && record.date > season.endDate) return false;
+  return true;
+}
+
+function getSeasonRecords(poolId, seasonId) {
+  var season = getSeasonById(seasonId);
+  if (!season) return [];
+  return getRecords(poolId).filter(function(record) {
+    return recordInSeason(record, season);
+  });
+}
+
 // --- pity counter ---
 
-function getPityCounter(poolId) {
-  var records = getRecords(poolId);
+function getPityCounter(poolId, seasonId) {
+  var records = seasonId ? getSeasonRecords(poolId, seasonId) : getRecords(poolId);
   var count = 0;
   for (var i = records.length - 1; i >= 0; i--) {
     if (records[i].quality === "orange") break;
@@ -224,9 +253,9 @@ function getPityCounter(poolId) {
   return count;
 }
 
-function getPityInfo(poolId) {
-  var counter = getPityCounter(poolId);
-  var remaining = 30 - counter;
+function getPityInfo(poolId, seasonId) {
+  var counter = getPityCounter(poolId, seasonId);
+  var remaining = Math.max(0, 30 - counter);
   var guaranteed = counter > 0 ? counter : null;
   return {
     total: 30,
@@ -287,8 +316,12 @@ function getMonthRecords(poolId, year, month) {
   return records.filter(function (r) { return r.date && r.date.indexOf(prefix) === 0; });
 }
 
-function buildCalendarDays(poolId, year, month) {
-  var records = getMonthRecords(poolId, year, month);
+function buildCalendarDays(poolId, year, month, seasonId) {
+  var records = seasonId ? getSeasonRecords(poolId, seasonId) : getMonthRecords(poolId, year, month);
+  if (seasonId) {
+    var prefix = year + "-" + String(month).padStart(2, "0");
+    records = records.filter(function (r) { return r.date && r.date.indexOf(prefix) === 0; });
+  }
 
   // Group records by date
   var byDate = {};
@@ -338,9 +371,7 @@ function buildCalendarDays(poolId, year, month) {
 // --- statistics ---
 
 function getSeasonStats(poolId, seasonId) {
-  var records = getRecords(poolId);
-  var seasons = getSeasons();
-  var season = seasons.find(function(s) { return s.id === seasonId; });
+  var season = getSeasonById(seasonId);
 
   if (!season) {
     return {
@@ -357,13 +388,7 @@ function getSeasonStats(poolId, seasonId) {
     };
   }
 
-  // Filter records by season date range
-  var seasonRecords = records.filter(function(r) {
-    if (r.date < season.startDate) return false;
-    if (season.endDate && r.date > season.endDate) return false;
-    return true;
-  });
-
+  var seasonRecords = getSeasonRecords(poolId, seasonId);
   var orangeRecords = seasonRecords.filter(function(r) { return r.quality === "orange"; });
 
   // Group by month
@@ -469,6 +494,7 @@ module.exports = {
   createPool: createPool,
   deletePool: deletePool,
   getRecords: getRecords,
+  getSeasonRecords: getSeasonRecords,
   addRecord: addRecord,
   deleteRecord: deleteRecord,
   getPityCounter: getPityCounter,

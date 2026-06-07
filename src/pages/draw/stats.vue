@@ -1,18 +1,16 @@
 <template>
   <view class="page stats-page">
-    <!-- 赛季切换 -->
-    <view class="section">
-      <view class="season-tabs">
-        <view :class="['season-tab', { active: viewMode === 'current' }]" @tap="viewMode = 'current'; refreshStats()">
-          当前赛季
-        </view>
-        <view :class="['season-tab', { active: viewMode === 'all' }]" @tap="viewMode = 'all'; refreshStats()">
-          全部记录
-        </view>
+    <view class="section stats-season-card">
+      <view>
+        <view class="season-label">当前赛季</view>
+        <view class="season-name">{{ activeSeason ? activeSeason.name : '未设置' }}</view>
+      </view>
+      <view class="season-pity">
+        <text>保底</text>
+        <text>{{ pity.current }}/{{ pity.total }}</text>
       </view>
     </view>
 
-    <!-- 数据总览 -->
     <view class="section overview-grid">
       <view class="overview-card">
         <view class="card-value">{{ stats.totalDraws }}</view>
@@ -124,7 +122,8 @@ import * as drawStorage from "../../utils/drawStorage";
 export default {
   data() {
     return {
-      viewMode: "current",
+      activeSeason: null,
+      pity: { total: 30, current: 0, remaining: 30, guaranteedAt: null },
       stats: {
         totalDraws: 0,
         orangeCount: 0,
@@ -157,8 +156,15 @@ export default {
 
   methods: {
     refreshStats() {
-      const pools = drawStorage.getPools();
+      let pools = drawStorage.getPools();
       if (pools.length === 0) {
+        drawStorage.ensureDefaultPool();
+        pools = drawStorage.getPools();
+      }
+
+      if (pools.length === 0) {
+        this.activeSeason = null;
+        this.pity = { total: 30, current: 0, remaining: 30, guaranteedAt: null };
         this.stats = {
           totalDraws: 0,
           orangeCount: 0,
@@ -175,17 +181,12 @@ export default {
       }
 
       const poolId = pools[0].id;
-
-      if (this.viewMode === "current") {
-        const seasonId = drawStorage.getCurrentSeason();
-        if (seasonId) {
-          this.stats = drawStorage.getSeasonStats(poolId, seasonId);
-        } else {
-          this.stats = drawStorage.getAllTimeStats(poolId);
-        }
-      } else {
-        this.stats = drawStorage.getAllTimeStats(poolId);
-      }
+      const activeSeason = drawStorage.ensureDefaultSeason();
+      this.activeSeason = activeSeason;
+      this.pity = drawStorage.getPityInfo(poolId, activeSeason && activeSeason.id);
+      this.stats = activeSeason
+        ? drawStorage.getSeasonStats(poolId, activeSeason.id)
+        : drawStorage.getAllTimeStats(poolId);
     },
 
     getBarHeight(value, max) {
@@ -203,30 +204,52 @@ export default {
   padding-bottom: 100rpx;
 }
 
-/* 赛季切换 */
-.season-tabs {
-  display: flex;
-  gap: 12rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8rpx;
-  padding: 6rpx;
-}
-
-.season-tab {
-  flex: 1;
-  height: 64rpx;
+.stats-season-card {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 6rpx;
-  color: #8d97a5;
-  font-size: 26rpx;
+  justify-content: space-between;
+  padding: 22rpx 24rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(241, 210, 154, 0.36);
+  background:
+    linear-gradient(180deg, rgba(241, 210, 154, 0.12), rgba(15, 23, 35, 0.62)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1rpx 0 rgba(255, 242, 185, 0.16), 0 12rpx 28rpx rgba(0, 0, 0, 0.22);
 }
 
-.season-tab.active {
-  color: #1a1208;
-  background: linear-gradient(180deg, #f1c879 0%, #c88732 100%);
-  font-weight: 600;
+.season-label {
+  color: #8d97a5;
+  font-size: 22rpx;
+}
+
+.season-name {
+  margin-top: 4rpx;
+  color: #f7e4bc;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.season-pity {
+  min-width: 120rpx;
+  padding: 10rpx 14rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(241, 166, 78, 0.36);
+  background: rgba(241, 166, 78, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+}
+
+.season-pity text:first-child {
+  color: #8d97a5;
+  font-size: 18rpx;
+}
+
+.season-pity text:last-child {
+  color: #f1a64e;
+  font-size: 28rpx;
+  font-weight: 800;
 }
 
 /* Overview grid */

@@ -82,20 +82,43 @@ drawStorage.deletePool(pkPool.id);
 assert.equal(drawStorage.getPools().length, 1);
 assert.equal(drawStorage.getRecords(pkPool.id).length, 0);
 
-// 10. getDrawWindow returns a result with activeGroup
+// 10. Seasons have independent pity counters
+const seasonPool = drawStorage.createPool("赛季独立测试卡池");
+const season1 = drawStorage.createSeason("测试S1");
+drawStorage.addRecord(seasonPool.id, { quality: "blue", generalName: "许褚", drawType: "free", group: 1 });
+drawStorage.addRecord(seasonPool.id, { quality: "purple", generalName: "郭嘉", drawType: "half", group: 1 });
+assert.equal(drawStorage.getPityInfo(seasonPool.id, season1.id).current, 2);
+assert.equal(drawStorage.getSeasonStats(seasonPool.id, season1.id).totalDraws, 2);
+
+const season2 = drawStorage.createSeason("测试S2");
+assert.equal(drawStorage.getPityInfo(seasonPool.id, season2.id).current, 0);
+drawStorage.addRecord(seasonPool.id, { quality: "blue", generalName: "马岱", drawType: "free", group: 2 });
+assert.equal(drawStorage.getPityInfo(seasonPool.id, season2.id).current, 1);
+assert.equal(drawStorage.getPityInfo(seasonPool.id, season1.id).current, 2);
+
+drawStorage.addRecord(seasonPool.id, { quality: "orange", generalName: "赵云", drawType: "half", group: 2 });
+assert.equal(drawStorage.getPityInfo(seasonPool.id, season2.id).current, 0);
+assert.equal(drawStorage.getSeasonStats(seasonPool.id, season2.id).orangeCount, 1);
+
+drawStorage.endCurrentSeason();
+const season3 = drawStorage.ensureDefaultSeason();
+assert.notEqual(season3.id, season2.id);
+assert.equal(drawStorage.getPityInfo(seasonPool.id, season3.id).current, 0);
+
+// 11. getDrawWindow returns a result with activeGroup
 const window = drawStorage.getDrawWindow();
 assert.ok("activeGroup" in window);
 assert.ok("group1Open" in window);
 assert.ok("group2Open" in window);
 
-// 11. buildCalendarDays returns correct structure
+// 12. buildCalendarDays returns correct structure
 const cal = drawStorage.buildCalendarDays(defaultPool.id, 2026, 6);
 assert.ok(Array.isArray(cal.days));
 assert.ok(cal.days.length >= 28);
 assert.equal(typeof cal.totalDraws, "number");
 assert.equal(typeof cal.orangeCount, "number");
 
-// 12. getDrawDate returns a valid date string
+// 13. getDrawDate returns a valid date string
 const drawDate = drawStorage.getDrawDate();
 assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(drawDate));
 

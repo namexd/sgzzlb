@@ -66,6 +66,7 @@ export function addRecord(poolId, record) {
   const item = {
     id: uid(),
     poolId,
+    seasonId: record.seasonId || getCurrentSeason() || null,
     date: record.date || todayStr(),
     time: record.time || nowTimeStr(),
     quality: record.quality || "blue",
@@ -83,9 +84,29 @@ export function deleteRecord(poolId, recordId) {
   saveRecords(poolId, records);
 }
 
+function getSeasonById(seasonId) {
+  if (!seasonId) return null;
+  return getSeasons().find(s => s.id === seasonId) || null;
+}
+
+function recordInSeason(record, season) {
+  if (!record || !season) return false;
+  if (record.seasonId) return record.seasonId === season.id;
+  if (!record.date) return false;
+  if (record.date < season.startDate) return false;
+  if (season.endDate && record.date > season.endDate) return false;
+  return true;
+}
+
+export function getSeasonRecords(poolId, seasonId) {
+  const season = getSeasonById(seasonId);
+  if (!season) return [];
+  return getRecords(poolId).filter(record => recordInSeason(record, season));
+}
+
 // Pity counter
-export function getPityCounter(poolId) {
-  const records = getRecords(poolId);
+export function getPityCounter(poolId, seasonId) {
+  const records = seasonId ? getSeasonRecords(poolId, seasonId) : getRecords(poolId);
   let count = 0;
   for (let i = records.length - 1; i >= 0; i--) {
     if (records[i].quality === "orange") break;
@@ -94,12 +115,12 @@ export function getPityCounter(poolId) {
   return count;
 }
 
-export function getPityInfo(poolId) {
-  const counter = getPityCounter(poolId);
+export function getPityInfo(poolId, seasonId) {
+  const counter = getPityCounter(poolId, seasonId);
   return {
     total: 30,
     current: counter,
-    remaining: 30 - counter,
+    remaining: Math.max(0, 30 - counter),
     guaranteedAt: counter > 0 ? counter : null
   };
 }
@@ -144,8 +165,8 @@ export function getTodayGroupRecords(poolId) {
 }
 
 // Calendar
-export function buildCalendarDays(poolId, year, month) {
-  const records = getRecords(poolId);
+export function buildCalendarDays(poolId, year, month, seasonId) {
+  const records = seasonId ? getSeasonRecords(poolId, seasonId) : getRecords(poolId);
   const prefix = `${year}-${String(month).padStart(2, "0")}`;
   const monthRecords = records.filter(r => r.date && r.date.indexOf(prefix) === 0);
 
@@ -207,15 +228,20 @@ export function setCurrentSeason(seasonId) {
 
 export function createSeason(name, startDate) {
   const seasons = getSeasons();
+  const effectiveStartDate = startDate || todayStr();
   const season = {
     id: uid(),
     name: name || "S" + (seasons.length + 1),
-    startDate: startDate || todayStr(),
+    startDate: effectiveStartDate,
     endDate: null,
     createdAt: new Date().toISOString()
   };
-  seasons.push(season);
-  saveSeasons(seasons);
+  const updated = seasons.map(s => {
+    if (!s.endDate) return { ...s, endDate: effectiveStartDate };
+    return s;
+  });
+  updated.push(season);
+  saveSeasons(updated);
   setCurrentSeason(season.id);
   return season;
 }
@@ -247,7 +273,8 @@ export function ensureDefaultSeason() {
 
   if (currentId) {
     const current = seasons.find(s => s.id === currentId);
-    if (current) return current;
+    if (current && !current.endDate) return current;
+    if (current && current.endDate) setCurrentSeason(null);
   }
 
   const active = seasons.find(s => !s.endDate);
@@ -256,14 +283,12 @@ export function ensureDefaultSeason() {
     return active;
   }
 
-  return createSeason("S1");
+  return createSeason();
 }
 
 // Statistics
 export function getSeasonStats(poolId, seasonId) {
-  const records = getRecords(poolId);
-  const seasons = getSeasons();
-  const season = seasons.find(s => s.id === seasonId);
+  const season = getSeasonById(seasonId);
 
   if (!season) {
     return {
@@ -273,12 +298,7 @@ export function getSeasonStats(poolId, seasonId) {
     };
   }
 
-  const seasonRecords = records.filter(r => {
-    if (r.date < season.startDate) return false;
-    if (season.endDate && r.date > season.endDate) return false;
-    return true;
-  });
-
+  const seasonRecords = getSeasonRecords(poolId, seasonId);
   const orangeRecords = seasonRecords.filter(r => r.quality === "orange");
 
   const byMonth = {};

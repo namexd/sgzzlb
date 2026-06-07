@@ -14,16 +14,6 @@
           <image src="/static/ui-assets/mockup-icons/title-ornament-right.png" mode="aspectFit" />
         </view>
       </view>
-      <view class="top-actions">
-        <view class="top-action" @tap="showSeasonModal = true">
-          <image class="top-action-icon" src="/static/ui-assets/mockup-icons/draw-card-detail.png" mode="aspectFit" />
-          <text>卡池详情</text>
-        </view>
-        <view class="top-action" @tap="goToStats">
-          <image class="top-action-icon" src="/static/ui-assets/mockup-icons/draw-gift.png" mode="aspectFit" />
-          <text>奖励预览</text>
-        </view>
-      </view>
     </view>
 
     <view class="pity-panel">
@@ -31,6 +21,14 @@
       <view class="pity-head">
         <text class="pity-title">橙卡保底进度</text>
         <text class="pity-count">{{ pity.current }}/{{ pity.total }}</text>
+      </view>
+      <view class="season-status" @tap="showSeasonModal = true">
+        <view class="season-current">
+          <text class="season-label">当前赛季</text>
+          <text class="season-current-name">{{ activeSeason ? activeSeason.name : '未设置' }}</text>
+          <text v-if="activeSeason" class="season-current-range">{{ activeSeason.startDate }} 起</text>
+        </view>
+        <view class="season-current-action">管理</view>
       </view>
       <view class="pity-track">
         <view class="pity-fill" :style="{ width: pityPercent + '%' }"></view>
@@ -105,7 +103,7 @@
         <view>抽卡统计</view>
       </view>
       <view class="recruit-btn" @tap="showAddRecord">添加记录</view>
-      <view class="side-link" @tap="showAddRecord">
+      <view class="side-link" @tap="showHistoryRecords">
         <image class="side-icon-img" src="/static/ui-assets/mockup-icons/draw-side-record.png" mode="aspectFit" />
         <view>历史记录</view>
       </view>
@@ -113,10 +111,11 @@
 
     <view class="record-panel">
       <view class="records-header">
-        <view class="record-title">{{ selectedDateText }} 记录</view>
+        <view class="record-title">{{ recordPanelTitle }}</view>
         <view class="add-btn" @tap="showAddRecord">新增</view>
       </view>
-      <view v-for="item in selectedRecords" :key="item.id" class="record-item">
+      <view v-if="recordsForPanel.length === 0" class="empty-hint">暂无记录</view>
+      <view v-for="item in recordsForPanel" :key="item.id" class="record-item">
         <view :class="['q-dot', item.quality]"></view>
         <view class="record-info">
           <text class="record-name">{{ item.generalName || '武将记录' }}</text>
@@ -166,7 +165,10 @@
           <view v-for="s in seasons" :key="s.id"
             :class="['season-item', { active: activeSeason && activeSeason.id === s.id }]">
             <view class="season-info">
-              <view class="season-name">{{ s.name }}</view>
+              <view class="season-name-row">
+                <text class="season-name">{{ s.name }}</text>
+                <text v-if="activeSeason && activeSeason.id === s.id" class="season-tag">当前</text>
+              </view>
               <view class="season-dates">{{ s.startDate }} {{ s.endDate ? '— ' + s.endDate : '— 进行中' }}</view>
             </view>
             <view v-if="!s.endDate && (!activeSeason || activeSeason.id !== s.id)"
@@ -175,12 +177,12 @@
         </view>
 
         <view class="form-input-group">
-          <input class="form-input" v-model="newSeasonName" placeholder="新赛季名称（如 S2）" />
-          <view class="form-btn confirm" @tap="doCreateSeason">创建</view>
+          <input class="form-input" v-model="newSeasonName" placeholder="新赛季名称（选填）" />
+          <view class="form-btn confirm" @tap="doCreateSeason">新增</view>
         </view>
 
         <view v-if="activeSeason" class="season-end" @tap="confirmEndSeason">
-          结束当前赛季「{{ activeSeason.name }}」
+          结束当前赛季
         </view>
       </view>
     </view>
@@ -188,7 +190,7 @@
     <view v-if="showEndSeasonConfirm" class="modal-mask" @tap="showEndSeasonConfirm = false">
       <view class="modal-panel" @tap.stop>
         <view class="modal-title">确认结束赛季</view>
-        <view class="modal-desc">结束「{{ activeSeason.name }}」后停止新增记录</view>
+        <view class="modal-desc">结束后会进入新赛季，保底进度从 0/30 开始。</view>
         <view class="form-actions">
           <view class="form-btn cancel" @tap="showEndSeasonConfirm = false">取消</view>
           <view class="form-btn danger" @tap="doEndSeason">确认结束</view>
@@ -213,14 +215,16 @@ export default {
       calPurpleCount: 0,
       selectedDate: this.formatDate(now),
       selectedRecords: [],
+      historyRecords: [],
+      recordScope: "day",
       pools: [],
       activePool: null,
+      seasons: [],
+      activeSeason: null,
       pity: { total: 30, current: 0, remaining: 30, guaranteedAt: null },
       qualityMap: drawStorage.QUALITY_MAP,
       drawTypeMap: drawStorage.DRAW_TYPE_MAP,
       recordForm: null,
-      seasons: [],
-      activeSeason: null,
       showSeasonModal: false,
       showEndSeasonConfirm: false,
       newSeasonName: ""
@@ -237,6 +241,14 @@ export default {
       if (!this.selectedDate) return "选择日期";
       const parts = this.selectedDate.split("-");
       return `${parts[1]}月${parts[2]}日`;
+    },
+
+    recordPanelTitle() {
+      return this.recordScope === "all" ? "历史记录" : `${this.selectedDateText} 记录`;
+    },
+
+    recordsForPanel() {
+      return this.recordScope === "all" ? this.historyRecords : this.selectedRecords;
     }
   },
 
@@ -253,7 +265,6 @@ export default {
     },
 
     refreshAll() {
-      // Ensure pool exists
       let pools = drawStorage.getPools();
       if (pools.length === 0) {
         drawStorage.ensureDefaultPool();
@@ -261,25 +272,20 @@ export default {
       }
       const activePool = pools[0];
 
-      // Ensure season exists
       const activeSeason = drawStorage.ensureDefaultSeason();
       const seasons = drawStorage.getSeasons();
+      const seasonId = activeSeason && activeSeason.id;
+      const pity = drawStorage.getPityInfo(activePool.id, seasonId);
+      const calData = drawStorage.buildCalendarDays(activePool.id, this.calYear, this.calMonth, seasonId);
 
-      // Get pity info
-      const pity = drawStorage.getPityInfo(activePool.id);
-
-      // Build calendar
-      const calData = drawStorage.buildCalendarDays(activePool.id, this.calYear, this.calMonth);
-
-      // Mark today
       const todayStr = drawStorage.todayStr();
       const daysWithToday = calData.days.map(cell => ({
         ...cell,
         isToday: cell.date === todayStr
       }));
 
-      // Get selected date records
-      const selectedRecords = this.getSelectedDateRecords(activePool.id);
+      const selectedRecords = this.getSelectedDateRecords(activePool.id, seasonId);
+      const historyRecords = this.getAllRecords(activePool.id, seasonId);
 
       Object.assign(this, {
         pools,
@@ -291,14 +297,24 @@ export default {
         calTotalDraws: calData.totalDraws,
         calOrangeCount: calData.orangeCount,
         calPurpleCount: calData.purpleCount,
-        selectedRecords
+        selectedRecords,
+        historyRecords
       });
     },
 
-    getSelectedDateRecords(poolId) {
+    getSelectedDateRecords(poolId, seasonId) {
       if (!this.selectedDate) return [];
-      const records = drawStorage.getRecords(poolId);
+      const records = seasonId ? drawStorage.getSeasonRecords(poolId, seasonId) : drawStorage.getRecords(poolId);
       return records.filter(r => r.date === this.selectedDate);
+    },
+
+    getAllRecords(poolId, seasonId) {
+      const records = seasonId ? drawStorage.getSeasonRecords(poolId, seasonId) : drawStorage.getRecords(poolId);
+      return records.slice().sort((a, b) => {
+        const left = `${a.date || ""} ${a.time || ""}`;
+        const right = `${b.date || ""} ${b.time || ""}`;
+        return right.localeCompare(left);
+      });
     },
 
     prevMonth() {
@@ -324,12 +340,14 @@ export default {
       this.calYear = now.getFullYear();
       this.calMonth = now.getMonth() + 1;
       this.selectedDate = this.formatDate(now);
+      this.recordScope = "day";
       this.refreshCalendar();
     },
 
     refreshCalendar() {
       if (!this.activePool) return;
-      const calData = drawStorage.buildCalendarDays(this.activePool.id, this.calYear, this.calMonth);
+      const seasonId = this.activeSeason && this.activeSeason.id;
+      const calData = drawStorage.buildCalendarDays(this.activePool.id, this.calYear, this.calMonth, seasonId);
       const todayStr = drawStorage.todayStr();
       const daysWithToday = calData.days.map(cell => ({
         ...cell,
@@ -339,13 +357,15 @@ export default {
       this.calTotalDraws = calData.totalDraws;
       this.calOrangeCount = calData.orangeCount;
       this.calPurpleCount = calData.purpleCount;
-      this.selectedRecords = this.getSelectedDateRecords(this.activePool.id);
+      this.selectedRecords = this.getSelectedDateRecords(this.activePool.id, seasonId);
+      this.historyRecords = this.getAllRecords(this.activePool.id, seasonId);
     },
 
     onDateTap(cell) {
       if (!cell.date) return;
       this.selectedDate = cell.date;
-      this.selectedRecords = this.getSelectedDateRecords(this.activePool.id);
+      this.recordScope = "day";
+      this.selectedRecords = this.getSelectedDateRecords(this.activePool.id, this.activeSeason && this.activeSeason.id);
     },
 
     showAddRecord() {
@@ -372,10 +392,26 @@ export default {
       };
     },
 
+    showHistoryRecords() {
+      if (!this.activePool) return;
+      this.recordScope = "all";
+      this.historyRecords = this.getAllRecords(this.activePool.id, this.activeSeason && this.activeSeason.id);
+      this.$nextTick(() => {
+        uni.pageScrollTo({
+          selector: ".record-panel",
+          duration: 220,
+          fail: () => {
+            uni.pageScrollTo({ scrollTop: 9999, duration: 220 });
+          }
+        });
+      });
+    },
+
     doAddRecord() {
       if (!this.recordForm || !this.activePool) return;
       drawStorage.addRecord(this.activePool.id, {
         date: this.recordForm.date,
+        seasonId: this.activeSeason ? this.activeSeason.id : null,
         quality: this.recordForm.quality,
         generalName: this.recordForm.generalName,
         drawType: this.recordForm.drawType,
@@ -408,15 +444,12 @@ export default {
 
     doCreateSeason() {
       const name = (this.newSeasonName || "").trim();
-      if (!name) {
-        uni.showToast({ title: "请输入赛季名称", icon: "none" });
-        return;
-      }
-      drawStorage.createSeason(name);
+      drawStorage.createSeason(name || `S${this.seasons.length + 1}`);
       this.newSeasonName = "";
       this.showSeasonModal = false;
+      this.recordScope = "day";
       this.refreshAll();
-      uni.showToast({ title: "赛季已创建", icon: "success" });
+      uni.showToast({ title: "已进入新赛季", icon: "success" });
     },
 
     confirmEndSeason() {
@@ -426,9 +459,11 @@ export default {
 
     doEndSeason() {
       drawStorage.endCurrentSeason();
+      drawStorage.ensureDefaultSeason();
       this.showEndSeasonConfirm = false;
+      this.recordScope = "day";
       this.refreshAll();
-      uni.showToast({ title: "赛季已结束", icon: "success" });
+      uni.showToast({ title: "已进入新赛季", icon: "success" });
     }
   }
 };
@@ -1126,7 +1161,7 @@ export default {
 
 .brand-block {
   width: 100%;
-  padding: 0 160rpx;
+  padding: 0 72rpx;
   text-align: center;
 }
 
@@ -1158,26 +1193,6 @@ export default {
 
 .brand-subtitle text {
   flex-shrink: 0;
-}
-
-.top-actions {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 10rpx;
-}
-
-.top-action {
-  min-width: 88rpx;
-  padding: 10rpx 12rpx;
-  border: 1rpx solid rgba(225, 187, 104, 0.32);
-  border-radius: 999rpx;
-  color: #f0d18d;
-  background: rgba(28, 20, 11, 0.72);
-  font-size: 20rpx;
-  text-align: center;
 }
 
 .pity-panel,
@@ -1240,6 +1255,61 @@ export default {
 .pity-tip text {
   color: #f1a72c;
   font-weight: 800;
+}
+
+.season-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  margin: -2rpx 0 14rpx;
+  padding: 12rpx 14rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(231, 194, 112, 0.28);
+  background: linear-gradient(180deg, rgba(82, 54, 17, 0.42), rgba(12, 10, 8, 0.34));
+  box-shadow: inset 0 1rpx 0 rgba(255, 235, 175, 0.12);
+}
+
+.season-current {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
+
+.season-label {
+  color: #9d8a65;
+  font-size: 20rpx;
+  flex-shrink: 0;
+}
+
+.season-current-name {
+  color: #f4d58b;
+  font-size: 24rpx;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.season-current-range {
+  color: #a99b83;
+  font-size: 19rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.season-current-action {
+  min-width: 72rpx;
+  height: 38rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffe4a1;
+  font-size: 20rpx;
+  font-weight: 800;
+  border: 1rpx solid rgba(244, 213, 139, 0.38);
+  background: rgba(218, 149, 39, 0.16);
 }
 
 .calendar-panel {
@@ -1560,6 +1630,21 @@ export default {
   color: #a99b83;
 }
 
+.season-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.season-tag {
+  padding: 2rpx 8rpx;
+  border-radius: 999rpx;
+  color: #1a1208;
+  background: linear-gradient(180deg, #f1c879 0%, #c88732 100%);
+  font-size: 16rpx;
+  font-weight: 900;
+}
+
 .quality-picker {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1601,22 +1686,6 @@ export default {
   color: #fff2c2;
 }
 
-.season-name {
-  color: #eadcc0;
-  font-weight: 800;
-}
-
-.season-item.active .season-name,
-.season-action {
-  color: #f4d58b;
-}
-
-.season-end {
-  color: #d1684d;
-  border-color: rgba(209, 104, 77, 0.32);
-  background: rgba(209, 104, 77, 0.08);
-}
-
 .draw-page {
   background:
     radial-gradient(circle at 50% -6%, rgba(255, 178, 55, 0.26), transparent 32%),
@@ -1634,7 +1703,6 @@ export default {
 }
 
 .nav-circle,
-.top-action,
 .pity-panel,
 .calendar-panel,
 .record-panel {
@@ -1767,32 +1835,6 @@ export default {
   display: block;
   mix-blend-mode: screen;
   filter: brightness(1.25) contrast(1.08);
-}
-
-.top-action {
-  flex-direction: column;
-  gap: 2rpx;
-  min-width: 66rpx;
-  height: auto;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
-.top-action-icon {
-  width: 44rpx;
-  height: 44rpx;
-  display: block;
-  mix-blend-mode: screen;
-  filter: brightness(1.18) contrast(1.08);
-}
-
-.top-action text {
-  color: #f0d8a4;
-  font-size: 18rpx;
-  line-height: 1.2;
-  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.58);
 }
 
 .draw-token.orange,
