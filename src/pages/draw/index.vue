@@ -2,20 +2,6 @@
   <view class="page draw-page">
     <view class="draw-bg"></view>
 
-    <view class="draw-topbar">
-      <view class="nav-circle" @tap="goToFeedback">
-        <image src="/static/ui-assets/mockup-icons/nav-back-circle.png" mode="aspectFit" />
-      </view>
-      <view class="brand-block">
-        <view class="brand-title">三国·策略</view>
-        <view class="brand-subtitle">
-          <image src="/static/ui-assets/mockup-icons/title-ornament-left.png" mode="aspectFit" />
-          <text>招贤纳士 · 共谋天下</text>
-          <image src="/static/ui-assets/mockup-icons/title-ornament-right.png" mode="aspectFit" />
-        </view>
-      </view>
-    </view>
-
     <view class="pity-panel">
       <view class="panel-corners"></view>
       <view class="pity-head">
@@ -430,10 +416,6 @@ export default {
 
     goToStats() {
       uni.navigateTo({ url: "/pages/draw/stats" });
-    },
-
-    goToFeedback() {
-      uni.navigateTo({ url: "/pages/feedback/index" });
     },
 
     switchSeason(seasonId) {
@@ -1122,7 +1104,6 @@ export default {
   z-index: 0;
 }
 
-.draw-topbar,
 .pity-panel,
 .calendar-panel,
 .quick-title,
@@ -1131,68 +1112,6 @@ export default {
 .record-panel {
   position: relative;
   z-index: 1;
-}
-
-.draw-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 78rpx;
-  margin-bottom: 22rpx;
-}
-
-.nav-circle {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1rpx solid rgba(231, 194, 112, 0.36);
-  color: #f2d58d;
-  font-size: 58rpx;
-  line-height: 1;
-  background: rgba(14, 11, 8, 0.58);
-}
-
-.brand-block {
-  width: 100%;
-  padding: 0 72rpx;
-  text-align: center;
-}
-
-.brand-title {
-  color: #f6d381;
-  font-size: 50rpx;
-  font-weight: 900;
-  line-height: 1.05;
-  text-shadow: 0 7rpx 18rpx rgba(0, 0, 0, 0.65), 0 0 24rpx rgba(245, 183, 67, 0.28);
-}
-
-.brand-subtitle {
-  margin-top: 3rpx;
-  color: rgba(245, 218, 164, 0.78);
-  font-size: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-}
-
-.brand-subtitle image {
-  width: 66rpx;
-  height: 18rpx;
-  display: block;
-  opacity: 0.6;
-  mix-blend-mode: screen;
-}
-
-.brand-subtitle text {
-  flex-shrink: 0;
 }
 
 .pity-panel,
@@ -1694,15 +1613,6 @@ export default {
     linear-gradient(120deg, #2d1709 0%, #0b1014 48%, #2b1608 100%);
 }
 
-.brand-title {
-  color: transparent;
-  background: linear-gradient(180deg, #fff2ba 0%, #e7b455 46%, #8e551a 64%, #ffe9a6 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  text-shadow: 0 0 22rpx rgba(255, 188, 64, 0.28), 0 8rpx 20rpx rgba(0, 0, 0, 0.62);
-}
-
-.nav-circle,
 .pity-panel,
 .calendar-panel,
 .record-panel {
@@ -1827,14 +1737,6 @@ export default {
 
 .side-icon {
   box-shadow: 0 0 18rpx rgba(214, 168, 93, 0.2), inset 0 0 12rpx rgba(255, 235, 170, 0.08);
-}
-
-.nav-circle image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  mix-blend-mode: screen;
-  filter: brightness(1.25) contrast(1.08);
 }
 
 .draw-token.orange,
