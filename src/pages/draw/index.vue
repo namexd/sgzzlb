@@ -70,21 +70,17 @@
       <image src="/static/ui-assets/mockup-icons/title-ornament-right.png" mode="aspectFit" />
     </view>
     <view class="quick-grid">
-      <view class="quick-btn free" @tap="quickRecord(1, 'free')">
-        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-free.png" mode="aspectFit" />免费 · 1</view>
-        <view class="quick-sub">第1组</view>
+      <view class="quick-btn free" @tap="quickRecord('free')">
+        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-free.png" mode="aspectFit" />免费</view>
+        <view class="quick-sub">记录 1 次</view>
       </view>
-      <view class="quick-btn half" @tap="quickRecord(1, 'half')">
-        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-half.png" mode="aspectFit" />半价 · 1</view>
-        <view class="quick-sub">第1组</view>
+      <view class="quick-btn half" @tap="quickRecord('half')">
+        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-half.png" mode="aspectFit" />半价</view>
+        <view class="quick-sub">记录 1 次</view>
       </view>
-      <view class="quick-btn free" @tap="quickRecord(2, 'free')">
-        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-free.png" mode="aspectFit" />免费 · 2</view>
-        <view class="quick-sub">第2组</view>
-      </view>
-      <view class="quick-btn half" @tap="quickRecord(2, 'half')">
-        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-quick-half.png" mode="aspectFit" />半价 · 2</view>
-        <view class="quick-sub">第2组</view>
+      <view class="quick-btn five" @tap="showFiveRecord">
+        <view class="quick-main"><image class="quick-icon" src="/static/ui-assets/mockup-icons/draw-gift.png" mode="aspectFit" />五连</view>
+        <view class="quick-sub">逐张设置</view>
       </view>
     </view>
 
@@ -144,6 +140,36 @@
         <view class="form-actions">
           <view class="form-btn cancel" @tap="recordForm = null">取消</view>
           <view class="form-btn confirm" @tap="doAddRecord">确认</view>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="multiRecordForm" class="modal-mask" @tap="multiRecordForm = null">
+      <view class="modal-panel multi-panel" @tap.stop>
+        <view class="modal-title">五连记录</view>
+        <view class="modal-subtitle">{{ multiRecordForm.date }} · 组{{ multiRecordForm.group }} · 逐张选择结果</view>
+
+        <view class="multi-record-list">
+          <view v-for="(item, idx) in multiRecordForm.items" :key="item.id" class="multi-record-item">
+            <view class="multi-record-head">
+              <text class="multi-index">第{{ idx + 1 }}抽</text>
+              <view class="multi-quality-picker">
+                <view :class="['multi-quality-opt', 'orange', { active: item.quality === 'orange' }]"
+                  @tap="setMultiQuality(idx, 'orange')">橙</view>
+                <view :class="['multi-quality-opt', 'purple', { active: item.quality === 'purple' }]"
+                  @tap="setMultiQuality(idx, 'purple')">紫</view>
+                <view :class="['multi-quality-opt', 'blue', { active: item.quality === 'blue' }]"
+                  @tap="setMultiQuality(idx, 'blue')">蓝</view>
+              </view>
+            </view>
+            <input v-if="item.quality === 'orange'" class="form-input multi-name-input"
+              v-model="item.generalName" placeholder="橙卡武将名称" />
+          </view>
+        </view>
+
+        <view class="form-actions">
+          <view class="form-btn cancel" @tap="multiRecordForm = null">取消</view>
+          <view class="form-btn confirm" @tap="doAddFiveRecords">确认记录</view>
         </view>
       </view>
     </view>
@@ -233,6 +259,7 @@ export default {
       qualityMap: drawStorage.QUALITY_MAP,
       drawTypeMap: drawStorage.DRAW_TYPE_MAP,
       recordForm: null,
+      multiRecordForm: null,
       showSeasonModal: false,
       showEndSeasonConfirm: false,
       newSeasonName: ""
@@ -400,21 +427,46 @@ export default {
       }
       this.recordForm = {
         date: this.selectedDate,
-        group: 1,
+        group: this.getActiveDrawGroup(),
         drawType: "free",
         quality: "blue",
         generalName: ""
       };
     },
 
-    quickRecord(group, drawType) {
+    getActiveDrawGroup() {
+      const drawWindow = drawStorage.getDrawWindow();
+      return drawWindow.activeGroup || 1;
+    },
+
+    quickRecord(drawType) {
       this.recordForm = {
         date: drawStorage.todayStr(),
-        group,
+        group: this.getActiveDrawGroup(),
         drawType,
         quality: "blue",
         generalName: ""
       };
+    },
+
+    showFiveRecord() {
+      const group = this.getActiveDrawGroup();
+      this.multiRecordForm = {
+        date: drawStorage.todayStr(),
+        group,
+        drawType: "five",
+        items: Array.from({ length: 5 }, (_, idx) => ({
+          id: `five_${Date.now()}_${idx}`,
+          quality: "blue",
+          generalName: ""
+        }))
+      };
+    },
+
+    setMultiQuality(index, quality) {
+      if (!this.multiRecordForm || !this.multiRecordForm.items[index]) return;
+      this.multiRecordForm.items[index].quality = quality;
+      if (quality !== "orange") this.multiRecordForm.items[index].generalName = "";
     },
 
     showHistoryRecords() {
@@ -445,6 +497,32 @@ export default {
       this.recordForm = null;
       this.refreshAll();
       uni.showToast({ title: "已记录", icon: "success" });
+    },
+
+    doAddFiveRecords() {
+      if (!this.multiRecordForm || !this.activePool) return;
+      const missingOrangeName = this.multiRecordForm.items.some(item =>
+        item.quality === "orange" && !(item.generalName || "").trim()
+      );
+      if (missingOrangeName) {
+        uni.showToast({ title: "请输入橙卡武将名", icon: "none" });
+        return;
+      }
+
+      this.multiRecordForm.items.forEach(item => {
+        drawStorage.addRecord(this.activePool.id, {
+          date: this.multiRecordForm.date,
+          seasonId: this.activeSeason ? this.activeSeason.id : null,
+          quality: item.quality,
+          generalName: item.quality === "orange" ? item.generalName.trim() : "",
+          drawType: "five",
+          group: this.multiRecordForm.group
+        });
+      });
+
+      this.multiRecordForm = null;
+      this.refreshAll();
+      uni.showToast({ title: "已记录五连", icon: "success" });
     },
 
     onDeleteRecord(id) {
@@ -1478,7 +1556,7 @@ export default {
 
 .quick-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10rpx;
   margin-bottom: 10rpx;
 }
@@ -1494,6 +1572,10 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 4rpx;
+}
+
+.quick-btn.five {
+  background: linear-gradient(180deg, rgba(160, 82, 30, 0.9), rgba(70, 28, 12, 0.95));
 }
 
 .quick-btn:active,
@@ -1735,6 +1817,79 @@ export default {
   border-color: rgba(244, 213, 139, 0.72);
   background: rgba(183, 126, 28, 0.2);
   color: #f4d58b;
+}
+
+.multi-panel {
+  width: 640rpx;
+}
+
+.multi-record-list {
+  margin-top: 18rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.multi-record-item {
+  padding: 14rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(218, 174, 82, 0.2);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.multi-record-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.multi-index {
+  color: #d0b076;
+  font-size: 22rpx;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.multi-quality-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8rpx;
+  flex: 1;
+}
+
+.multi-quality-opt {
+  height: 48rpx;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a99b83;
+  font-size: 21rpx;
+  font-weight: 900;
+  border: 1rpx solid rgba(218, 174, 82, 0.18);
+  background: rgba(8, 8, 7, 0.56);
+}
+
+.multi-quality-opt.active {
+  color: #fff2c2;
+  border-color: rgba(244, 213, 139, 0.58);
+}
+
+.multi-quality-opt.orange.active {
+  background: linear-gradient(180deg, #e49e30, #935614);
+}
+
+.multi-quality-opt.purple.active {
+  background: linear-gradient(180deg, #8e67d6, #4b2877);
+}
+
+.multi-quality-opt.blue.active {
+  background: linear-gradient(180deg, #597ea8, #27455f);
+}
+
+.multi-name-input {
+  margin-top: 12rpx;
 }
 
 .form-input {

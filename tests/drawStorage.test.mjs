@@ -120,20 +120,39 @@ assert.equal(forecast.estimateDate, "2026-04-17");
 assert.equal(drawStorage.updateSeasonStartDate(forecastSeason.id, "2026-02-31"), null);
 assert.equal(drawStorage.getNextSeasonEstimate(forecastSeason.id).estimateDate, "2026-04-17");
 
-// 12. getDrawWindow returns a result with activeGroup
+// 12. Five-pull records keep draw type stats and preserve pity order
+const fivePool = drawStorage.createPool("五连测试卡池");
+const fiveSeason = drawStorage.createSeason("五连测试S");
+["blue", "purple", "orange", "blue", "blue"].forEach((quality, index) => {
+  drawStorage.addRecord(fivePool.id, {
+    quality,
+    generalName: quality === "orange" ? "刘备" : "",
+    drawType: "five",
+    group: 1,
+    seasonId: fiveSeason.id,
+    date: "2026-06-01"
+  });
+});
+const fiveStats = drawStorage.getSeasonStats(fivePool.id, fiveSeason.id);
+assert.equal(fiveStats.totalDraws, 5);
+assert.equal(fiveStats.fiveDraws, 5);
+assert.equal(fiveStats.orangeCount, 1);
+assert.equal(drawStorage.getPityInfo(fivePool.id, fiveSeason.id).current, 2);
+
+// 13. getDrawWindow returns a result with activeGroup
 const window = drawStorage.getDrawWindow();
 assert.ok("activeGroup" in window);
 assert.ok("group1Open" in window);
 assert.ok("group2Open" in window);
 
-// 13. buildCalendarDays returns correct structure
+// 14. buildCalendarDays returns correct structure
 const cal = drawStorage.buildCalendarDays(defaultPool.id, 2026, 6);
 assert.ok(Array.isArray(cal.days));
 assert.ok(cal.days.length >= 28);
 assert.equal(typeof cal.totalDraws, "number");
 assert.equal(typeof cal.orangeCount, "number");
 
-// 14. getDrawDate returns a valid date string
+// 15. getDrawDate returns a valid date string
 const drawDate = drawStorage.getDrawDate();
 assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(drawDate));
 

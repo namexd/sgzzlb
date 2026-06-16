@@ -59,6 +59,11 @@
           <view class="breakdown-percent">{{ stats.totalDraws > 0 ? (stats.halfDraws / stats.totalDraws * 100).toFixed(0) : 0 }}%</view>
         </view>
         <view class="breakdown-item">
+          <view class="breakdown-label">五连抽</view>
+          <view class="breakdown-value">{{ stats.fiveDraws || 0 }}</view>
+          <view class="breakdown-percent">{{ stats.totalDraws > 0 ? ((stats.fiveDraws || 0) / stats.totalDraws * 100).toFixed(0) : 0 }}%</view>
+        </view>
+        <view class="breakdown-item">
           <view class="breakdown-label">第一组</view>
           <view class="breakdown-value">{{ stats.byGroup.group1 }}</view>
           <view class="breakdown-percent">{{ stats.totalDraws > 0 ? (stats.byGroup.group1 / stats.totalDraws * 100).toFixed(0) : 0 }}%</view>
@@ -132,6 +137,7 @@ export default {
         orangeRate: 0,
         freeDraws: 0,
         halfDraws: 0,
+        fiveDraws: 0,
         byMonth: [],
         byGroup: { group1: 0, group2: 0 },
         orangeGenerals: []
@@ -169,6 +175,7 @@ export default {
           orangeRate: 0,
           freeDraws: 0,
           halfDraws: 0,
+          fiveDraws: 0,
           byMonth: [],
           byGroup: { group1: 0, group2: 0 },
           orangeGenerals: []

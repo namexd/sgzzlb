@@ -1,7 +1,7 @@
 var DEFAULT_POOL_NAME = "主卡池";
 var SEASON_LENGTH_DAYS = 75;
 var QUALITY_MAP = { orange: "橙", purple: "紫", blue: "蓝" };
-var DRAW_TYPE_MAP = { free: "免费", half: "半价" };
+var DRAW_TYPE_MAP = { free: "免费", half: "半价", five: "五连" };
 
 // --- helpers ---
 
@@ -454,6 +454,7 @@ function getSeasonStats(poolId, seasonId) {
       orangeRate: 0,
       freeDraws: 0,
       halfDraws: 0,
+      fiveDraws: 0,
       byMonth: [],
       byGroup: { group1: 0, group2: 0 },
       orangeGenerals: []
@@ -499,6 +500,7 @@ function getSeasonStats(poolId, seasonId) {
     orangeRate: seasonRecords.length > 0 ? (orangeRecords.length / seasonRecords.length * 100).toFixed(1) : 0,
     freeDraws: seasonRecords.filter(function(r) { return r.drawType === "free"; }).length,
     halfDraws: seasonRecords.filter(function(r) { return r.drawType === "half"; }).length,
+    fiveDraws: seasonRecords.filter(function(r) { return r.drawType === "five"; }).length,
     byMonth: monthStats,
     byGroup: {
       group1: seasonRecords.filter(function(r) { return r.group === 1; }).length,
@@ -546,6 +548,7 @@ function getAllTimeStats(poolId) {
     orangeRate: records.length > 0 ? (orangeRecords.length / records.length * 100).toFixed(1) : 0,
     freeDraws: records.filter(function(r) { return r.drawType === "free"; }).length,
     halfDraws: records.filter(function(r) { return r.drawType === "half"; }).length,
+    fiveDraws: records.filter(function(r) { return r.drawType === "five"; }).length,
     byMonth: monthStats,
     byGroup: {
       group1: records.filter(function(r) { return r.group === 1; }).length,

@@ -4,7 +4,7 @@ import * as api from "../services/api";
 const DEFAULT_POOL_NAME = "主卡池";
 export const SEASON_LENGTH_DAYS = 75;
 export const QUALITY_MAP = { orange: "橙", purple: "紫", blue: "蓝" };
-export const DRAW_TYPE_MAP = { free: "免费", half: "半价" };
+export const DRAW_TYPE_MAP = { free: "免费", half: "半价", five: "五连" };
 
 function uid() {
   return "dr_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
@@ -362,7 +362,7 @@ export function getSeasonStats(poolId, seasonId) {
   if (!season) {
     return {
       totalDraws: 0, orangeCount: 0, purpleCount: 0, blueCount: 0,
-      orangeRate: 0, freeDraws: 0, halfDraws: 0,
+      orangeRate: 0, freeDraws: 0, halfDraws: 0, fiveDraws: 0,
       byMonth: [], byGroup: { group1: 0, group2: 0 }, orangeGenerals: []
     };
   }
@@ -399,6 +399,7 @@ export function getSeasonStats(poolId, seasonId) {
     orangeRate: seasonRecords.length > 0 ? (orangeRecords.length / seasonRecords.length * 100).toFixed(1) : 0,
     freeDraws: seasonRecords.filter(r => r.drawType === "free").length,
     halfDraws: seasonRecords.filter(r => r.drawType === "half").length,
+    fiveDraws: seasonRecords.filter(r => r.drawType === "five").length,
     byMonth: monthStats,
     byGroup: {
       group1: seasonRecords.filter(r => r.group === 1).length,
@@ -441,6 +442,7 @@ export function getAllTimeStats(poolId) {
     orangeRate: records.length > 0 ? (orangeRecords.length / records.length * 100).toFixed(1) : 0,
     freeDraws: records.filter(r => r.drawType === "free").length,
     halfDraws: records.filter(r => r.drawType === "half").length,
+    fiveDraws: records.filter(r => r.drawType === "five").length,
     byMonth: monthStats,
     byGroup: {
       group1: records.filter(r => r.group === 1).length,
