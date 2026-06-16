@@ -2,29 +2,32 @@
   <view class="page draw-page">
     <view class="draw-bg"></view>
 
-    <view class="pity-panel">
+    <view class="pity-panel compact-pity">
       <view class="panel-corners"></view>
-      <view class="pity-head">
-        <text class="pity-title">橙卡保底进度</text>
-        <text class="pity-count">{{ pity.current }}/{{ pity.total }}</text>
-      </view>
-      <view class="season-status" @tap="showSeasonModal = true">
-        <view class="season-current">
-          <text class="season-label">当前赛季</text>
-          <text class="season-current-name">{{ activeSeason ? activeSeason.name : '未设置' }}</text>
-          <text v-if="activeSeason" class="season-current-range">{{ activeSeason.startDate }} 起</text>
+      <view class="pity-summary">
+        <view class="pity-main">
+          <text class="pity-title">橙卡保底</text>
+          <text class="pity-tip">再 {{ pity.remaining }} 抽必得橙卡</text>
         </view>
-        <view class="season-current-action">管理</view>
-      </view>
-      <view v-if="seasonEstimate" class="season-next-row" @tap="showSeasonModal = true">
-        <text class="season-next-label">预计下赛季</text>
-        <text class="season-next-date">{{ seasonEstimate.estimateDate }}</text>
-        <text class="season-next-state">{{ seasonEstimateState }}</text>
+        <view class="pity-count-box">
+          <text class="pity-count">{{ pity.current }}/{{ pity.total }}</text>
+          <text class="pity-count-label">进度</text>
+        </view>
       </view>
       <view class="pity-track">
         <view class="pity-fill" :style="{ width: pityPercent + '%' }"></view>
       </view>
-      <view class="pity-tip">再招募 <text>{{ pity.remaining }}</text> 次，必得 <text>橙卡武将</text></view>
+      <view class="season-compact-row" @tap="showSeasonModal = true">
+        <view class="season-compact-main">
+          <text class="season-current-name">{{ activeSeason ? activeSeason.name : '未设置赛季' }}</text>
+          <text v-if="activeSeason" class="season-current-range">{{ formatShortDate(activeSeason.startDate) }} 起</text>
+        </view>
+        <view v-if="seasonEstimate" class="season-next-compact">
+          <text>下季 {{ formatShortDate(seasonEstimate.estimateDate) }}</text>
+          <text>{{ seasonEstimateState }}</text>
+        </view>
+        <view class="season-current-action">管理</view>
+      </view>
     </view>
 
     <view class="calendar-panel">
@@ -90,7 +93,7 @@
         <view>抽卡统计</view>
       </view>
       <view class="recruit-btn" @tap="showAddRecord">添加记录</view>
-      <view class="side-link" @tap="showHistoryRecords">
+      <view class="side-link" @tap="goToHistory">
         <image class="side-icon-img" src="/static/ui-assets/mockup-icons/draw-side-record.png" mode="aspectFit" />
         <view>历史记录</view>
       </view>
@@ -249,8 +252,6 @@ export default {
       calPurpleCount: 0,
       selectedDate: this.formatDate(now),
       selectedRecords: [],
-      historyRecords: [],
-      recordScope: "day",
       pools: [],
       activePool: null,
       seasons: [],
@@ -279,11 +280,11 @@ export default {
     },
 
     recordPanelTitle() {
-      return this.recordScope === "all" ? "历史记录" : `${this.selectedDateText} 记录`;
+      return `${this.selectedDateText} 记录`;
     },
 
     recordsForPanel() {
-      return this.recordScope === "all" ? this.historyRecords : this.selectedRecords;
+      return this.selectedRecords;
     },
 
     seasonEstimate() {
@@ -337,7 +338,6 @@ export default {
       }));
 
       const selectedRecords = this.getSelectedDateRecords(activePool.id, seasonId);
-      const historyRecords = this.getAllRecords(activePool.id, seasonId);
 
       Object.assign(this, {
         pools,
@@ -349,8 +349,7 @@ export default {
         calTotalDraws: calData.totalDraws,
         calOrangeCount: calData.orangeCount,
         calPurpleCount: calData.purpleCount,
-        selectedRecords,
-        historyRecords
+        selectedRecords
       });
     },
 
@@ -358,15 +357,6 @@ export default {
       if (!this.selectedDate) return [];
       const records = seasonId ? drawStorage.getSeasonRecords(poolId, seasonId) : drawStorage.getRecords(poolId);
       return records.filter(r => r.date === this.selectedDate);
-    },
-
-    getAllRecords(poolId, seasonId) {
-      const records = seasonId ? drawStorage.getSeasonRecords(poolId, seasonId) : drawStorage.getRecords(poolId);
-      return records.slice().sort((a, b) => {
-        const left = `${a.date || ""} ${a.time || ""}`;
-        const right = `${b.date || ""} ${b.time || ""}`;
-        return right.localeCompare(left);
-      });
     },
 
     prevMonth() {
@@ -392,7 +382,6 @@ export default {
       this.calYear = now.getFullYear();
       this.calMonth = now.getMonth() + 1;
       this.selectedDate = this.formatDate(now);
-      this.recordScope = "day";
       this.refreshCalendar();
     },
 
@@ -410,13 +399,11 @@ export default {
       this.calOrangeCount = calData.orangeCount;
       this.calPurpleCount = calData.purpleCount;
       this.selectedRecords = this.getSelectedDateRecords(this.activePool.id, seasonId);
-      this.historyRecords = this.getAllRecords(this.activePool.id, seasonId);
     },
 
     onDateTap(cell) {
       if (!cell.date) return;
       this.selectedDate = cell.date;
-      this.recordScope = "day";
       this.selectedRecords = this.getSelectedDateRecords(this.activePool.id, this.activeSeason && this.activeSeason.id);
     },
 
@@ -469,19 +456,8 @@ export default {
       if (quality !== "orange") this.multiRecordForm.items[index].generalName = "";
     },
 
-    showHistoryRecords() {
-      if (!this.activePool) return;
-      this.recordScope = "all";
-      this.historyRecords = this.getAllRecords(this.activePool.id, this.activeSeason && this.activeSeason.id);
-      this.$nextTick(() => {
-        uni.pageScrollTo({
-          selector: ".record-panel",
-          duration: 220,
-          fail: () => {
-            uni.pageScrollTo({ scrollTop: 9999, duration: 220 });
-          }
-        });
-      });
+    goToHistory() {
+      uni.navigateTo({ url: "/pages/draw/history" });
     },
 
     doAddRecord() {
@@ -558,7 +534,6 @@ export default {
       drawStorage.createSeason(name || `S${this.seasons.length + 1}`);
       this.newSeasonName = "";
       this.showSeasonModal = false;
-      this.recordScope = "day";
       this.refreshAll();
       uni.showToast({ title: "已进入新赛季", icon: "success" });
     },
@@ -572,9 +547,15 @@ export default {
       drawStorage.endCurrentSeason();
       drawStorage.ensureDefaultSeason();
       this.showEndSeasonConfirm = false;
-      this.recordScope = "day";
       this.refreshAll();
       uni.showToast({ title: "已进入新赛季", icon: "success" });
+    },
+
+    formatShortDate(dateText) {
+      if (!dateText) return "";
+      const parts = String(dateText).split("-");
+      if (parts.length < 3) return dateText;
+      return `${parts[1]}/${parts[2]}`;
     }
   }
 };
@@ -1983,6 +1964,123 @@ export default {
 .pity-fill {
   background: linear-gradient(180deg, #fff0a5 0%, #ffbd3c 42%, #f47a18 100%);
   box-shadow: 0 0 24rpx rgba(255, 190, 61, 0.68), inset 0 3rpx 6rpx rgba(255, 255, 255, 0.42);
+}
+
+.compact-pity {
+  padding: 16rpx 20rpx 14rpx;
+  margin-bottom: 14rpx;
+}
+
+.compact-pity::before {
+  inset: 7rpx;
+  opacity: 0.38;
+}
+
+.pity-summary {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 10rpx;
+}
+
+.pity-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.compact-pity .pity-title {
+  font-size: 24rpx;
+  line-height: 1.2;
+}
+
+.compact-pity .pity-tip {
+  margin: 0;
+  text-align: left;
+  color: #c9b283;
+  font-size: 20rpx;
+  line-height: 1.25;
+}
+
+.pity-count-box {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.compact-pity .pity-count {
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.pity-count-label {
+  color: #9b875e;
+  font-size: 18rpx;
+  font-weight: 800;
+}
+
+.compact-pity .pity-track {
+  position: relative;
+  z-index: 3;
+  height: 12rpx;
+  padding: 2rpx;
+}
+
+.season-compact-row {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 10rpx;
+  color: #ad9a72;
+}
+
+.season-compact-main,
+.season-next-compact {
+  min-width: 0;
+  height: 42rpx;
+  padding: 0 12rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(231, 194, 112, 0.18);
+  background: rgba(8, 7, 5, 0.42);
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  overflow: hidden;
+}
+
+.season-next-compact {
+  justify-content: space-between;
+  color: #bba679;
+  font-size: 18rpx;
+}
+
+.season-compact-main .season-current-name {
+  max-width: 112rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 22rpx;
+}
+
+.season-compact-main .season-current-range {
+  font-size: 18rpx;
+}
+
+.season-compact-row .season-current-action {
+  height: 42rpx;
+  padding: 0 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
 }
 
 .cal-cell {

@@ -28,6 +28,13 @@
       }
     },
     {
+      "path": "pages/draw/history",
+      "style": {
+        "navigationBarTitleText": "历史记录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/matchup/index",
       "style": {
         "navigationBarTitleText": "对位",
