@@ -105,20 +105,35 @@ const season3 = drawStorage.ensureDefaultSeason();
 assert.notEqual(season3.id, season2.id);
 assert.equal(drawStorage.getPityInfo(seasonPool.id, season3.id).current, 0);
 
-// 11. getDrawWindow returns a result with activeGroup
+// 11. Season start date supports next season estimate
+const forecastSeason = drawStorage.createSeason("时间预测S", "2026-01-01");
+let forecast = drawStorage.getNextSeasonEstimate(forecastSeason.id);
+assert.equal(drawStorage.SEASON_LENGTH_DAYS, 75);
+assert.equal(forecast.startDate, "2026-01-01");
+assert.equal(forecast.estimateDate, "2026-03-17");
+assert.equal(forecast.lengthDays, 75);
+
+const updatedSeason = drawStorage.updateSeasonStartDate(forecastSeason.id, "2026-02-01");
+assert.equal(updatedSeason.startDate, "2026-02-01");
+forecast = drawStorage.getNextSeasonEstimate(forecastSeason.id);
+assert.equal(forecast.estimateDate, "2026-04-17");
+assert.equal(drawStorage.updateSeasonStartDate(forecastSeason.id, "2026-02-31"), null);
+assert.equal(drawStorage.getNextSeasonEstimate(forecastSeason.id).estimateDate, "2026-04-17");
+
+// 12. getDrawWindow returns a result with activeGroup
 const window = drawStorage.getDrawWindow();
 assert.ok("activeGroup" in window);
 assert.ok("group1Open" in window);
 assert.ok("group2Open" in window);
 
-// 12. buildCalendarDays returns correct structure
+// 13. buildCalendarDays returns correct structure
 const cal = drawStorage.buildCalendarDays(defaultPool.id, 2026, 6);
 assert.ok(Array.isArray(cal.days));
 assert.ok(cal.days.length >= 28);
 assert.equal(typeof cal.totalDraws, "number");
 assert.equal(typeof cal.orangeCount, "number");
 
-// 13. getDrawDate returns a valid date string
+// 14. getDrawDate returns a valid date string
 const drawDate = drawStorage.getDrawDate();
 assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(drawDate));
 

@@ -2,6 +2,7 @@ import { getStorage, setStorage, removeStorage } from "./storage";
 import * as api from "../services/api";
 
 const DEFAULT_POOL_NAME = "主卡池";
+export const SEASON_LENGTH_DAYS = 75;
 export const QUALITY_MAP = { orange: "橙", purple: "紫", blue: "蓝" };
 export const DRAW_TYPE_MAP = { free: "免费", half: "半价" };
 
@@ -12,6 +13,33 @@ function uid() {
 export function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateObj(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function parseDateString(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  if (formatDateObj(d) !== value) return null;
+  return d;
+}
+
+function addDays(dateStr, days) {
+  const d = parseDateString(dateStr);
+  if (!d) return null;
+  d.setDate(d.getDate() + days);
+  return formatDateObj(d);
+}
+
+function diffDays(fromDateStr, toDateStr) {
+  const from = parseDateString(fromDateStr);
+  const to = parseDateString(toDateStr);
+  if (!from || !to) return 0;
+  const oneDay = 24 * 60 * 60 * 1000;
+  return Math.round((to.getTime() - from.getTime()) / oneDay);
 }
 
 export function nowTimeStr() {
@@ -244,6 +272,47 @@ export function createSeason(name, startDate) {
   saveSeasons(updated);
   setCurrentSeason(season.id);
   return season;
+}
+
+export function updateSeasonStartDate(seasonId, startDate) {
+  const parsed = parseDateString(startDate);
+  if (!seasonId || !parsed) return null;
+
+  let updatedSeason = null;
+  const normalizedStartDate = formatDateObj(parsed);
+  const updated = getSeasons().map(s => {
+    if (s.id !== seasonId) return s;
+    updatedSeason = { ...s, startDate: normalizedStartDate };
+    return updatedSeason;
+  });
+
+  if (!updatedSeason) return null;
+  saveSeasons(updated);
+  return updatedSeason;
+}
+
+export function getNextSeasonEstimate(seasonId) {
+  const season = getSeasonById(seasonId);
+  if (!season) return null;
+
+  const startDate = parseDateString(season.startDate) ? season.startDate : todayStr();
+  const estimateDate = addDays(startDate, SEASON_LENGTH_DAYS);
+  const today = todayStr();
+  const elapsedDays = Math.max(0, diffDays(startDate, today));
+  const daysUntilEstimate = diffDays(today, estimateDate);
+
+  return {
+    seasonId: season.id,
+    seasonName: season.name,
+    startDate,
+    estimateDate,
+    lengthDays: SEASON_LENGTH_DAYS,
+    elapsedDays,
+    remainingDays: Math.max(0, daysUntilEstimate),
+    overdueDays: Math.max(0, -daysUntilEstimate),
+    isOverdue: daysUntilEstimate < 0,
+    isDueToday: daysUntilEstimate === 0
+  };
 }
 
 export function endCurrentSeason() {

@@ -90,10 +90,10 @@
         <view v-for="(m, idx) in stats.byMonth" :key="idx" class="trend-bar-group">
           <view class="trend-bars">
             <view class="trend-bar total" :style="{ height: getBarHeight(m.total, maxMonthly) + 'rpx' }"></view>
-            <view class="trend-bar orange" :style="{ height: getBarHeight(m.orange, maxMonthlyOrange) + 'rpx' }"></view>
+            <view class="trend-bar orange" :style="{ height: getBarHeight(m.orange, maxMonthly) + 'rpx' }"></view>
           </view>
           <view class="trend-label">{{ m.month.substring(5) }}</view>
-          <view class="trend-count">{{ m.orange > 0 ? m.orange + '橙' : '' }}</view>
+          <view class="trend-count">{{ m.total }}抽 / {{ m.orange }}橙</view>
         </view>
       </view>
       <view class="trend-legend">
@@ -143,10 +143,6 @@ export default {
     maxMonthly() {
       if (this.stats.byMonth.length === 0) return 1;
       return Math.max(...this.stats.byMonth.map(m => m.total), 1);
-    },
-    maxMonthlyOrange() {
-      if (this.stats.byMonth.length === 0) return 1;
-      return Math.max(...this.stats.byMonth.map(m => m.orange), 1);
     }
   },
 

@@ -16,6 +16,11 @@
         </view>
         <view class="season-current-action">管理</view>
       </view>
+      <view v-if="seasonEstimate" class="season-next-row" @tap="showSeasonModal = true">
+        <text class="season-next-label">预计下赛季</text>
+        <text class="season-next-date">{{ seasonEstimate.estimateDate }}</text>
+        <text class="season-next-state">{{ seasonEstimateState }}</text>
+      </view>
       <view class="pity-track">
         <view class="pity-fill" :style="{ width: pityPercent + '%' }"></view>
       </view>
@@ -147,6 +152,23 @@
       <view class="modal-panel" @tap.stop>
         <view class="modal-title">赛季管理</view>
 
+        <view v-if="activeSeason && seasonEstimate" class="season-estimate-card">
+          <view class="season-estimate-head">
+            <view>
+              <view class="estimate-label">预计下赛季</view>
+              <view class="estimate-date">{{ seasonEstimate.estimateDate }}</view>
+            </view>
+            <view class="estimate-cycle">按 {{ seasonEstimate.lengthDays }} 天估算</view>
+          </view>
+          <view class="season-start-editor">
+            <text>当前赛季开始</text>
+            <picker mode="date" :value="activeSeason.startDate" @change="onSeasonStartChange">
+              <view class="season-date-btn">{{ activeSeason.startDate }}</view>
+            </picker>
+          </view>
+          <view class="estimate-progress">{{ seasonEstimateProgress }}</view>
+        </view>
+
         <view v-if="seasons.length > 0" class="season-list">
           <view v-for="s in seasons" :key="s.id"
             :class="['season-item', { active: activeSeason && activeSeason.id === s.id }]">
@@ -235,6 +257,23 @@ export default {
 
     recordsForPanel() {
       return this.recordScope === "all" ? this.historyRecords : this.selectedRecords;
+    },
+
+    seasonEstimate() {
+      if (!this.activeSeason) return null;
+      return drawStorage.getNextSeasonEstimate(this.activeSeason.id);
+    },
+
+    seasonEstimateState() {
+      if (!this.seasonEstimate) return "";
+      if (this.seasonEstimate.isDueToday) return "预计今天";
+      if (this.seasonEstimate.isOverdue) return `已超 ${this.seasonEstimate.overdueDays} 天`;
+      return `约 ${this.seasonEstimate.remainingDays} 天后`;
+    },
+
+    seasonEstimateProgress() {
+      if (!this.seasonEstimate) return "";
+      return `已进行 ${this.seasonEstimate.elapsedDays} 天 · ${this.seasonEstimateState}`;
     }
   },
 
@@ -422,6 +461,18 @@ export default {
       drawStorage.setCurrentSeason(seasonId);
       this.showSeasonModal = false;
       this.refreshAll();
+    },
+
+    onSeasonStartChange(e) {
+      if (!this.activeSeason) return;
+      const nextDate = e && e.detail ? e.detail.value : "";
+      const updated = drawStorage.updateSeasonStartDate(this.activeSeason.id, nextDate);
+      if (!updated) {
+        uni.showToast({ title: "日期无效", icon: "none" });
+        return;
+      }
+      this.refreshAll();
+      uni.showToast({ title: "已更新开始时间", icon: "success" });
     },
 
     doCreateSeason() {
@@ -1231,6 +1282,35 @@ export default {
   background: rgba(218, 149, 39, 0.16);
 }
 
+.season-next-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10rpx;
+  margin: -4rpx 0 14rpx;
+  padding: 8rpx 12rpx;
+  border-radius: 8rpx;
+  color: #d5bf88;
+  background: rgba(12, 10, 7, 0.42);
+  border: 1rpx solid rgba(221, 180, 90, 0.18);
+}
+
+.season-next-label {
+  color: #9d8a65;
+  font-size: 19rpx;
+}
+
+.season-next-date {
+  color: #f1c879;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.season-next-state {
+  color: #d0b076;
+  font-size: 19rpx;
+}
+
 .calendar-panel {
   padding: 14rpx 12rpx 16rpx;
   border-radius: 10rpx;
@@ -1562,6 +1642,80 @@ export default {
   background: linear-gradient(180deg, #f1c879 0%, #c88732 100%);
   font-size: 16rpx;
   font-weight: 900;
+}
+
+.season-estimate-card {
+  margin-top: 18rpx;
+  padding: 18rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(232, 184, 83, 0.32);
+  background:
+    linear-gradient(180deg, rgba(77, 49, 14, 0.44), rgba(11, 10, 8, 0.62)),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1rpx 0 rgba(255, 235, 175, 0.14);
+}
+
+.season-estimate-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.estimate-label {
+  color: #9d8a65;
+  font-size: 20rpx;
+}
+
+.estimate-date {
+  margin-top: 4rpx;
+  color: #f4d58b;
+  font-size: 36rpx;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.estimate-cycle {
+  flex-shrink: 0;
+  padding: 6rpx 12rpx;
+  border-radius: 999rpx;
+  color: #1a1208;
+  background: linear-gradient(180deg, #f1c879 0%, #c88732 100%);
+  font-size: 18rpx;
+  font-weight: 900;
+}
+
+.season-start-editor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-top: 16rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx solid rgba(218, 174, 82, 0.16);
+  color: #a99b83;
+  font-size: 22rpx;
+}
+
+.season-date-btn {
+  min-width: 190rpx;
+  height: 48rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffe4a1;
+  font-size: 22rpx;
+  font-weight: 800;
+  border: 1rpx solid rgba(244, 213, 139, 0.38);
+  background: rgba(218, 149, 39, 0.16);
+}
+
+.estimate-progress {
+  margin-top: 12rpx;
+  color: #d0b076;
+  font-size: 21rpx;
 }
 
 .quality-picker {

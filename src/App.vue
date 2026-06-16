@@ -97,6 +97,15 @@ picker {
   box-sizing: border-box;
 }
 
+uni-picker.uni-picker-container,
+.uni-picker-container,
+.uni-mask.uni-picker-mask,
+.uni-picker-mask,
+.uni-picker-container .uni-picker-custom,
+.uni-picker-custom {
+  z-index: 3000 !important;
+}
+
 /* ===== Global Components ===== */
 .band {
   padding: var(--sp-lg);

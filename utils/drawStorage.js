@@ -1,4 +1,5 @@
 var DEFAULT_POOL_NAME = "主卡池";
+var SEASON_LENGTH_DAYS = 75;
 var QUALITY_MAP = { orange: "橙", purple: "紫", blue: "蓝" };
 var DRAW_TYPE_MAP = { free: "免费", half: "半价" };
 
@@ -18,6 +19,36 @@ function todayStr() {
   var mm = String(d.getMonth() + 1).padStart(2, "0");
   var dd = String(d.getDate()).padStart(2, "0");
   return yyyy + "-" + mm + "-" + dd;
+}
+
+function formatDateObj(d) {
+  var yyyy = d.getFullYear();
+  var mm = String(d.getMonth() + 1).padStart(2, "0");
+  var dd = String(d.getDate()).padStart(2, "0");
+  return yyyy + "-" + mm + "-" + dd;
+}
+
+function parseDateString(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return null;
+  var parts = value.split("-").map(Number);
+  var d = new Date(parts[0], parts[1] - 1, parts[2]);
+  if (formatDateObj(d) !== value) return null;
+  return d;
+}
+
+function addDays(dateStr, days) {
+  var d = parseDateString(dateStr);
+  if (!d) return null;
+  d.setDate(d.getDate() + days);
+  return formatDateObj(d);
+}
+
+function diffDays(fromDateStr, toDateStr) {
+  var from = parseDateString(fromDateStr);
+  var to = parseDateString(toDateStr);
+  if (!from || !to) return 0;
+  var oneDay = 24 * 60 * 60 * 1000;
+  return Math.round((to.getTime() - from.getTime()) / oneDay);
 }
 
 function nowTimeStr() {
@@ -82,6 +113,47 @@ function createSeason(name, startDate) {
   saveSeasons(updated);
   setCurrentSeason(season.id);
   return season;
+}
+
+function updateSeasonStartDate(seasonId, startDate) {
+  var parsed = parseDateString(startDate);
+  if (!seasonId || !parsed) return null;
+
+  var updatedSeason = null;
+  var normalizedStartDate = formatDateObj(parsed);
+  var updated = getSeasons().map(function(s) {
+    if (s.id !== seasonId) return s;
+    updatedSeason = Object.assign({}, s, { startDate: normalizedStartDate });
+    return updatedSeason;
+  });
+
+  if (!updatedSeason) return null;
+  saveSeasons(updated);
+  return updatedSeason;
+}
+
+function getNextSeasonEstimate(seasonId) {
+  var season = getSeasonById(seasonId);
+  if (!season) return null;
+
+  var startDate = parseDateString(season.startDate) ? season.startDate : todayStr();
+  var estimateDate = addDays(startDate, SEASON_LENGTH_DAYS);
+  var today = todayStr();
+  var elapsedDays = Math.max(0, diffDays(startDate, today));
+  var daysUntilEstimate = diffDays(today, estimateDate);
+
+  return {
+    seasonId: season.id,
+    seasonName: season.name,
+    startDate: startDate,
+    estimateDate: estimateDate,
+    lengthDays: SEASON_LENGTH_DAYS,
+    elapsedDays: elapsedDays,
+    remainingDays: Math.max(0, daysUntilEstimate),
+    overdueDays: Math.max(0, -daysUntilEstimate),
+    isOverdue: daysUntilEstimate < 0,
+    isDueToday: daysUntilEstimate === 0
+  };
 }
 
 function endCurrentSeason() {
@@ -484,6 +556,7 @@ function getAllTimeStats(poolId) {
 }
 
 module.exports = {
+  SEASON_LENGTH_DAYS: SEASON_LENGTH_DAYS,
   QUALITY_MAP: QUALITY_MAP,
   DRAW_TYPE_MAP: DRAW_TYPE_MAP,
   uid: uid,
@@ -508,6 +581,8 @@ module.exports = {
   getCurrentSeason: getCurrentSeason,
   setCurrentSeason: setCurrentSeason,
   createSeason: createSeason,
+  updateSeasonStartDate: updateSeasonStartDate,
+  getNextSeasonEstimate: getNextSeasonEstimate,
   endCurrentSeason: endCurrentSeason,
   getActiveSeason: getActiveSeason,
   ensureDefaultSeason: ensureDefaultSeason,
