@@ -31,7 +31,7 @@
         :value="enemyIndex"
         @change="onEnemyChange"
       >
-        <view class="field">{{ enemyTemplates[enemyIndex].name }}</view>
+        <view class="field">{{ selectedEnemyTemplate.name }}</view>
       </picker>
       <picker
         v-if="enemySource === 'saved' && savedLineups.length"
@@ -97,7 +97,13 @@
     </view>
 
     <view class="win-panel">
-      <view class="win-title">胜率预测</view>
+      <view class="win-header">
+        <view>
+          <view class="win-title">胜率预测</view>
+          <view class="win-subtitle">静态评分仅供参考，可用战报模拟复核克制、战法概率和稳定性。</view>
+        </view>
+        <view class="win-simulate-btn" @tap="openSimulation">立即模拟</view>
+      </view>
       <view class="win-content">
         <view class="win-side own">
           <view>我方胜率</view>
@@ -113,10 +119,13 @@
     </view>
 
     <view class="bottom-actions">
-      <view class="icon-action" @tap="openBattleForm">分享阵容</view>
-      <view class="icon-action" @tap="loadBattleStats">收藏阵容</view>
+      <view class="simulation-entry" @tap="openSimulation">
+        <text class="simulation-title">战报模拟</text>
+        <text class="simulation-desc">批量胜率 · 稳定性</text>
+      </view>
       <view class="adjust-btn" @tap="goToFeedback">调整阵容</view>
-      <view class="icon-action" @tap="openBattleForm">战报模拟</view>
+      <view class="icon-action" @tap="openBattleForm">记录战报</view>
+      <view class="icon-action" @tap="loadBattleStats">战报统计</view>
     </view>
 
     <view v-if="apiStatus" class="sync-status">{{ apiStatus }}</view>
@@ -228,6 +237,185 @@
         </view>
       </view>
     </view>
+
+    <view v-if="showSimulation" class="modal-mask" @click="closeSimulation">
+      <view class="modal-content modal-large" @click.stop>
+        <view class="modal-title">战报模拟</view>
+        <view class="simulation-form">
+          <view class="simulation-option-row">
+            <view class="simulation-option">
+              <text class="form-label">模拟场次</text>
+              <input
+                class="form-input"
+                type="number"
+                :value="simulationOptions.iterations"
+                @input="onSimulationOptionInput('iterations', $event)"
+                placeholder="1-100"
+              />
+            </view>
+            <view class="simulation-option">
+              <text class="form-label">最大回合</text>
+              <input
+                class="form-input"
+                type="number"
+                :value="simulationOptions.maxRounds"
+                @input="onSimulationOptionInput('maxRounds', $event)"
+                placeholder="1-8"
+              />
+            </view>
+          </view>
+          <view class="seed-tabs">
+            <text
+              class="seed-tab"
+              :class="{ active: simulationOptions.seedMode === 'random' }"
+              @click="setSimulationSeedMode('random')"
+            >随机 seed</text>
+            <text
+              class="seed-tab"
+              :class="{ active: simulationOptions.seedMode === 'fixed' }"
+              @click="setSimulationSeedMode('fixed')"
+            >固定 seed</text>
+          </view>
+          <view v-if="simulationOptions.seedMode === 'fixed'" class="form-row">
+            <text class="form-label">固定 seed</text>
+            <input
+              class="form-input"
+              :value="simulationOptions.seed"
+              @input="onSimulationOptionInput('seed', $event)"
+              placeholder="例如：关关张-vs-太尉盾"
+            />
+          </view>
+          <view v-if="simulationRemoteEnabled" class="form-row">
+            <text class="form-label">资料版本</text>
+            <picker
+              class="form-picker"
+              :range="catalogVersionOptions"
+              range-key="label"
+              :value="selectedCatalogVersionIndex"
+              @change="onSimulationCatalogVersionChange"
+            >
+              <view class="picker-value">{{ selectedCatalogVersionLabel }}</view>
+            </picker>
+            <view class="simulation-note">选择赛季资料版本后，本次模拟会锁定该版本；未选择时使用服务器默认发布资料。</view>
+          </view>
+          <view v-if="catalogVersionsError" class="simulation-note warning">{{ catalogVersionsError }}</view>
+          <view v-if="!simulationRemoteEnabled" class="simulation-note warning">
+            当前为本地模式，完整战报模拟需要远程 API。请在设置中切换远程 API，并配置服务器地址后再运行。
+          </view>
+        </view>
+
+        <view v-if="simulation" class="simulation-summary">
+          <view class="stats-grid">
+            <view class="stat-item">
+              <view class="stat-value">{{ simulationWinText }}</view>
+              <view class="stat-label">模拟结果</view>
+            </view>
+            <view class="stat-item">
+              <view class="stat-value">{{ simulationRoundText }}</view>
+              <view class="stat-label">回合/场次</view>
+            </view>
+            <view class="stat-item">
+              <view class="stat-value">{{ simulationOwnRemain }}</view>
+              <view class="stat-label">我方剩余</view>
+            </view>
+            <view class="stat-item">
+              <view class="stat-value">{{ simulationEnemyRemain }}</view>
+              <view class="stat-label">敌方剩余</view>
+            </view>
+          </view>
+
+          <view v-if="simulationCatalogContext" class="simulation-section">
+            <view class="card-title">资料版本</view>
+            <view class="detail-row">
+              <text class="detail-label">赛季</text>
+              <text class="detail-value">{{ simulationCatalogContext.seasonLabel || simulationCatalogContext.seasonKey || '默认资料' }}</text>
+            </view>
+            <view class="detail-row">
+              <text class="detail-label">版本</text>
+              <text class="detail-value">{{ simulationCatalogContext.versionKey || '静态基线' }}</text>
+            </view>
+            <view class="detail-row">
+              <text class="detail-label">状态</text>
+              <text class="detail-value">{{ simulationCatalogContext.status || 'baseline' }}</text>
+            </view>
+          </view>
+
+          <view v-if="simulation.aggregate" class="simulation-section">
+            <view class="card-title">稳定性解释</view>
+            <view class="simulation-note">
+              胜率 {{ simulation.summary.winRate }}%，稳定性 {{ simulation.aggregate.stability }}，模拟评分建议 {{ simulation.aggregate.scoreSuggestion }}。
+            </view>
+            <view v-for="(reason, index) in simulation.aggregate.stabilityReasons" :key="index" class="reason-item">{{ reason }}</view>
+            <view v-if="simulation.aggregate.distribution" class="sample-card">
+              <view>最佳兵力差：{{ formatNumber(simulation.aggregate.distribution.bestMargin) }}</view>
+              <view>中位兵力差：{{ formatNumber(simulation.aggregate.distribution.medianMargin) }}</view>
+              <view>最差兵力差：{{ formatNumber(simulation.aggregate.distribution.worstMargin) }}</view>
+            </view>
+          </view>
+
+          <view v-if="simulationHighlightRows.length" class="simulation-section">
+            <view class="card-title">关键摘要</view>
+            <view v-for="row in simulationHighlightRows" :key="row.label" class="detail-row">
+              <text class="detail-label">{{ row.label }}</text>
+              <text class="detail-value">{{ row.value }}</text>
+            </view>
+          </view>
+
+          <view v-if="simulationRuleCoverage" class="simulation-section">
+            <view class="card-title">规则覆盖</view>
+            <view class="coverage-grid">
+              <view class="coverage-item"><text>显式</text><text>{{ simulationRuleCoverage.explicit }}</text></view>
+              <view class="coverage-item"><text>估算</text><text>{{ simulationRuleCoverage.estimated }}</text></view>
+              <view class="coverage-item"><text>未命中</text><text>{{ simulationRuleCoverage.missed }}</text></view>
+              <view class="coverage-item"><text>估算率</text><text>{{ Math.round((simulationRuleCoverage.estimatedRate || 0) * 100) }}%</text></view>
+            </view>
+            <view class="simulation-note">显式规则：{{ joinNames(simulationRuleCoverage.explicitTactics) }}</view>
+            <view class="simulation-note">估算规则：{{ joinNames(simulationRuleCoverage.fallbackTactics) }}</view>
+            <view v-if="simulationRuleCoverage.missedTactics && simulationRuleCoverage.missedTactics.length" class="simulation-note">
+              未命中规则：{{ joinNames(simulationRuleCoverage.missedTactics) }}
+            </view>
+            <view v-if="simulationCoverageRows.length" class="coverage-list">
+              <view v-for="item in simulationCoverageRows" :key="item.tacticId + item.tacticName + item.status" class="coverage-row">
+                <text>{{ item.tacticName }}</text>
+                <text :class="['coverage-badge', item.status]">{{ coverageStatusText(item.status) }}</text>
+              </view>
+            </view>
+            <view v-if="simulationRuleCoverage.missed > 0 || simulationRuleCoverage.estimated > 0" class="simulation-note warning">
+              当前存在通用估算或未覆盖战法，模拟结果只用于搭配方向判断。
+            </view>
+          </view>
+
+          <view v-if="simulation.bestSample || simulation.worstSample" class="simulation-section">
+            <view class="card-title">关键样本</view>
+            <view v-if="simulation.bestSample" class="sample-card">最佳样本：{{ formatSampleSummary(simulation.bestSample.summary) }}</view>
+            <view v-if="simulation.worstSample" class="sample-card">最差样本：{{ formatSampleSummary(simulation.worstSample.summary) }}</view>
+          </view>
+
+          <view v-if="simulationRounds.length" class="battle-log">
+            <view class="log-toggle" @click="toggleSimulationLog">
+              <text class="card-title">{{ simulation.rounds ? '回合日志' : '样本回合日志' }}</text>
+              <text class="muted">{{ simulationLogExpanded ? '收起' : '展开' }}</text>
+            </view>
+            <view v-if="simulationLogExpanded">
+              <view v-for="round in simulationRounds" :key="round.round + round.phase" class="log-block">
+                <view class="log-title">{{ round.round === 0 ? '准备阶段' : '第' + round.round + '回合' }} · {{ round.phase }}</view>
+                <view v-for="(action, index) in round.actions" :key="index" class="log-line">{{ action.text }}</view>
+              </view>
+            </view>
+          </view>
+
+          <view v-if="simulationAssumptions.length" class="simulation-section">
+            <view class="card-title">模拟假设</view>
+            <view v-for="(item, index) in simulationAssumptions" :key="index" class="assumption-line">{{ item }}</view>
+          </view>
+        </view>
+        <view v-else class="empty-line">{{ simulationLoading ? '正在模拟战报...' : (simulationError || '暂无模拟结果') }}</view>
+        <view class="modal-actions">
+          <button class="mini-btn" @click="closeSimulation">关闭</button>
+          <button class="mini-btn primary" @click="runSimulation">{{ simulation ? '重新模拟' : '开始模拟' }}</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -236,10 +424,12 @@ import catalog from "../../utils/catalog";
 import { getEntitlements } from "../../utils/subscription";
 import {
   previewMatchupAsync,
+  simulateBattleAsync,
   addBattleReportAsync,
   getBattleReportStatsAsync,
-  getBattleReportsAsync,
-  deleteBattleReportAsync
+  deleteBattleReportAsync,
+  getCatalogVersions,
+  isRemoteMode
 } from "../../services/api";
 
 const ENEMY_TEMPLATES = [
@@ -347,7 +537,24 @@ export default {
       battleForm: null,
       battleStats: null,
       showStats: false,
-      battleRecords: []
+      battleRecords: [],
+      currentPayload: null,
+      simulation: null,
+      showSimulation: false,
+      simulationLoading: false,
+      simulationError: "",
+      simulationLogExpanded: false,
+      simulationRemoteMode: isRemoteMode(),
+      catalogVersions: [],
+      catalogVersionsError: "",
+      selectedCatalogVersionIndex: 0,
+      simulationOptions: {
+        iterations: 20,
+        maxRounds: 8,
+        seedMode: "random",
+        seed: "",
+        catalogVersionId: ""
+      }
     };
   },
 
@@ -375,6 +582,103 @@ export default {
 
     enemyWinRate() {
       return 100 - this.ownWinRate;
+    },
+
+    simulationWinText() {
+      if (!this.simulation || !this.simulation.summary) return "--";
+      if (this.simulation.aggregate) return `${this.simulation.summary.winRate}%`;
+      const result = this.simulation.summary.result;
+      return result === "win" ? "胜" : result === "loss" ? "负" : "平";
+    },
+
+    simulationOwnRemain() {
+      if (!this.simulation) return "--";
+      const value = this.simulation.aggregate ? this.simulation.aggregate.averageOwnRemaining : this.simulation.summary.ownRemaining;
+      return Number(value || 0).toLocaleString();
+    },
+
+    simulationEnemyRemain() {
+      if (!this.simulation) return "--";
+      const value = this.simulation.aggregate ? this.simulation.aggregate.averageEnemyRemaining : this.simulation.summary.enemyRemaining;
+      return Number(value || 0).toLocaleString();
+    },
+
+    simulationRoundText() {
+      if (!this.simulation || !this.simulation.summary) return "--";
+      return this.simulation.summary.iterations || this.simulation.summary.rounds || "--";
+    },
+
+    simulationRemoteEnabled() {
+      return this.simulationRemoteMode;
+    },
+
+    catalogVersionOptions() {
+      const versions = (this.catalogVersions || []).map((item) => ({
+        ...item,
+        label: `${item.seasonLabel || item.seasonKey || "赛季"} · ${item.versionKey || item.id}`
+      }));
+      return [{ id: "", label: "服务器默认发布资料" }, ...versions];
+    },
+
+    selectedCatalogVersionLabel() {
+      const selected = this.catalogVersionOptions[this.selectedCatalogVersionIndex] || this.catalogVersionOptions[0];
+      return selected ? selected.label : "服务器默认发布资料";
+    },
+
+    selectedCatalogVersion() {
+      const selected = this.catalogVersionOptions[this.selectedCatalogVersionIndex] || null;
+      return selected && selected.id ? selected : null;
+    },
+
+    selectedEnemyTemplate() {
+      return this.enemyTemplates[this.enemyIndex] || this.enemyTemplates[0];
+    },
+
+    simulationCatalogContext() {
+      return this.simulation && this.simulation.catalogContext ? this.simulation.catalogContext : null;
+    },
+
+    simulationRuleCoverage() {
+      return this.simulation && this.simulation.ruleCoverage ? this.simulation.ruleCoverage : null;
+    },
+
+    simulationCoverageRows() {
+      const coverage = this.simulationRuleCoverage;
+      return coverage && Array.isArray(coverage.coverageByTactic) ? coverage.coverageByTactic : [];
+    },
+
+    simulationAssumptions() {
+      if (!this.simulation) return [];
+      const assumptions = [...(this.simulation.assumptions || [])];
+      [this.simulation.bestSample, this.simulation.worstSample].forEach((sample) => {
+        (sample && sample.assumptions ? sample.assumptions : []).forEach((item) => assumptions.push(item));
+      });
+      return [...new Set(assumptions)];
+    },
+
+    simulationRounds() {
+      if (!this.simulation) return [];
+      if (Array.isArray(this.simulation.rounds)) return this.simulation.rounds;
+      const sample = Array.isArray(this.simulation.samples) && this.simulation.samples.length
+        ? this.simulation.samples[0]
+        : null;
+      return sample && Array.isArray(sample.rounds) ? sample.rounds : [];
+    },
+
+    simulationHighlightRows() {
+      if (!this.simulation) return [];
+      const highlights = this.simulation.highlights || (this.simulation.bestSample && this.simulation.bestSample.highlights) || {};
+      const rows = [];
+      if (highlights.ownTopDamage) rows.push({ label: "我方最高伤害", value: `${highlights.ownTopDamage.name} · ${this.formatNumber(highlights.ownTopDamage.amount)}` });
+      if (highlights.enemyTopDamage) rows.push({ label: "敌方最高伤害", value: `${highlights.enemyTopDamage.name} · ${this.formatNumber(highlights.enemyTopDamage.amount)}` });
+      if (highlights.topHealing) rows.push({ label: "最高治疗", value: `${highlights.topHealing.name} · ${this.formatNumber(highlights.topHealing.amount)}` });
+      if (highlights.topControl) rows.push({ label: "关键控制", value: `${highlights.topControl.name} · ${highlights.topControl.turns} 回合` });
+      if (highlights.largestDamage) rows.push({ label: "单次最高伤害", value: `${highlights.largestDamage.actor} → ${highlights.largestDamage.target} · ${this.formatNumber(highlights.largestDamage.amount)}` });
+      if (highlights.largestHealing) rows.push({ label: "单次最高治疗", value: `${highlights.largestHealing.actor} → ${highlights.largestHealing.target} · ${this.formatNumber(highlights.largestHealing.amount)}` });
+      if (highlights.ownKeyTactics && highlights.ownKeyTactics.length) rows.push({ label: "我方关键战法", value: highlights.ownKeyTactics.map((item) => `${item.name}×${item.count}`).join("、") });
+      if (highlights.enemyKeyTactics && highlights.enemyKeyTactics.length) rows.push({ label: "敌方关键战法", value: highlights.enemyKeyTactics.map((item) => `${item.name}×${item.count}`).join("、") });
+      if (highlights.keyEvents && highlights.keyEvents.length) rows.push({ label: "关键事件", value: highlights.keyEvents.map((item) => item.text || item.type).slice(0, 3).join("；") });
+      return rows;
     },
 
     ownGeneralCards() {
@@ -412,6 +716,8 @@ export default {
       generalsText: (item.generals || []).join(" / ")
     }));
     this.entitlements = getEntitlements();
+    this.simulationRemoteMode = isRemoteMode();
+    if (this.simulationRemoteMode) this.loadCatalogVersions();
     this.savedLineups = savedView;
     this.refresh();
   },
@@ -440,8 +746,35 @@ export default {
       });
     },
 
+    loadCatalogVersions() {
+      this.catalogVersionsError = "";
+      getCatalogVersions({ status: "published" })
+        .then((res) => {
+          this.catalogVersions = res.items || [];
+          const selectedId = this.simulationOptions.catalogVersionId;
+          const index = this.catalogVersionOptions.findIndex((item) => item.id === selectedId);
+          this.selectedCatalogVersionIndex = index >= 0 ? index : 0;
+        })
+        .catch((error) => {
+          this.catalogVersions = [];
+          this.selectedCatalogVersionIndex = 0;
+          this.simulationOptions = { ...this.simulationOptions, catalogVersionId: "" };
+          this.catalogVersionsError = error.message || "资料版本加载失败";
+        });
+    },
+
+    onSimulationCatalogVersionChange(event) {
+      const index = Number(event.detail.value) || 0;
+      const selected = this.catalogVersionOptions[index] || this.catalogVersionOptions[0];
+      this.selectedCatalogVersionIndex = index;
+      this.simulationOptions = { ...this.simulationOptions, catalogVersionId: selected && selected.id ? selected.id : "" };
+      this.simulation = null;
+      this.simulationError = "";
+    },
+
     onEnemyChange(event) {
-      this.enemyIndex = Number(event.detail.value);
+      const index = Number(event.detail.value) || 0;
+      this.enemyIndex = Math.max(0, Math.min(index, this.enemyTemplates.length - 1));
       this.refresh();
     },
 
@@ -467,12 +800,13 @@ export default {
         enemyInput = this.savedToInput(enemySaved);
         enemyName = enemySaved.generals ? enemySaved.generals.join(" / ") : "自选阵容";
       } else {
-        const template = this.enemyTemplates[this.enemyIndex];
+        const template = this.selectedEnemyTemplate;
         enemyInput = this.templateToInput(template);
         enemyName = template.name;
       }
 
       const payload = { own: ownInput, enemy: enemyInput };
+      this.currentPayload = payload;
       this.savedCount = saved.length;
       this.isLoading = true;
       this.apiStatus = "";
@@ -537,16 +871,18 @@ export default {
       });
     },
 
-    toSummary(source, input, report) {
+    toSummary(source, input, report = {}) {
       const generals = (input.generalIds || []).map((id) => catalog.findGeneralById(id)).filter(Boolean);
+      const dimensions = Array.isArray(report.dimensions) ? report.dimensions : [];
+      const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : [];
       return {
         name: source && source.name ? source.name : "我的最近保存阵容",
         troop: input.troop,
-        score: report.totalScore,
-        dimensions: report.dimensions || [],
-        confidence: report.confidence,
+        score: Number(report.totalScore) || 0,
+        dimensions,
+        confidence: report.confidence || "未知",
         generalsText: generals.map((item) => item.name).join(" / "),
-        topWeakness: report.weaknesses[0]
+        topWeakness: weaknesses[0] || "暂无明显短板"
       };
     },
 
@@ -627,6 +963,89 @@ export default {
 
     closeStats() {
       this.showStats = false;
+    },
+
+    formatNumber(value) {
+      return Number(value || 0).toLocaleString();
+    },
+
+    joinNames(names) {
+      return names && names.length ? names.join("、") : "暂无";
+    },
+
+    formatSampleSummary(summary = {}) {
+      const result = summary.result === "win" ? "胜" : summary.result === "loss" ? "负" : "平";
+      return `${result}，我方 ${this.formatNumber(summary.ownRemaining)} / 敌方 ${this.formatNumber(summary.enemyRemaining)}，${summary.rounds || 0} 回合`;
+    },
+
+    openSimulation() {
+      if (!this.currentPayload) return;
+      this.showSimulation = true;
+      this.simulationError = "";
+      if (!this.simulation && this.simulationRemoteEnabled) this.runSimulation();
+    },
+
+    setSimulationSeedMode(seedMode) {
+      this.simulationOptions = { ...this.simulationOptions, seedMode };
+    },
+
+    onSimulationOptionInput(field, event) {
+      const rawValue = event && event.detail ? event.detail.value : "";
+      if (field === "seed") {
+        this.simulationOptions = { ...this.simulationOptions, seed: rawValue };
+        return;
+      }
+      const number = Math.round(Number(rawValue) || 0);
+      const limits = field === "iterations" ? { min: 1, max: 100, fallback: 20 } : { min: 1, max: 8, fallback: 8 };
+      const value = Math.max(limits.min, Math.min(limits.max, number || limits.fallback));
+      this.simulationOptions = { ...this.simulationOptions, [field]: value };
+    },
+
+    buildSimulationPayload() {
+      const iterations = Math.max(1, Math.min(100, Math.round(Number(this.simulationOptions.iterations) || 20)));
+      const maxRounds = Math.max(1, Math.min(8, Math.round(Number(this.simulationOptions.maxRounds) || 8)));
+      const seed = this.simulationOptions.seedMode === "fixed" && this.simulationOptions.seed
+        ? this.simulationOptions.seed
+        : Date.now();
+      const selectedVersion = this.selectedCatalogVersion;
+      return {
+        ...this.currentPayload,
+        seed,
+        iterations,
+        catalogVersionId: selectedVersion ? selectedVersion.id : "",
+        season: selectedVersion ? selectedVersion.seasonKey : "",
+        options: { maxRounds }
+      };
+    },
+
+    coverageStatusText(status) {
+      return ({ explicit: "显式规则", fallback: "通用估算", missed: "未覆盖" })[status] || status || "未知";
+    },
+
+    toggleSimulationLog() {
+      this.simulationLogExpanded = !this.simulationLogExpanded;
+    },
+
+    runSimulation() {
+      if (!this.currentPayload) return;
+      this.showSimulation = true;
+      this.simulationLoading = true;
+      this.simulationError = "";
+      this.simulationLogExpanded = false;
+      simulateBattleAsync(this.buildSimulationPayload())
+        .then((result) => {
+          this.simulation = result;
+          this.simulationLoading = false;
+        })
+        .catch((error) => {
+          this.simulationLoading = false;
+          this.simulationError = error.message || "模拟失败";
+          uni.showToast({ title: this.simulationError, icon: "none" });
+        });
+    },
+
+    closeSimulation() {
+      this.showSimulation = false;
     },
 
     goToFeedback() {
@@ -1065,6 +1484,220 @@ export default {
   padding: var(--sp-xs) 0;
 }
 
+.simulation-note {
+  margin-top: 16rpx;
+  color: var(--text-stone);
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.battle-log {
+  margin-top: 18rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.log-block {
+  margin-top: 12rpx;
+  padding: 14rpx;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.log-title {
+  color: #a5b4fc;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+
+.log-line {
+  color: var(--text-stone);
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.simulation-form {
+  margin-bottom: var(--sp-lg);
+  padding: 18rpx;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.simulation-option-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+
+.seed-tabs {
+  display: flex;
+  gap: 14rpx;
+  margin: 18rpx 0;
+}
+
+.seed-tab {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: var(--r-md);
+  color: var(--text-stone);
+  font-size: 24rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.seed-tab.active {
+  color: var(--gold-bright);
+  border-color: rgba(201, 152, 58, 0.45);
+  background: rgba(201, 152, 58, 0.14);
+}
+
+.simulation-summary,
+.simulation-section {
+  margin-top: 18rpx;
+}
+
+.simulation-note.warning {
+  color: #fbbf24;
+}
+
+.reason-item,
+.assumption-line {
+  margin-top: 10rpx;
+  padding: 12rpx 14rpx;
+  border-radius: var(--r-sm);
+  color: var(--text-stone);
+  font-size: 22rpx;
+  line-height: 1.6;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.detail-label {
+  flex: 0 0 180rpx;
+  color: var(--text-stone);
+  font-size: 22rpx;
+}
+
+.detail-value {
+  flex: 1;
+  color: var(--text-ink);
+  font-size: 22rpx;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.coverage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.coverage-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  align-items: center;
+  padding: 14rpx 0;
+  border-radius: var(--r-md);
+  color: var(--text-ink);
+  font-size: 22rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.coverage-item text:last-child {
+  color: var(--gold-bright);
+  font-weight: 700;
+}
+
+.coverage-list {
+  margin-top: 12rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.coverage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12rpx;
+  padding: 10rpx 12rpx;
+  border-radius: var(--r-sm);
+  color: var(--text-ink);
+  font-size: 22rpx;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.coverage-badge {
+  flex: 0 0 auto;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  color: var(--text-ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.coverage-badge.explicit {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.coverage-badge.fallback {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.coverage-badge.missed {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.form-picker,
+.picker-value {
+  width: 100%;
+}
+
+.picker-value {
+  min-height: 72rpx;
+  padding: 0 22rpx;
+  border-radius: var(--r-md);
+  color: var(--text-ink);
+  font-size: 26rpx;
+  line-height: 72rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+}
+
+.sample-card {
+  margin-top: 12rpx;
+  padding: 14rpx;
+  border-radius: var(--r-md);
+  color: var(--text-ink);
+  font-size: 22rpx;
+  line-height: 1.7;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1rpx solid rgba(99, 102, 241, 0.18);
+}
+
+.log-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .record-row {
   display: flex;
   align-items: center;
@@ -1466,12 +2099,36 @@ export default {
   background: rgba(4, 5, 7, 0.72);
 }
 
+.win-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 20rpx;
+}
+
 .win-title {
-  text-align: center;
   color: #e0c481;
   font-size: 28rpx;
   font-weight: 900;
-  margin-bottom: 20rpx;
+}
+
+.win-subtitle {
+  margin-top: 8rpx;
+  color: rgba(197, 183, 148, 0.82);
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.win-simulate-btn {
+  flex-shrink: 0;
+  padding: 14rpx 22rpx;
+  border-radius: 999rpx;
+  color: #171008;
+  font-size: 24rpx;
+  font-weight: 900;
+  background: linear-gradient(135deg, #f4d99e, #c99136 58%, #83541d);
+  box-shadow: 0 10rpx 26rpx rgba(201, 145, 54, 0.28);
 }
 
 .win-content {
@@ -1531,19 +2188,47 @@ export default {
 
 .bottom-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.8fr 1fr;
-  align-items: center;
+  grid-template-columns: 1.55fr 1.05fr 0.82fr 0.82fr;
+  align-items: stretch;
   gap: 14rpx;
 }
 
 .icon-action,
-.adjust-btn {
-  min-height: 76rpx;
+.adjust-btn,
+.simulation-entry {
+  min-height: 82rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #d8bb7c;
   font-size: 23rpx;
+}
+
+.icon-action {
+  border: 1rpx solid rgba(216, 187, 124, 0.2);
+  background: rgba(8, 10, 13, 0.36);
+}
+
+.simulation-entry {
+  flex-direction: column;
+  gap: 4rpx;
+  border: 1rpx solid rgba(244, 217, 158, 0.72);
+  color: #201408;
+  background: linear-gradient(135deg, #f7dfaa, #d1973d 52%, #8e5a20);
+  box-shadow: 0 14rpx 32rpx rgba(201, 145, 54, 0.32);
+}
+
+.simulation-title {
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.simulation-desc {
+  font-size: 18rpx;
+  font-weight: 700;
+  opacity: 0.78;
+  line-height: 1;
 }
 
 .adjust-btn {

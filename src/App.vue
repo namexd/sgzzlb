@@ -439,6 +439,26 @@ uni-page-body {
     width: 390px !important;
     max-width: 390px !important;
     transform: translateX(-50%);
+    background: #0f141b !important;
+  }
+
+  uni-tabbar .uni-tabbar__item {
+    height: 56px !important;
+    padding: 5px 0 4px !important;
+    box-sizing: border-box;
+  }
+
+  uni-tabbar .uni-tabbar__bd,
+  uni-tabbar .uni-tabbar__icon {
+    width: 25px !important;
+    height: 25px !important;
+  }
+
+  uni-tabbar .uni-tabbar__label {
+    margin-top: 2px !important;
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+    font-weight: 700;
   }
 
   uni-page-body {

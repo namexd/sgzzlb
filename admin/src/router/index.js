@@ -20,6 +20,12 @@ const routes = [
         meta: { title: "仪表盘", icon: "DataBoard" }
       },
       {
+        path: "users",
+        name: "Users",
+        component: () => import("../views/Users.vue"),
+        meta: { title: "用户管理", icon: "User" }
+      },
+      {
         path: "feedback",
         name: "Feedback",
         component: () => import("../views/Feedback.vue"),
@@ -32,10 +38,22 @@ const routes = [
         meta: { title: "阵容管理", icon: "Trophy" }
       },
       {
+        path: "reports",
+        name: "Reports",
+        component: () => import("../views/Reports.vue"),
+        meta: { title: "战报管理", icon: "DataAnalysis" }
+      },
+      {
         path: "catalog",
         name: "Catalog",
         component: () => import("../views/Catalog.vue"),
         meta: { title: "资料数据", icon: "Document" }
+      },
+      {
+        path: "catalog-updates",
+        name: "CatalogUpdates",
+        component: () => import("../views/CatalogUpdates.vue"),
+        meta: { title: "赛季资料", icon: "Collection" }
       },
       {
         path: "rules",

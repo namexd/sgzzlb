@@ -23,6 +23,9 @@ function createDefaultStore() {
     lineups: [],
     drawPools: [],
     drawRecords: [],
+    catalogVersions: [],
+    catalogImportJobs: [],
+    tacticRuleTodos: [],
     auditLog: []
   };
 }
@@ -35,6 +38,9 @@ function normalizeStore(input = {}) {
     lineups: Array.isArray(input.lineups) ? input.lineups : defaults.lineups,
     drawPools: Array.isArray(input.drawPools) ? input.drawPools : defaults.drawPools,
     drawRecords: Array.isArray(input.drawRecords) ? input.drawRecords : defaults.drawRecords,
+    catalogVersions: Array.isArray(input.catalogVersions) ? input.catalogVersions : defaults.catalogVersions,
+    catalogImportJobs: Array.isArray(input.catalogImportJobs) ? input.catalogImportJobs : defaults.catalogImportJobs,
+    tacticRuleTodos: Array.isArray(input.tacticRuleTodos) ? input.tacticRuleTodos : defaults.tacticRuleTodos,
     auditLog: Array.isArray(input.auditLog) ? input.auditLog : defaults.auditLog
   };
 }
@@ -46,6 +52,9 @@ function snapshotStore(store) {
     lineups: clone(store.lineups),
     drawPools: clone(store.drawPools),
     drawRecords: clone(store.drawRecords),
+    catalogVersions: clone(store.catalogVersions),
+    catalogImportJobs: clone(store.catalogImportJobs),
+    tacticRuleTodos: clone(store.tacticRuleTodos),
     auditLog: clone(store.auditLog)
   };
 }
@@ -74,6 +83,9 @@ function attachStoreMethods(store, options = {}) {
         store.lineups = defaults.lineups;
         store.drawPools = defaults.drawPools;
         store.drawRecords = defaults.drawRecords;
+        store.catalogVersions = defaults.catalogVersions;
+        store.catalogImportJobs = defaults.catalogImportJobs;
+        store.tacticRuleTodos = defaults.tacticRuleTodos;
         store.auditLog = defaults.auditLog;
       }
     },
@@ -124,6 +136,11 @@ function resetStore(store) {
   store.rules = defaults.rules;
   store.assetAudits = defaults.assetAudits;
   store.lineups = defaults.lineups;
+  store.drawPools = defaults.drawPools;
+  store.drawRecords = defaults.drawRecords;
+  store.catalogVersions = defaults.catalogVersions;
+  store.catalogImportJobs = defaults.catalogImportJobs;
+  store.tacticRuleTodos = defaults.tacticRuleTodos;
   store.auditLog = defaults.auditLog;
 }
 

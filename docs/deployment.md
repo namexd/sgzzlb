@@ -1,6 +1,6 @@
 # 三国志战略版配将分析部署文档
 
-更新时间：2026-06-03。
+更新时间：2026-06-04。
 
 ## 生产环境口径
 
@@ -188,6 +188,106 @@ ls -la /var/www/sgzzlb/admin/
 - 评分页能生成报告。
 - 反馈提交能写入后端。
 
+## 数据库备份
+
+### 自动备份配置
+
+```bash
+# 复制备份脚本到服务器
+scp scripts/backup-db.sh root@47.99.42.50:/usr/local/bin/
+ssh root@47.99.42.50 "chmod +x /usr/local/bin/backup-db.sh"
+
+# 创建备份目录
+ssh root@47.99.42.50 "mkdir -p /var/backups/sgzzlb"
+
+# 添加 cron 任务（每天凌晨 2 点备份）
+ssh root@47.99.42.50 "crontab -e"
+# 添加以下行:
+# 0 2 * * * /usr/local/bin/backup-db.sh /var/backups/sgzzlb
+```
+
+### 手动备份
+
+```bash
+ssh root@47.99.42.50 "/usr/local/bin/backup-db.sh /var/backups/sgzzlb"
+```
+
+### 恢复数据库
+
+```bash
+# 上传恢复脚本
+scp scripts/restore-db.sh root@47.99.42.50:/usr/local/bin/
+ssh root@47.99.42.50 "chmod +x /usr/local/bin/restore-db.sh"
+
+# 恢复指定备份
+ssh root@47.99.42.50 "/usr/local/bin/restore-db.sh /var/backups/sgzzlb/sgzzlb_20260604_020000.sql.gz"
+```
+
+### 备份策略
+
+- 保留最近 7 天的备份
+- 每天凌晨 2 点自动备份
+- 备份文件压缩存储（.sql.gz）
+- 建议定期将备份同步到异地存储
+
+## HTTPS 配置
+
+### 使用 Let's Encrypt（推荐）
+
+```bash
+# 安装 certbot
+ssh root@47.99.42.50 "yum install certbot python2-certbot-nginx"
+
+# 获取证书
+ssh root@47.99.42.50 "certbot --nginx -d sz.qihangwk.com"
+
+# 自动续期测试
+ssh root@47.99.42.50 "certbot renew --dry-run"
+```
+
+### 手动配置 SSL
+
+如果使用其他 SSL 证书：
+
+```bash
+# 上传证书文件
+scp your_certificate.crt root@47.99.42.50:/etc/nginx/ssl/
+scp your_private.key root@47.99.42.50:/etc/nginx/ssl/
+
+# 编辑 Nginx 配置
+ssh root@47.99.42.50 "vi /etc/nginx/conf.d/sgzzlb.conf"
+```
+
+Nginx SSL 配置示例：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name sz.qihangwk.com;
+
+    ssl_certificate /etc/nginx/ssl/your_certificate.crt;
+    ssl_certificate_key /etc/nginx/ssl/your_private.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # ... 其他配置 ...
+}
+
+server {
+    listen 80;
+    server_name sz.qihangwk.com;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+### 微信小程序域名配置
+
+在微信公众平台 → 开发管理 → 服务器域名中配置：
+
+- request 合法域名: `https://sz.qihangwk.com`
+- uploadFile 合法域名: `https://sz.qihangwk.com`
+- downloadFile 合法域名: `https://sz.qihangwk.com`
+
 ## 安全要求
 
 - 不在仓库内保存真实密码、token、私钥或面板入口。
@@ -195,3 +295,5 @@ ls -la /var/www/sgzzlb/admin/
 - SSH 只使用密钥认证。
 - MySQL、PM2、Nginx 日志需要定期轮转。
 - 数据库需要定期备份并演练恢复。
+- 生产环境必须使用 HTTPS。
+- 微信小程序必须配置合法域名。

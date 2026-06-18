@@ -6,7 +6,24 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +44,31 @@ jobs:
 
       - name: Build admin
         run: cd admin && npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            src/dist/build/h5
+            admin/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
 
       - name: Setup SSH
         run: |
@@ -56,3 +98,9 @@ jobs:
       - name: Restart services
         run: |
           ssh -i ~/.ssh/deploy_key root@47.99.42.50 "cd /var/www/sgzzlb/backend && npm install --omit=dev && pm2 restart sgzzlb-server && nginx -s reload"
+
+      - name: Smoke test
+        run: |
+          sleep 10
+          curl -f https://47.99.42.50/health || exit 1
+          echo "Smoke test passed"

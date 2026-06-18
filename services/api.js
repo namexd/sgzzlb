@@ -1,6 +1,7 @@
 const catalog = require("../utils/catalog");
 const scoring = require("../utils/scoring");
 const optimizer = require("../utils/optimizer");
+const simulator = require("../utils/simulator");
 
 const DEFAULT_API_CONFIG = {
   mode: "local",
@@ -186,13 +187,36 @@ function analyzeLineup(payload) {
 }
 
 function previewMatchup(payload) {
-  const own = scoring.analyzeLineup(payload.own || {});
-  const enemy = scoring.analyzeLineup(payload.enemy || {});
+  const sharedContext = {
+    catalogSnapshot: payload.catalogSnapshot,
+    catalogContext: payload.catalogContext,
+    catalogVersionId: payload.catalogVersionId,
+    season: payload.season
+  };
+  let simulation = null;
+  let ownSimulationStats = null;
+  let enemySimulationStats = null;
+  if (payload.simulate) {
+    simulation = simulator.simulate(payload);
+    ownSimulationStats = scoring.buildSimulationStats(simulation, "own");
+    enemySimulationStats = scoring.buildSimulationStats(simulation, "enemy");
+  }
+  const own = scoring.analyzeLineup({ ...sharedContext, ...(payload.own || {}), simulationStats: ownSimulationStats || payload.own?.simulationStats });
+  const enemy = scoring.analyzeLineup({ ...sharedContext, ...(payload.enemy || {}), simulationStats: enemySimulationStats || payload.enemy?.simulationStats });
+  const result = scoring.compareLineups(own, enemy);
+  if (simulation) {
+    result.simulation = ownSimulationStats;
+  }
   return {
     own,
     enemy,
-    result: scoring.compareLineups(own, enemy)
+    result,
+    catalogContext: payload.catalogContext || null
   };
+}
+
+function simulateBattle(payload) {
+  return simulator.simulate(payload);
 }
 
 function optimizeAccount(payload = {}) {
@@ -321,6 +345,16 @@ function previewMatchupAsync(payload) {
     });
   }
   return Promise.resolve(previewMatchup(payload));
+}
+
+function simulateBattleAsync(payload) {
+  if (shouldUseRemote()) {
+    return requestRemote("/api/v1/battles/simulate", {
+      method: "POST",
+      data: payload
+    });
+  }
+  return Promise.resolve(simulateBattle(payload));
 }
 
 function optimizeAccountAsync(payload) {
@@ -496,6 +530,7 @@ module.exports = {
   getRecords,
   analyzeLineup,
   previewMatchup,
+  simulateBattle,
   optimizeAccount,
   importBattleReport,
   saveLineup,
@@ -510,6 +545,7 @@ module.exports = {
   saveLineupAsync,
   deleteLineupAsync,
   previewMatchupAsync,
+  simulateBattleAsync,
   optimizeAccountAsync,
   importBattleReportAsync,
   getDrawPoolsAsync,

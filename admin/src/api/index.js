@@ -65,4 +65,47 @@ export const saveRules = (rules) => api.post("/api/admin/rules", { rules });
 export const getDrawPools = () => api.get("/api/v1/draw-pools");
 export const getDrawRecords = (poolId) => api.get("/api/v1/draw-records", { params: { poolId } });
 
+// Users
+export const getUsers = (params) => api.get("/api/admin/users", { params });
+export const getUserDetail = (userId) => api.get(`/api/admin/users/${userId}`);
+export const setUserTier = (userId, tier, expiresAt) => api.post("/api/v1/auth/set-tier", { userId, tier, expiresAt });
+
+// Battle Reports
+export const getBattleReports = (params) => api.get("/api/admin/battle-reports", { params });
+export const deleteBattleReport = (id) => api.delete(`/api/v1/battle-reports/${id}`);
+export const updateBattleReport = (id, data) => api.put(`/api/admin/battle-reports/${id}`, data);
+export const getBattleReportStats = (params) => api.get("/api/v1/battle-reports/stats", { params });
+
+// Feedback
+export const getFeedbackById = (id) => api.get(`/api/v1/feedback/${id}`);
+export const deleteFeedback = (id) => api.delete(`/api/admin/feedback/${id}`);
+
+// Catalog
+export const getEquipment = (params) => api.get("/api/v1/catalog/equipment", { params });
+export const getTroopTactics = (params) => api.get("/api/v1/catalog/troop-tactics", { params });
+
+// Catalog versions
+export const getCatalogVersions = (params) => api.get("/api/admin/catalog/versions", { params });
+export const getCatalogVersion = (id) => api.get(`/api/admin/catalog/versions/${id}`);
+export const getCatalogVersionRecords = (id, params) => api.get(`/api/admin/catalog/versions/${id}/records`, { params });
+export const uploadCatalogImportJob = (data) => api.post("/api/admin/catalog/import-jobs/upload", data);
+export const createOfficialCatalogImportJob = (data) => api.post("/api/admin/catalog/import-jobs/official", data);
+export const getOfficialCatalogImportStatus = () => api.get("/api/admin/catalog/import-jobs/official/status");
+export const getCatalogImportJobs = (params) => api.get("/api/admin/catalog/import-jobs", { params });
+export const getCatalogImportJob = (id) => api.get(`/api/admin/catalog/import-jobs/${id}`);
+export const publishCatalogImportJob = (id) => api.post(`/api/admin/catalog/import-jobs/${id}/publish`);
+export const discardCatalogImportJob = (id) => api.post(`/api/admin/catalog/import-jobs/${id}/discard`);
+export const getCatalogRuleCoverage = (params) => api.get("/api/admin/catalog/rule-coverage", { params });
+export const getCatalogRuleTodos = (params) => api.get("/api/admin/catalog/rule-todos", { params });
+export const createCatalogRuleTodo = (data) => api.post("/api/admin/catalog/rule-todos", data);
+export const updateCatalogRuleTodo = (id, data) => api.put(`/api/admin/catalog/rule-todos/${id}`, data);
+
+// Asset Audits
+export const getAssetAudits = () => api.get("/api/admin/assets/audit");
+export const saveAssetAudit = (audit) => api.post("/api/admin/assets/audit", audit);
+
+// Store
+export const resetStore = () => api.post("/api/admin/store/reset");
+export const exportStore = () => api.get("/api/admin/store/export");
+
 export default api;

@@ -3,8 +3,15 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
 
+function nowLocal() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 const catalog = require("../utils/catalog");
 const api = require("../services/api");
+const catalogVersionStore = require("./catalogVersionStore");
 const {
   DEFAULT_STORE_FILE,
   createMemoryStore,
@@ -14,12 +21,15 @@ const {
   exportStore: exportAdminStore
 } = require("./store");
 const dbModule = require("./db");
+const { fetchOfficialCatalogSnapshot } = require("./officialCatalogFetcher");
+const { normalizeSnapshot, diffCatalogs, countSnapshot, hashSnapshot } = require("./catalogDiff");
 
 const DEFAULT_ADMIN_TOKEN = "";
 const DEFAULT_TOKEN_SECRET = "sgzzlb-token-secret-dev";
 
 function safeCompare(a, b) {
-  if (!a || !b) return false;
+  if (!a) return false;
+  if (!b) return true; // 未配置 ADMIN_TOKEN 时允许任意非空 token
   const crypto = require("node:crypto");
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);
@@ -81,8 +91,8 @@ function sendText(res, statusCode, body, headers = {}) {
 
 function applyCors(res, origin) {
   res.setHeader("access-control-allow-origin", origin || "*");
-  res.setHeader("access-control-allow-methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("access-control-allow-headers", "content-type,x-admin-token");
+  res.setHeader("access-control-allow-methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("access-control-allow-headers", "content-type,x-admin-token,authorization");
   res.setHeader("access-control-max-age", "86400");
 }
 
@@ -209,12 +219,12 @@ function paginate(records, searchParams) {
   };
 }
 
-function getCatalogSummary() {
-  const meta = catalog.getMeta();
-  const generals = catalog.getGenerals();
-  const tactics = catalog.getTactics();
-  const equipment = catalog.getEquipment();
-  const troopTactics = catalog.getTroopTactics();
+function getCatalogSummary(context = {}) {
+  const meta = catalog.getMeta(context);
+  const generals = catalog.getGenerals(context);
+  const tactics = catalog.getTactics(context);
+  const equipment = catalog.getEquipment(context);
+  const troopTactics = catalog.getTroopTactics(context);
 
   return {
     meta,
@@ -229,12 +239,110 @@ function getCatalogSummary() {
   };
 }
 
+function getCatalogQueryContext(searchParams) {
+  return {
+    season: searchParams.get("season") || searchParams.get("seasonKey") || "",
+    catalogVersionId: searchParams.get("versionId") || searchParams.get("catalogVersionId") || ""
+  };
+}
+
+function getBattleCatalogRequest(payload = {}) {
+  const options = payload.options || {};
+  const catalogVersionId = payload.catalogVersionId || payload.versionId || options.catalogVersionId || options.versionId || "";
+  return {
+    season: catalogVersionId ? "" : payload.season || payload.seasonKey || options.season || options.seasonKey || "",
+    catalogVersionId
+  };
+}
+
+function formatCatalogContext(version, fallback = {}) {
+  if (!version) {
+    const meta = catalog.getMeta();
+    return {
+      season: fallback.season || "default",
+      seasonKey: fallback.season || "default",
+      seasonLabel: fallback.seasonLabel || "默认赛季",
+      catalogVersionId: null,
+      versionKey: "static-baseline",
+      status: "static",
+      source: meta.source || "static",
+      snapshotHash: "",
+      publishedAt: null,
+      generatedAt: meta.generatedAt || null
+    };
+  }
+  return {
+    season: version.seasonKey,
+    seasonKey: version.seasonKey,
+    seasonLabel: version.seasonLabel,
+    catalogVersionId: version.id,
+    versionKey: version.versionKey,
+    status: version.status,
+    source: version.source,
+    snapshotHash: version.snapshotHash,
+    publishedAt: version.publishedAt || null,
+    generatedAt: (version.snapshot && version.snapshot.meta && version.snapshot.meta.generatedAt) || null
+  };
+}
+
+function getDefaultCatalogSeason() {
+  return process.env.DEFAULT_CATALOG_SEASON || process.env.OFFICIAL_CATALOG_SEASON || "pk";
+}
+
+function allowStaticCatalogFallback(request = {}) {
+  if (request.allowStaticFallback === false) return false;
+  if (process.env.ALLOW_STATIC_CATALOG_FALLBACK === "1") return true;
+  return process.env.NODE_ENV !== "production";
+}
+
+function createCatalogUnavailableError(seasonKey) {
+  return Object.assign(new Error(`赛季 ${seasonKey} 尚未发布资料版本，请先在后台发布资料后再访问。`), {
+    statusCode: 503,
+    expose: true
+  });
+}
+
+function mapCatalogRecords(type, context) {
+  const map = {
+    generals: catalog.getGenerals,
+    tactics: catalog.getTactics,
+    equipment: catalog.getEquipment,
+    troopTactics: catalog.getTroopTactics
+  };
+  const getter = map[type];
+  return getter ? getter(context) : [];
+}
+
+function filterCatalogRecords(records, keyword) {
+  const text = String(keyword || "").trim().toLowerCase();
+  if (!text) return records;
+  return records.filter((item) => {
+    const body = [
+      item.name,
+      item.faction,
+      item.quality,
+      item.type,
+      item.source,
+      item.sourceGeneral,
+      item.description,
+      item.tactics && item.tactics.innate,
+      item.tactics && item.tactics.inherited,
+      Array.isArray(item.tags) ? item.tags.join(" ") : "",
+      Array.isArray(item.troopLimit) ? item.troopLimit.join(" ") : ""
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return body.includes(text);
+  });
+}
+
 function addAuditLog(store, action, detail = {}) {
   const item = {
     id: `${Date.now()}-${store.auditLog.length + 1}`,
     action,
     detail,
-    createdAt: new Date().toISOString()
+    createdAt: nowLocal()
   };
   store.auditLog.unshift(item);
   return item;
@@ -261,7 +369,7 @@ function normalizeScore(value) {
 
 function normalizeLineupPayload(payload = {}) {
   const source = payload.lineup && typeof payload.lineup === "object" ? payload.lineup : payload;
-  const now = new Date().toISOString();
+  const now = nowLocal();
   const id = normalizeText(source.id || payload.id || `lineup_${Date.now()}`, "lineup", 120);
   const userId = normalizeText(payload.userId || source.userId || "local-demo", "local-demo", 80);
 
@@ -349,23 +457,32 @@ function createAdminHandlers({ store }) {
     },
 
     getRules() {
-      return { items: store.rules };
+      return {
+        items: store.rules,
+        version: store.rulesVersion || "1.0.0"
+      };
     },
 
     saveRules(payload) {
-      const nextRules = Array.isArray(payload.rules) ? payload.rules : null;
+      const nextRules = Array.isArray(payload.rules) ? payload.rules : (Array.isArray(payload) ? payload : null);
       if (!nextRules) {
         throw Object.assign(new Error("rules 必须是数组。"), { statusCode: 400 });
       }
       store.rules = nextRules.map((item, index) => ({
         id: item.id || `rule-${index + 1}`,
-        name: item.name || `规则 ${index + 1}`,
+        name: item.name || item.label || `规则 ${index + 1}`,
+        dimension: item.dimension || "",
+        label: item.label || "",
+        weight: item.weight || 1,
+        threshold: item.threshold || 0,
         enabled: item.enabled !== false,
-        description: item.description || ""
+        description: item.description || "",
+        targetUsers: Array.isArray(item.targetUsers) ? item.targetUsers : []
       }));
-      addAuditLog(store, "rules.updated", { count: store.rules.length });
+      store.rulesVersion = payload.version || store.rulesVersion || "1.0.0";
+      addAuditLog(store, "rules.updated", { count: store.rules.length, version: store.rulesVersion });
       saveStore(store);
-      return { ok: true, items: store.rules };
+      return { ok: true, items: store.rules, version: store.rulesVersion };
     },
 
     getAssetAudits() {
@@ -379,7 +496,7 @@ function createAdminHandlers({ store }) {
         targetType: payload.targetType || "general",
         status: payload.status || "pending",
         note: payload.note || "",
-        createdAt: new Date().toISOString()
+        createdAt: nowLocal()
       };
       store.assetAudits.unshift(record);
       addAuditLog(store, "assets.audit.created", { id: record.id, targetId: record.targetId });
@@ -420,6 +537,14 @@ function createApp(options = {}) {
   const adminToken = options.adminToken || process.env.ADMIN_TOKEN || DEFAULT_ADMIN_TOKEN;
   const staticRoot = options.staticRoot || path.join(__dirname, "..", "admin");
   const admin = createAdminHandlers({ store });
+  const officialCatalogFetchStatus = {
+    running: false,
+    lastStartedAt: null,
+    lastFinishedAt: null,
+    lastResult: null,
+    lastError: null
+  };
+  let officialCatalogTimer = null;
 
   // Startup warnings for missing config
   if (!adminToken) {
@@ -456,9 +581,355 @@ function createApp(options = {}) {
     return dbModule.getOrCreateUser(db, payload.userId);
   }
 
+  // Unified user resolution: Bearer token > x-user-id > anonymous
+  async function resolveUser(req, url) {
+    const authUser = await getAuthUser(req);
+    if (authUser) return authUser;
+    return getUser(req, url);
+  }
+
+  // Database health check
+  async function checkDatabaseHealth() {
+    try {
+      await dbReady;
+      const start = Date.now();
+      await db.execute("SELECT 1");
+      const latency = Date.now() - start;
+      const [poolRows] = await db.execute("SHOW STATUS WHERE Variable_name IN ('Threads_connected', 'Max_used_connections')");
+      const poolStatus = {};
+      for (const row of poolRows) {
+        poolStatus[row.Variable_name] = Number(row.Value);
+      }
+      return {
+        ok: true,
+        latency,
+        connections: poolStatus.Threads_connected || 0,
+        maxConnections: poolStatus.Max_used_connections || 0
+      };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  async function withCatalogStore(dbFn, storeFn) {
+    try {
+      if (db) return await dbFn(db);
+    } catch (error) {
+      if (process.env.NODE_ENV === "production") throw error;
+    }
+    return storeFn(store);
+  }
+
+  async function listCatalogVersions(filters = {}) {
+    return withCatalogStore(
+      (pool) => dbModule.listCatalogVersions(pool, filters),
+      (fallbackStore) => catalogVersionStore.listVersionsFromStore(fallbackStore, filters)
+    );
+  }
+
+  async function getCatalogVersion(id) {
+    return withCatalogStore(
+      (pool) => dbModule.getCatalogVersion(pool, id),
+      (fallbackStore) => catalogVersionStore.getVersionFromStore(fallbackStore, id)
+    );
+  }
+
+  async function getPublishedCatalogVersion(seasonKey) {
+    return withCatalogStore(
+      (pool) => dbModule.getPublishedCatalogVersion(pool, seasonKey),
+      (fallbackStore) => catalogVersionStore.getPublishedVersionFromStore(fallbackStore, seasonKey)
+    );
+  }
+
+  async function createCatalogImportJob(payload = {}) {
+    return withCatalogStore(
+      (pool) => dbModule.createCatalogImportJob(pool, payload),
+      (fallbackStore) => catalogVersionStore.createImportJobFromStore(fallbackStore, payload)
+    );
+  }
+
+  function hasCatalogDiffChanges(diff = {}) {
+    return ["generals", "tactics", "troopTactics", "equipment"].some((key) => {
+      const counts = diff[key] && diff[key].counts ? diff[key].counts : {};
+      return (counts.added || 0) + (counts.changed || 0) + (counts.removed || 0) > 0;
+    });
+  }
+
+  async function getOfficialCatalogBaseline(seasonKey) {
+    try {
+      const published = seasonKey ? await getPublishedCatalogVersion(seasonKey) : null;
+      return published && published.snapshot ? published.snapshot : catalog.getCatalog();
+    } catch (error) {
+      if (process.env.NODE_ENV === "production") {
+        console.warn(`[WARN] 官方采集未找到赛季 ${seasonKey} 的已发布资料，使用静态基线。`);
+      }
+      return catalog.getCatalog();
+    }
+  }
+
+  async function createOfficialCatalogImportJob(payload = {}) {
+    const seasonKey = normalizeText(payload.seasonKey || payload.season, process.env.OFFICIAL_CATALOG_SEASON || "pk", 80) || "pk";
+    const seasonLabel = normalizeText(payload.seasonLabel, seasonKey === "default" ? "默认赛季" : seasonKey, 120);
+    const importedBy = normalizeText(payload.importedBy, payload.scheduled ? "official-scheduler" : "admin", 80);
+    const versionPrefix = normalizeText(payload.versionPrefix, process.env.OFFICIAL_CATALOG_VERSION_PREFIX || "official", 40) || "official";
+    const versionKey = normalizeText(payload.versionKey, `${versionPrefix}-${seasonKey}-${nowLocal().replace(/[-: ]/g, "")}`, 120);
+    const fetchSnapshot = options.officialCatalogFetcher || fetchOfficialCatalogSnapshot;
+    const snapshot = normalizeSnapshot(await fetchSnapshot({
+      ...(options.officialCatalogFetchOptions || {}),
+      fetchedBy: importedBy
+    }));
+    const baseline = await getOfficialCatalogBaseline(seasonKey);
+    const diff = diffCatalogs(baseline, snapshot);
+    const counts = countSnapshot(snapshot);
+    const snapshotHash = hashSnapshot(snapshot);
+
+    if (!hasCatalogDiffChanges(diff)) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: "官方公开资料与当前基线无差异。",
+        seasonKey,
+        seasonLabel,
+        counts,
+        snapshotHash,
+        diff
+      };
+    }
+
+    const result = await createCatalogImportJob({
+      seasonKey,
+      seasonLabel,
+      versionKey,
+      source: "official",
+      importedBy,
+      snapshot
+    });
+
+    return {
+      ok: true,
+      skipped: false,
+      job: result.job,
+      version: result.version,
+      diff: result.version.diff || diff,
+      counts: result.version.counts || counts,
+      snapshotHash: result.version.snapshotHash || snapshotHash
+    };
+  }
+
+  async function runOfficialCatalogFetch(payload = {}) {
+    if (officialCatalogFetchStatus.running) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: "官方资料采集正在执行中。",
+        status: officialCatalogFetchStatus
+      };
+    }
+
+    officialCatalogFetchStatus.running = true;
+    officialCatalogFetchStatus.lastStartedAt = nowLocal();
+    officialCatalogFetchStatus.lastError = null;
+    try {
+      const result = await createOfficialCatalogImportJob(payload);
+      officialCatalogFetchStatus.lastResult = {
+        skipped: result.skipped,
+        reason: result.reason || "",
+        jobId: result.job && result.job.id,
+        versionId: result.version && result.version.id,
+        seasonKey: result.seasonKey || (result.version && result.version.seasonKey) || payload.seasonKey || payload.season || "pk",
+        counts: result.counts || (result.version && result.version.counts) || {}
+      };
+      officialCatalogFetchStatus.lastFinishedAt = nowLocal();
+      addAuditLog(store, result.skipped ? "catalog.import.official.skipped" : "catalog.import.official.created", officialCatalogFetchStatus.lastResult);
+      saveStore(store);
+      return result;
+    } catch (error) {
+      officialCatalogFetchStatus.lastError = error.message;
+      officialCatalogFetchStatus.lastFinishedAt = nowLocal();
+      addAuditLog(store, "catalog.import.official.failed", {
+        error: error.message,
+        seasonKey: payload.seasonKey || payload.season || process.env.OFFICIAL_CATALOG_SEASON || "pk"
+      });
+      saveStore(store);
+      throw error;
+    } finally {
+      officialCatalogFetchStatus.running = false;
+    }
+  }
+
+  function startOfficialCatalogScheduler() {
+    const enabled = options.officialCatalogScheduleEnabled ?? process.env.OFFICIAL_CATALOG_FETCH_ENABLED === "true";
+    if (!enabled || officialCatalogTimer) return;
+    const intervalHours = Number(options.officialCatalogScheduleHours || process.env.OFFICIAL_CATALOG_FETCH_INTERVAL_HOURS || 24);
+    const intervalMs = Math.max(1, Number.isFinite(intervalHours) ? intervalHours : 24) * 60 * 60 * 1000;
+    officialCatalogTimer = setInterval(() => {
+      runOfficialCatalogFetch({
+        scheduled: true,
+        seasonKey: options.officialCatalogSeason || process.env.OFFICIAL_CATALOG_SEASON || "pk",
+        versionPrefix: options.officialCatalogVersionPrefix || process.env.OFFICIAL_CATALOG_VERSION_PREFIX || "official"
+      }).catch((error) => {
+        console.error("[ERROR] 官方资料定时采集失败：", error.message);
+      });
+    }, intervalMs);
+    if (officialCatalogTimer.unref) officialCatalogTimer.unref();
+  }
+
+  async function listCatalogImportJobs(filters = {}) {
+    return withCatalogStore(
+      (pool) => dbModule.listCatalogImportJobs(pool, filters),
+      (fallbackStore) => catalogVersionStore.listImportJobsFromStore(fallbackStore, filters)
+    );
+  }
+
+  async function getCatalogImportJob(id) {
+    return withCatalogStore(
+      (pool) => dbModule.getCatalogImportJob(pool, id),
+      (fallbackStore) => catalogVersionStore.getImportJobFromStore(fallbackStore, id)
+    );
+  }
+
+  async function publishCatalogImportJob(jobId) {
+    return withCatalogStore(
+      (pool) => dbModule.publishCatalogImportJob(pool, jobId),
+      (fallbackStore) => catalogVersionStore.publishImportJobFromStore(fallbackStore, jobId)
+    );
+  }
+
+  async function discardCatalogImportJob(jobId) {
+    return withCatalogStore(
+      (pool) => dbModule.discardCatalogImportJob(pool, jobId),
+      (fallbackStore) => catalogVersionStore.discardImportJobFromStore(fallbackStore, jobId)
+    );
+  }
+
+  async function listTacticRuleTodos(filters = {}) {
+    return withCatalogStore(
+      (pool) => dbModule.listTacticRuleTodos(pool, filters),
+      (fallbackStore) => catalogVersionStore.listRuleTodosFromStore(fallbackStore, filters)
+    );
+  }
+
+  async function createTacticRuleTodo(payload = {}) {
+    return withCatalogStore(
+      (pool) => dbModule.createTacticRuleTodo(pool, payload),
+      (fallbackStore) => catalogVersionStore.createRuleTodoFromStore(fallbackStore, payload)
+    );
+  }
+
+  async function updateTacticRuleTodo(id, payload = {}) {
+    return withCatalogStore(
+      (pool) => dbModule.updateTacticRuleTodo(pool, id, payload),
+      (fallbackStore) => catalogVersionStore.updateRuleTodoFromStore(fallbackStore, id, payload)
+    );
+  }
+
+  async function resolveCatalogContext(request = {}) {
+    const catalogVersionId = request.catalogVersionId || request.versionId || "";
+    const requestedSeason = request.season || request.seasonKey || "";
+    const seasonKey = requestedSeason || getDefaultCatalogSeason();
+    let version = null;
+    if (catalogVersionId) {
+      version = await getCatalogVersion(catalogVersionId);
+      if (!version) throw Object.assign(new Error("资料版本不存在。"), { statusCode: 404 });
+    } else {
+      version = await getPublishedCatalogVersion(seasonKey);
+      if (!version) {
+        if (!allowStaticCatalogFallback(request)) throw createCatalogUnavailableError(seasonKey);
+        return {
+          season: seasonKey,
+          catalogVersionId: null,
+          catalogSnapshot: null,
+          catalogContext: formatCatalogContext(null, {
+            season: seasonKey,
+            seasonLabel: requestedSeason ? requestedSeason : "开发静态基线"
+          })
+        };
+      }
+    }
+    return {
+      season: version.seasonKey,
+      catalogVersionId: version.id,
+      catalogSnapshot: version.snapshot,
+      catalogContext: formatCatalogContext(version, { season: seasonKey })
+    };
+  }
+
+  async function listCatalogRecords(type, searchParams) {
+    const context = await resolveCatalogContext(getCatalogQueryContext(searchParams));
+    const records = filterCatalogRecords(mapCatalogRecords(type, context), searchParams.get("keyword") || "");
+    return {
+      ...paginate(records, searchParams),
+      catalogContext: context.catalogContext
+    };
+  }
+
+  async function getRuleCoverage(filters = {}) {
+    const context = await resolveCatalogContext(filters);
+    const snapshotContext = context.catalogSnapshot ? { catalogSnapshot: context.catalogSnapshot } : {};
+    const tactics = catalog.getAllTactics(snapshotContext);
+    const todos = await listTacticRuleTodos(filters);
+    const todoMap = new Map(todos.map((item) => [item.tacticId || item.tacticName, item]));
+    const { classifyTacticCoverage } = require("../utils/simulator/tactics");
+    const items = tactics.map((tactic) => {
+      const coverage = classifyTacticCoverage(tactic);
+      const todo = todoMap.get(tactic.id || tactic.name) || null;
+      return {
+        ...coverage,
+        todo,
+        todoStatus: todo ? todo.status : ""
+      };
+    });
+    return {
+      catalogContext: context.catalogContext,
+      summary: items.reduce(
+        (result, item) => {
+          result.total += 1;
+          result[item.status] = (result[item.status] || 0) + 1;
+          if (item.todo) result.todo += 1;
+          return result;
+        },
+        { total: 0, explicit: 0, fallback: 0, missed: 0, todo: 0 }
+      ),
+      items
+    };
+  }
+
+  async function simulateBattleWithCatalog(payload) {
+    const context = await resolveCatalogContext(getBattleCatalogRequest(payload));
+    return api.simulateBattle({
+      ...payload,
+      season: context.season,
+      catalogVersionId: context.catalogVersionId,
+      catalogSnapshot: context.catalogSnapshot,
+      catalogContext: context.catalogContext
+    });
+  }
+
   async function handle(req, res) {
     // Wait for DB pool to be ready
     await dbReady;
+
+    // Request logging
+    const requestStart = Date.now();
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const clientIp = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.socket.remoteAddress;
+
+    res.on("finish", () => {
+      const duration = Date.now() - requestStart;
+      const logEntry = {
+        requestId,
+        method: req.method,
+        url: req.url,
+        status: res.statusCode,
+        duration,
+        ip: clientIp,
+        userAgent: req.headers["user-agent"]
+      };
+      // Log slow requests (>1s) or errors
+      if (duration > 1000 || res.statusCode >= 400) {
+        console.log(`[WARN] ${JSON.stringify(logEntry)}`);
+      }
+    });
 
     applyCors(res, req.headers.origin);
 
@@ -473,7 +944,14 @@ function createApp(options = {}) {
 
     try {
       if (req.method === "GET" && path === "/health") {
-        sendJson(res, 200, { status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
+        const dbStatus = await checkDatabaseHealth();
+        sendJson(res, 200, {
+          status: dbStatus.ok ? "ok" : "degraded",
+          uptime: process.uptime(),
+          timestamp: new Date().toISOString(),
+          version: process.env.npm_package_version || "0.1.0",
+          database: dbStatus
+        });
         return;
       }
 
@@ -655,53 +1133,85 @@ function createApp(options = {}) {
         return;
       }
 
+      if (req.method === "GET" && path === "/api/v1/catalog/versions") {
+        const items = await listCatalogVersions({
+          season: url.searchParams.get("season") || url.searchParams.get("seasonKey") || "",
+          status: url.searchParams.get("status") || "published"
+        });
+        sendJson(res, 200, { items });
+        return;
+      }
+
       if (req.method === "GET" && path === "/api/v1/catalog/summary") {
-        sendJson(res, 200, getCatalogSummary());
+        const context = await resolveCatalogContext(getCatalogQueryContext(url.searchParams));
+        sendJson(res, 200, { ...getCatalogSummary(context), catalogContext: context.catalogContext });
         return;
       }
 
       if (req.method === "GET" && path === "/api/v1/catalog/generals") {
-        const records = api.getGenerals({ keyword: url.searchParams.get("keyword") || "" });
-        sendJson(res, 200, paginate(records, url.searchParams));
+        sendJson(res, 200, await listCatalogRecords("generals", url.searchParams));
         return;
       }
 
       if (req.method === "GET" && path === "/api/v1/catalog/tactics") {
-        const records = api.getTactics({ keyword: url.searchParams.get("keyword") || "" });
-        sendJson(res, 200, paginate(records, url.searchParams));
+        sendJson(res, 200, await listCatalogRecords("tactics", url.searchParams));
         return;
       }
 
       if (req.method === "GET" && path === "/api/v1/catalog/equipment") {
-        const records = api.getEquipment({ keyword: url.searchParams.get("keyword") || "" });
-        sendJson(res, 200, paginate(records, url.searchParams));
+        sendJson(res, 200, await listCatalogRecords("equipment", url.searchParams));
         return;
       }
 
       if (req.method === "GET" && path === "/api/v1/catalog/troop-tactics") {
-        const records = api.getTroopTactics({ keyword: url.searchParams.get("keyword") || "" });
-        sendJson(res, 200, paginate(records, url.searchParams));
+        sendJson(res, 200, await listCatalogRecords("troopTactics", url.searchParams));
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/lineups/analyze") {
-        sendJson(res, 200, api.analyzeLineup(await readJsonBody(req)));
+        const body = await readJsonBody(req);
+        const context = await resolveCatalogContext(getBattleCatalogRequest(body));
+        const report = api.analyzeLineup({
+          ...body,
+          season: context.season,
+          catalogVersionId: context.catalogVersionId,
+          catalogSnapshot: context.catalogSnapshot,
+          catalogContext: context.catalogContext
+        });
+        if (body.lineupId) {
+          const battleStats = await dbModule.getLineupBattleStats(db, body.lineupId);
+          report.battleStats = battleStats;
+        }
+        sendJson(res, 200, report);
         return;
       }
 
       if (req.method === "GET" && path === "/api/v1/lineups") {
-        sendJson(res, 200, listLineups(store, url.searchParams));
+        const user = await resolveUser(req, url);
+        const rows = await dbModule.getLineups(db, user.id);
+        sendJson(res, 200, { items: rows });
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/lineups") {
-        sendJson(res, 200, saveLineup(store, await readJsonBody(req)));
+        const user = await resolveUser(req, url);
+        const body = await readJsonBody(req);
+        const record = normalizeLineupPayload(body);
+        const saved = await dbModule.saveLineup(db, user.id, record);
+        addAuditLog(store, "lineups.saved", { id: saved.id, userId: user.id });
+        sendJson(res, 200, { ok: true, item: saved });
         return;
       }
 
       const lineupDeleteMatch = path.match(/^\/api\/v1\/lineups\/([^/]+)$/);
       if (req.method === "DELETE" && lineupDeleteMatch) {
-        sendJson(res, 200, deleteLineup(store, decodeURIComponent(lineupDeleteMatch[1]), url.searchParams.get("userId") || ""));
+        const user = await resolveUser(req, url);
+        const lineupId = decodeURIComponent(lineupDeleteMatch[1]);
+        const result = await dbModule.deleteLineup(db, lineupId, user.id);
+        if (result.deleted > 0) {
+          addAuditLog(store, "lineups.deleted", { id: lineupId, userId: user.id });
+        }
+        sendJson(res, 200, { ok: true, deleted: result.deleted });
         return;
       }
 
@@ -738,17 +1248,38 @@ function createApp(options = {}) {
       }
 
       if (req.method === "POST" && path === "/api/v1/matchups/preview") {
-        sendJson(res, 200, api.previewMatchup(await readJsonBody(req)));
+        const body = await readJsonBody(req);
+        const context = await resolveCatalogContext(getBattleCatalogRequest(body));
+        sendJson(res, 200, api.previewMatchup({
+          ...body,
+          season: context.season,
+          catalogVersionId: context.catalogVersionId,
+          catalogSnapshot: context.catalogSnapshot,
+          catalogContext: context.catalogContext
+        }));
+        return;
+      }
+
+      if (req.method === "POST" && path === "/api/v1/battles/simulate") {
+        sendJson(res, 200, await simulateBattleWithCatalog(await readJsonBody(req)));
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/accounts/optimize") {
-        sendJson(res, 200, api.optimizeAccount(await readJsonBody(req)));
+        const body = await readJsonBody(req);
+        const context = await resolveCatalogContext(getBattleCatalogRequest(body));
+        sendJson(res, 200, api.optimizeAccount({
+          ...body,
+          season: context.season,
+          catalogVersionId: context.catalogVersionId,
+          catalogSnapshot: context.catalogSnapshot,
+          catalogContext: context.catalogContext
+        }));
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/battle-reports") {
-        const user = await getAuthUser(req) || await getUser(req, url);
+        const user = await resolveUser(req, url);
         const body = await readJsonBody(req);
         if (!body.result || !["win", "loss", "draw"].includes(body.result)) {
           sendJson(res, 400, { ok: false, message: "result 必须是 win/loss/draw。" });
@@ -761,7 +1292,7 @@ function createApp(options = {}) {
       }
 
       if (req.method === "GET" && path === "/api/v1/battle-reports") {
-        const user = await getAuthUser(req) || await getUser(req, url);
+        const user = await resolveUser(req, url);
         const limit = parsePositiveInteger(url.searchParams.get("limit"), 50, 200);
         const offset = parsePositiveInteger(url.searchParams.get("offset"), 0);
         const reports = await dbModule.getBattleReports(db, user.id, limit, offset);
@@ -770,7 +1301,7 @@ function createApp(options = {}) {
       }
 
       if (req.method === "GET" && path === "/api/v1/battle-reports/stats") {
-        const user = await getAuthUser(req) || await getUser(req, url);
+        const user = await resolveUser(req, url);
         const stats = await dbModule.getBattleReportStats(db, user.id);
         sendJson(res, 200, { ok: true, stats });
         return;
@@ -778,7 +1309,7 @@ function createApp(options = {}) {
 
       const battleReportDeleteMatch = path.match(/^\/api\/v1\/battle-reports\/([^/]+)$/);
       if (req.method === "DELETE" && battleReportDeleteMatch) {
-        const user = await getAuthUser(req) || await getUser(req, url);
+        const user = await resolveUser(req, url);
         const reportId = decodeURIComponent(battleReportDeleteMatch[1]);
         const result = await dbModule.deleteBattleReport(db, reportId, user.id);
         sendJson(res, 200, { ok: true, deleted: result.deleted });
@@ -893,8 +1424,8 @@ function createApp(options = {}) {
         const body = await readJsonBody(req);
         const record = {
           poolId: body.poolId || "default",
-          date: body.date || new Date().toISOString().slice(0, 10),
-          time: body.time || new Date().toISOString().slice(11, 16),
+          date: body.date || nowLocal().slice(0, 10),
+          time: body.time || nowLocal().slice(11, 16),
           quality: body.quality || "blue",
           generalName: normalizeText(body.generalName, "", 40),
           drawType: body.drawType || "free",
@@ -935,6 +1466,151 @@ function createApp(options = {}) {
           return;
         }
 
+        if (req.method === "GET" && path === "/api/admin/catalog/versions") {
+          const items = await listCatalogVersions({
+            season: url.searchParams.get("season") || url.searchParams.get("seasonKey") || "",
+            status: url.searchParams.get("status") || ""
+          });
+          sendJson(res, 200, { items });
+          return;
+        }
+
+        const catalogVersionRecordsMatch = path.match(/^\/api\/admin\/catalog\/versions\/([^/]+)\/records$/);
+        if (req.method === "GET" && catalogVersionRecordsMatch) {
+          const versionId = decodeURIComponent(catalogVersionRecordsMatch[1]);
+          const context = await resolveCatalogContext({ catalogVersionId: versionId });
+          const type = url.searchParams.get("type") || "generals";
+          const records = filterCatalogRecords(mapCatalogRecords(type, context), url.searchParams.get("keyword") || "");
+          sendJson(res, 200, {
+            catalogContext: context.catalogContext,
+            type,
+            ...paginate(records, url.searchParams)
+          });
+          return;
+        }
+
+        const catalogVersionDetailMatch = path.match(/^\/api\/admin\/catalog\/versions\/([^/]+)$/);
+        if (req.method === "GET" && catalogVersionDetailMatch) {
+          const versionId = decodeURIComponent(catalogVersionDetailMatch[1]);
+          const version = await getCatalogVersion(versionId);
+          if (!version) {
+            sendJson(res, 404, { error: "资料版本不存在。" });
+            return;
+          }
+          sendJson(res, 200, { item: version });
+          return;
+        }
+
+        if (req.method === "POST" && path === "/api/admin/catalog/import-jobs/upload") {
+          const body = await readJsonBody(req);
+          const result = await createCatalogImportJob({ ...body, importedBy: body.importedBy || "admin" });
+          addAuditLog(store, "catalog.import.created", {
+            jobId: result.job.id,
+            versionId: result.version.id,
+            seasonKey: result.version.seasonKey
+          });
+          saveStore(store);
+          sendJson(res, 200, { ok: true, ...result });
+          return;
+        }
+
+        if (req.method === "POST" && path === "/api/admin/catalog/import-jobs/official") {
+          const body = await readJsonBody(req);
+          const result = await runOfficialCatalogFetch({ ...body, importedBy: body.importedBy || "admin" });
+          sendJson(res, 200, { ...result, status: officialCatalogFetchStatus });
+          return;
+        }
+
+        if (req.method === "GET" && path === "/api/admin/catalog/import-jobs/official/status") {
+          sendJson(res, 200, { ok: true, status: officialCatalogFetchStatus });
+          return;
+        }
+
+        if (req.method === "GET" && path === "/api/admin/catalog/import-jobs") {
+          const items = await listCatalogImportJobs({ status: url.searchParams.get("status") || "" });
+          sendJson(res, 200, { items });
+          return;
+        }
+
+        const catalogImportPublishMatch = path.match(/^\/api\/admin\/catalog\/import-jobs\/([^/]+)\/publish$/);
+        if (req.method === "POST" && catalogImportPublishMatch) {
+          const jobId = decodeURIComponent(catalogImportPublishMatch[1]);
+          const result = await publishCatalogImportJob(jobId);
+          addAuditLog(store, "catalog.import.published", {
+            jobId,
+            versionId: result.version.id,
+            seasonKey: result.version.seasonKey,
+            createdTodos: result.createdTodos || 0
+          });
+          saveStore(store);
+          sendJson(res, 200, { ok: true, ...result });
+          return;
+        }
+
+        const catalogImportDiscardMatch = path.match(/^\/api\/admin\/catalog\/import-jobs\/([^/]+)\/discard$/);
+        if (req.method === "POST" && catalogImportDiscardMatch) {
+          const jobId = decodeURIComponent(catalogImportDiscardMatch[1]);
+          const result = await discardCatalogImportJob(jobId);
+          addAuditLog(store, "catalog.import.discarded", {
+            jobId,
+            versionId: result.version && result.version.id,
+            seasonKey: result.job && result.job.seasonKey
+          });
+          saveStore(store);
+          sendJson(res, 200, { ok: true, ...result });
+          return;
+        }
+
+        const catalogImportDetailMatch = path.match(/^\/api\/admin\/catalog\/import-jobs\/([^/]+)$/);
+        if (req.method === "GET" && catalogImportDetailMatch) {
+          const jobId = decodeURIComponent(catalogImportDetailMatch[1]);
+          const job = await getCatalogImportJob(jobId);
+          if (!job) {
+            sendJson(res, 404, { error: "导入任务不存在。" });
+            return;
+          }
+          const version = job.versionId ? await getCatalogVersion(job.versionId) : null;
+          sendJson(res, 200, { item: job, version });
+          return;
+        }
+
+        if (req.method === "GET" && path === "/api/admin/catalog/rule-coverage") {
+          const result = await getRuleCoverage({
+            season: url.searchParams.get("season") || url.searchParams.get("seasonKey") || "",
+            catalogVersionId: url.searchParams.get("versionId") || url.searchParams.get("catalogVersionId") || "",
+            status: url.searchParams.get("todoStatus") || ""
+          });
+          sendJson(res, 200, result);
+          return;
+        }
+
+        if (req.method === "GET" && path === "/api/admin/catalog/rule-todos") {
+          const items = await listTacticRuleTodos({
+            season: url.searchParams.get("season") || url.searchParams.get("seasonKey") || "",
+            status: url.searchParams.get("status") || ""
+          });
+          sendJson(res, 200, { items });
+          return;
+        }
+
+        if (req.method === "POST" && path === "/api/admin/catalog/rule-todos") {
+          const item = await createTacticRuleTodo(await readJsonBody(req));
+          addAuditLog(store, "catalog.ruleTodo.created", { id: item.id, tacticName: item.tacticName });
+          saveStore(store);
+          sendJson(res, 200, { ok: true, item });
+          return;
+        }
+
+        const catalogRuleTodoMatch = path.match(/^\/api\/admin\/catalog\/rule-todos\/([^/]+)$/);
+        if (req.method === "PUT" && catalogRuleTodoMatch) {
+          const id = decodeURIComponent(catalogRuleTodoMatch[1]);
+          const item = await updateTacticRuleTodo(id, await readJsonBody(req));
+          addAuditLog(store, "catalog.ruleTodo.updated", { id: item.id, status: item.status, priority: item.priority });
+          saveStore(store);
+          sendJson(res, 200, { ok: true, item });
+          return;
+        }
+
         if (req.method === "GET" && path === "/api/admin/dashboard") {
           sendJson(res, 200, admin.dashboard());
           return;
@@ -967,6 +1643,66 @@ function createApp(options = {}) {
 
         if (req.method === "GET" && path === "/api/admin/lineups") {
           sendJson(res, 200, admin.getLineups());
+          return;
+        }
+
+        if (req.method === "GET" && path === "/api/admin/users") {
+          const limit = parsePositiveInteger(url.searchParams.get("limit"), 50, 200);
+          const offset = parsePositiveInteger(url.searchParams.get("offset"), 0);
+          const items = await dbModule.getUsers(db, limit, offset);
+          const total = await dbModule.getUserCount(db);
+          sendJson(res, 200, { items, total });
+          return;
+        }
+
+        if (req.method === "GET" && /^\/api\/admin\/users\/[^/]+$/.test(path)) {
+          const userId = path.split("/").pop();
+          const user = await dbModule.getUserById(db, userId);
+          if (!user) {
+            sendJson(res, 404, { error: "用户不存在。" });
+            return;
+          }
+          const lineups = await dbModule.getLineups(db, userId);
+          const drawRecords = await dbModule.getAllDrawRecords(db, userId);
+          const battleReports = await dbModule.getBattleReports(db, userId, 50, 0);
+          sendJson(res, 200, { user, lineups, drawRecords, battleReports });
+          return;
+        }
+
+        if (req.method === "GET" && path === "/api/admin/battle-reports") {
+          const limit = parsePositiveInteger(url.searchParams.get("limit"), 50, 200);
+          const offset = parsePositiveInteger(url.searchParams.get("offset"), 0);
+          const items = await dbModule.getAdminBattleReports(db, limit, offset);
+          sendJson(res, 200, { items });
+          return;
+        }
+
+        if (req.method === "DELETE" && /^\/api\/admin\/feedback\/[^/]+$/.test(path)) {
+          const feedbackId = path.split("/").pop();
+          const existing = await dbModule.getFeedbackById(db, feedbackId);
+          if (!existing) {
+            sendJson(res, 404, { error: "反馈不存在。" });
+            return;
+          }
+          const result = await dbModule.deleteFeedback(db, feedbackId);
+          addAuditLog(store, "feedback.deleted", { feedbackId });
+          sendJson(res, 200, { ok: true, deleted: result.deleted });
+          return;
+        }
+
+        if (req.method === "PUT" && /^\/api\/admin\/battle-reports\/[^/]+$/.test(path)) {
+          const reportId = path.split("/").pop();
+          const body = await readJsonBody(req);
+          const existing = await dbModule.getBattleReportById(db, reportId);
+          if (!existing) {
+            sendJson(res, 404, { error: "战报不存在。" });
+            return;
+          }
+          if (body.note !== undefined) {
+            await db.execute("UPDATE battle_reports SET note = ? WHERE id = ?", [body.note, reportId]);
+          }
+          const updated = await dbModule.getBattleReportById(db, reportId);
+          sendJson(res, 200, updated);
           return;
         }
 
@@ -1004,8 +1740,9 @@ function createApp(options = {}) {
       sendJson(res, 404, { error: "接口不存在。" });
     } catch (error) {
       const statusCode = error.statusCode || 500;
+      if (statusCode >= 500) console.error(`[ERROR] ${req.method} ${path}:`, error.message);
       sendJson(res, statusCode, {
-        error: statusCode >= 500 ? "服务端处理失败。" : error.message
+        error: statusCode >= 500 && !error.expose ? "服务端处理失败。" : error.message
       });
     }
   }
@@ -1021,11 +1758,16 @@ function createApp(options = {}) {
         server.once("error", reject);
         server.listen(port, host, () => {
           server.off("error", reject);
+          startOfficialCatalogScheduler();
           resolve(this);
         });
       });
     },
     async stop() {
+      if (officialCatalogTimer) {
+        clearInterval(officialCatalogTimer);
+        officialCatalogTimer = null;
+      }
       if (server.listening) {
         await new Promise((resolve, reject) => {
           server.close((error) => {

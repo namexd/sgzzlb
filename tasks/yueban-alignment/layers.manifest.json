@@ -1,0 +1,68 @@
+[
+  {
+    "id": "analyze-canvas",
+    "type": "vector",
+    "source_image": "tasks/ui-qa-20260605/screenshots/analyze-ref-crop.png",
+    "source_bbox": { "x": 0, "y": 0, "width": 390, "height": 844 },
+    "scaled_bbox": { "x": 0, "y": 0, "width": 750, "height": 1623 },
+    "z_index": 0,
+    "asset": null,
+    "transparent_required": false,
+    "notes": "移动端源图画布；桌面 H5 必须只居中承载同一移动画布，不能扩展为 960px 平板宽度。"
+  },
+  {
+    "id": "analyze-header-title-center",
+    "type": "text",
+    "source_image": "tasks/ui-qa-20260605/screenshots/analyze-ref-crop.png",
+    "source_bbox": { "x": 70, "y": 43, "width": 250, "height": 42 },
+    "scaled_bbox": { "x": 135, "y": 83, "width": 481, "height": 81 },
+    "z_index": 20,
+    "asset": null,
+    "transparent_required": false,
+    "notes": "标题和两侧纹饰整体按 x=195 画布中心定位，不能受返回/分享按钮宽度影响。"
+  },
+  {
+    "id": "analyze-header-actions",
+    "type": "vector",
+    "source_image": "tasks/ui-qa-20260605/screenshots/analyze-ref-crop.png",
+    "source_bbox": { "x": 10, "y": 48, "width": 371, "height": 29 },
+    "scaled_bbox": { "x": 19, "y": 92, "width": 714, "height": 56 },
+    "z_index": 21,
+    "asset": null,
+    "transparent_required": false,
+    "notes": "返回和阵容分享分别贴近左右边缘，标题独立居中。"
+  },
+  {
+    "id": "draw-header-title-center",
+    "type": "text",
+    "source_image": "tasks/ui-qa-20260605/screenshots/draw-ref-crop.png",
+    "source_bbox": { "x": 86, "y": 34, "width": 218, "height": 62 },
+    "scaled_bbox": { "x": 165, "y": 65, "width": 419, "height": 119 },
+    "z_index": 20,
+    "asset": null,
+    "transparent_required": false,
+    "notes": "抽卡页品牌标题按画布中心定位，右侧两个功能入口绝对定位，不能推偏标题。"
+  },
+  {
+    "id": "matchup-header-title-center",
+    "type": "text",
+    "source_image": "tasks/ui-qa-20260605/screenshots/matchup-ref-crop.png",
+    "source_bbox": { "x": 95, "y": 39, "width": 200, "height": 54 },
+    "scaled_bbox": { "x": 183, "y": 75, "width": 385, "height": 104 },
+    "z_index": 20,
+    "asset": null,
+    "transparent_required": false,
+    "notes": "对位页标题组按画布中心定位，帮助按钮不能改变标题中心。"
+  },
+  {
+    "id": "h5-tabbar-mobile-canvas",
+    "type": "vector",
+    "source_image": "tasks/ui-qa-20260605/screenshots/analyze-ref-crop.png",
+    "source_bbox": { "x": 0, "y": 794, "width": 390, "height": 50 },
+    "scaled_bbox": { "x": 0, "y": 1527, "width": 750, "height": 96 },
+    "z_index": 90,
+    "asset": null,
+    "transparent_required": false,
+    "notes": "H5 tabbar 在桌面也必须与 390px 页面画布同宽同中心，不能横跨整个浏览器。"
+  }
+]

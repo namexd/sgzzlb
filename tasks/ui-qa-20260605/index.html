@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>UI QA 对比</title>
+  <style>
+    body {
+      margin: 0;
+      background: #080b0f;
+      color: #eadcc8;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    }
+
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0 0 12px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+      color: #f4d58b;
+    }
+
+    section {
+      margin: 28px 0;
+      padding: 16px;
+      background: #111820;
+      border: 1px solid #2b3440;
+      border-radius: 8px;
+    }
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+    }
+
+    .note {
+      color: #9aa4b2;
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>sgzzlb 新版 UI 对比</h1>
+  <p class="note">左侧为 mockup 裁屏，右侧为最终 H5 实现。资料库已按产品逻辑改为列表形态：左侧显示完整武将卡图，右侧展示名称、星级、定位、兵种适性、战法名称和简短介绍；点击武将图可放大预览。抽卡页已清理照搬文案，个人中心订阅卡和功能入口改为程序真实功能，统计页去掉重复标题和占位提示。</p>
+
+  <section>
+    <h2>资料库</h2>
+    <img src="comparisons/catalog-side-by-side-final.png" alt="catalog comparison">
+  </section>
+
+  <section>
+    <h2>抽卡</h2>
+    <img src="comparisons/draw-side-by-side-final.png" alt="draw comparison">
+  </section>
+
+  <section>
+    <h2>评分</h2>
+    <img src="comparisons/analyze-side-by-side-final.png" alt="analyze comparison">
+  </section>
+
+  <section>
+    <h2>对位</h2>
+    <img src="comparisons/matchup-side-by-side-final.png" alt="matchup comparison">
+  </section>
+
+  <section>
+    <h2>我的</h2>
+    <img src="comparisons/account-side-by-side-final.png" alt="account comparison">
+  </section>
+
+  <section>
+    <h2>交互与补充页</h2>
+    <div class="grid">
+      <img src="screenshots/catalog-preview-final.png" alt="catalog image preview">
+      <img src="screenshots/draw-stats-impl-final.png" alt="draw stats final">
+    </div>
+  </section>
+</main>
+</body>
+</html>

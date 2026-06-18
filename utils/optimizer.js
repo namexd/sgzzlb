@@ -7,12 +7,12 @@ const MAX_LINEUPS = 3;
 const GENERALS_PER_LINEUP = 3;
 const TACTICS_PER_LINEUP = 6;
 
-function getGeneral(id) {
-  return typeof id === "object" ? id : catalog.findGeneralById(id);
+function getGeneral(id, context) {
+  return typeof id === "object" ? id : catalog.findGeneralById(id, context);
 }
 
-function getTactic(id) {
-  return typeof id === "object" ? id : catalog.findTacticById(id);
+function getTactic(id, context) {
+  return typeof id === "object" ? id : catalog.findTacticById(id, context);
 }
 
 // Generate all C(n,3) combinations of generals
@@ -29,39 +29,39 @@ function combinations3(arr) {
 }
 
 // Score a candidate lineup with a specific tactic set
-function scoreCandidate(generalIds, tacticIds, troop, scenario) {
+function scoreCandidate(generalIds, tacticIds, troop, scenario, context = {}) {
   return scoring.analyzeLineup({
     generalIds,
     tacticIds,
     troop,
     scenario,
-    redLevels: [0, 0, 0]
+    redLevels: [0, 0, 0],
+    catalogSnapshot: context.catalogSnapshot,
+    catalogContext: context.catalogContext
   });
 }
 
 // Find best tactics for a given general combo from available tactics
-function pickBestTactics(generalIds, availableTacticIds, troop, scenario) {
-  const generalObjs = generalIds.map(getGeneral).filter(Boolean);
+function pickBestTactics(generalIds, availableTacticIds, troop, scenario, context = {}) {
+  const generalObjs = generalIds.map((id) => getGeneral(id, context)).filter(Boolean);
   const totalCost = generalObjs.reduce((s, g) => s + (g.cost || 0), 0);
 
-  // Filter compatible tactics
   const compatible = availableTacticIds
-    .map(getTactic)
+    .map((id) => getTactic(id, context))
     .filter((t) => t && scoring.isTacticCompatible(t, troop));
 
   if (compatible.length < TACTICS_PER_LINEUP) {
     return { tacticIds: compatible.map((t) => t.id), score: 0, insufficient: true };
   }
 
-  // Try all C(n,6) if pool is small enough, otherwise greedy
   if (compatible.length <= 12) {
-    return pickBestTacticsBrute(generalIds, compatible, troop, scenario);
+    return pickBestTacticsBrute(generalIds, compatible, troop, scenario, context);
   }
-  return pickBestTacticsGreedy(generalIds, compatible, troop, scenario);
+  return pickBestTacticsGreedy(generalIds, compatible, troop, scenario, context);
 }
 
 // Brute-force for small tactic pools
-function pickBestTacticsBrute(generalIds, compatibleTactics, troop, scenario) {
+function pickBestTacticsBrute(generalIds, compatibleTactics, troop, scenario, context = {}) {
   let best = null;
   const n = compatibleTactics.length;
   for (let a = 0; a < n - 5; a++) {
@@ -72,7 +72,7 @@ function pickBestTacticsBrute(generalIds, compatibleTactics, troop, scenario) {
             for (let f = e + 1; f < n; f++) {
               const ids = [compatibleTactics[a], compatibleTactics[b], compatibleTactics[c],
                 compatibleTactics[d], compatibleTactics[e], compatibleTactics[f]].map((t) => t.id);
-              const report = scoreCandidate(generalIds, ids, troop, scenario);
+              const report = scoreCandidate(generalIds, ids, troop, scenario, context);
               if (!best || report.totalScore > best.score) {
                 best = { tacticIds: ids, score: report.totalScore, report };
               }
@@ -86,10 +86,9 @@ function pickBestTacticsBrute(generalIds, compatibleTactics, troop, scenario) {
 }
 
 // Greedy tactic selection for larger pools
-function pickBestTacticsGreedy(generalIds, compatibleTactics, troop, scenario) {
-  // Pre-score each tactic individually
+function pickBestTacticsGreedy(generalIds, compatibleTactics, troop, scenario, context = {}) {
   const scored = compatibleTactics.map((t) => {
-    const solo = scoreCandidate(generalIds, [t.id], troop, scenario);
+    const solo = scoreCandidate(generalIds, [t.id], troop, scenario, context);
     return { tactic: t, soloScore: solo.totalScore };
   });
   scored.sort((a, b) => b.soloScore - a.soloScore);
@@ -106,7 +105,7 @@ function pickBestTacticsGreedy(generalIds, compatibleTactics, troop, scenario) {
     for (const c of candidates) {
       if (pickedIds.has(c.tactic.id)) continue;
       const testIds = [...picked.map((p) => p.tactic.id), c.tactic.id];
-      const report = scoreCandidate(generalIds, testIds, troop, scenario);
+      const report = scoreCandidate(generalIds, testIds, troop, scenario, context);
       if (report.totalScore > bestScore) {
         bestScore = report.totalScore;
         bestAdd = c;
@@ -119,15 +118,15 @@ function pickBestTacticsGreedy(generalIds, compatibleTactics, troop, scenario) {
   }
 
   const tacticIds = picked.map((p) => p.tactic.id);
-  const report = scoreCandidate(generalIds, tacticIds, troop, scenario);
+  const report = scoreCandidate(generalIds, tacticIds, troop, scenario, context);
   return { tacticIds, score: report.totalScore, report };
 }
 
 const APTITUDE_SCORE = { S: 100, A: 82, B: 64, C: 42, "": 55 };
 
 // Determine the best troop for a set of generals
-function bestTroopForGenerals(generalIds) {
-  const generals = generalIds.map(getGeneral).filter(Boolean);
+function bestTroopForGenerals(generalIds, context = {}) {
+  const generals = generalIds.map((id) => getGeneral(id, context)).filter(Boolean);
   let bestTroop = "骑兵";
   let bestTotal = -1;
 
@@ -147,6 +146,8 @@ function bestTroopForGenerals(generalIds) {
 
 // Main optimization: generate up to MAX_LINEUPS non-conflicting lineups
 function optimizeLineups(inventory) {
+  const context = inventory.catalogSnapshot ? { catalogSnapshot: inventory.catalogSnapshot, catalogContext: inventory.catalogContext } : {};
+  const catalogContext = inventory.catalogContext || null;
   const generalIds = (inventory.generalIds || []).filter(Boolean);
   const tacticIds = (inventory.tacticIds || []).filter(Boolean);
   const scenario = inventory.scenario || "pk";
@@ -155,6 +156,7 @@ function optimizeLineups(inventory) {
     return {
       status: "insufficient",
       message: `至少需要 ${GENERALS_PER_LINEUP} 名武将才能组建一队。当前 ${generalIds.length} 名。`,
+      catalogContext,
       lineups: [],
       conflicts: []
     };
@@ -164,6 +166,7 @@ function optimizeLineups(inventory) {
     return {
       status: "insufficient",
       message: `至少需要 ${TACTICS_PER_LINEUP} 个战法才能组建一队。当前 ${tacticIds.length} 个。`,
+      catalogContext,
       lineups: [],
       conflicts: []
     };
@@ -191,8 +194,8 @@ function optimizeLineups(inventory) {
       // Skip if any general already used
       if (comboIds.some((id) => usedGenerals.has(id))) continue;
 
-      const troop = bestTroopForGenerals(comboIds);
-      const result = pickBestTactics(comboIds, remainingTactics, troop, scenario);
+      const troop = bestTroopForGenerals(comboIds, context);
+      const result = pickBestTactics(comboIds, remainingTactics, troop, scenario, context);
       if (result.insufficient) continue;
 
       if (!bestResult || result.score > bestResult.score) {
@@ -209,9 +212,9 @@ function optimizeLineups(inventory) {
       usedTactics.add(tid);
     }
 
-    const report = bestResult.report || scoreCandidate(bestCombo, bestResult.tacticIds, bestResult.troop, scenario);
-    const generalNames = bestCombo.map(getGeneral).filter(Boolean).map((g) => g.name);
-    const tacticNames = bestResult.tacticIds.map(getTactic).filter(Boolean).map((t) => t.name);
+    const report = bestResult.report || scoreCandidate(bestCombo, bestResult.tacticIds, bestResult.troop, scenario, context);
+    const generalNames = bestCombo.map((id) => getGeneral(id, context)).filter(Boolean).map((g) => g.name);
+    const tacticNames = bestResult.tacticIds.map((id) => getTactic(id, context)).filter(Boolean).map((t) => t.name);
 
     resultLineups.push({
       priority: round + 1,
@@ -233,6 +236,7 @@ function optimizeLineups(inventory) {
     return {
       status: "no_solution",
       message: "当前库存无法组建有效阵容。可能缺少足够的兵种适性匹配或战法。",
+      catalogContext,
       lineups: [],
       conflicts: []
     };
@@ -249,8 +253,8 @@ function optimizeLineups(inventory) {
   const conflicts = Object.entries(tacticUsage)
     .filter(([, roles]) => roles.length > 1)
     .map(([tid, roles]) => ({
-      tactic: getTactic(tid),
-      tacticName: (getTactic(tid) || {}).name || tid,
+      tactic: getTactic(tid, context),
+      tacticName: (getTactic(tid, context) || {}).name || tid,
       usedBy: roles
     }));
 
@@ -260,11 +264,12 @@ function optimizeLineups(inventory) {
   return {
     status: "ok",
     message: `成功生成 ${resultLineups.length} 套共存阵容。`,
+    catalogContext,
     lineups: resultLineups,
     conflicts,
     unused: {
-      generals: unusedGenerals.map(getGeneral).filter(Boolean).map((g) => ({ id: g.id, name: g.name })),
-      tactics: unusedTactics.map(getTactic).filter(Boolean).map((t) => ({ id: t.id, name: t.name }))
+      generals: unusedGenerals.map((id) => getGeneral(id, context)).filter(Boolean).map((g) => ({ id: g.id, name: g.name })),
+      tactics: unusedTactics.map((id) => getTactic(id, context)).filter(Boolean).map((t) => ({ id: t.id, name: t.name }))
     },
     summary: {
       totalLineups: resultLineups.length,

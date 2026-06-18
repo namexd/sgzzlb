@@ -6,7 +6,7 @@
   "scripts": {
     "fetch:data": "node scripts/fetch-official-catalog.mjs",
     "dev:server": "node server/index.js",
-    "test": "node tests/catalog.test.mjs && node tests/scoring.test.mjs && node tests/server.test.mjs && node tests/drawStorage.test.mjs"
+    "test": "node tests/catalog.test.mjs && node tests/catalogDiff.test.mjs && node tests/catalogVersionStore.test.mjs && node tests/scoring.test.mjs && node tests/simulator.test.mjs && node tests/server.test.mjs && node tests/drawStorage.test.mjs"
   },
   "dependencies": {
     "ali-oss": "^6.23.0",

@@ -111,16 +111,74 @@
     </view>
 
     <view v-if="report" class="report-panel">
-      <view class="report-score">{{ report.totalScore }}</view>
-      <view class="report-meta">{{ report.scenarioName }} · {{ report.troop }} · 可信度 {{ report.confidence }}</view>
+      <view class="report-head">
+        <view>
+          <view class="report-label">综合评分</view>
+          <view class="report-score">{{ report.totalScore }}</view>
+        </view>
+        <view class="report-meta-block">
+          <view class="report-meta">{{ report.scenarioName }} · {{ report.troop }} · 可信度 {{ report.confidence }}</view>
+          <view v-if="reportCatalogMeta" class="catalog-meta">
+            <text>{{ reportCatalogMeta.season }}</text>
+            <text>{{ reportCatalogMeta.version }}</text>
+            <text>{{ reportCatalogMeta.source }}</text>
+          </view>
+          <view v-if="reportCatalogMeta && reportCatalogMeta.time" class="catalog-time">资料时间：{{ reportCatalogMeta.time }}</view>
+        </view>
+      </view>
+
+      <view v-if="ruleCoverageSignal" class="signal-card">
+        <view class="signal-title">规则覆盖</view>
+        <view class="signal-summary">
+          <view v-for="item in ruleCoverageSummary" :key="item.label" class="signal-item">
+            <text class="signal-value">{{ item.value }}</text>
+            <text class="signal-label">{{ item.label }}</text>
+          </view>
+        </view>
+        <view class="signal-note">覆盖可信度 {{ ruleCoverageSignal.coverageRate }}% · {{ ruleCoverageSignal.confidenceImpact }}</view>
+      </view>
+
+      <view class="signal-card">
+        <view class="signal-title">模拟复核</view>
+        <view v-if="simulationSignal" class="signal-summary">
+          <view v-for="item in simulationRows" :key="item.label" class="signal-item">
+            <text class="signal-value">{{ item.value }}</text>
+            <text class="signal-label">{{ item.label }}</text>
+          </view>
+        </view>
+        <view v-else class="signal-note">未接入战报模拟结果，本次评分以资料、兵种和战法规则为主。</view>
+      </view>
+
       <view v-for="(dim, idx) in report.dimensions" :key="idx" class="dimension">
-        <view class="row-between">
+        <view class="row-between dimension-head">
           <text>{{ dim.label }}</text>
           <text>{{ dim.score }}</text>
         </view>
         <view class="bar">
           <view class="bar-inner" :style="{ width: dim.score + '%' }"></view>
         </view>
+        <view class="dimension-reason">{{ dim.reason }}</view>
+      </view>
+
+      <view v-if="report.validation && report.validation.length" class="report-block danger-block">
+        <view class="block-title">校验提醒</view>
+        <view v-for="(item, idx) in report.validation" :key="idx" class="bullet danger">{{ item }}</view>
+      </view>
+      <view v-if="reportExplanations.length" class="report-block">
+        <view class="block-title">评分解释</view>
+        <view v-for="(item, idx) in reportExplanations" :key="idx" class="bullet">{{ item }}</view>
+      </view>
+      <view v-if="reportWeaknesses.length" class="report-block">
+        <view class="block-title">短板提示</view>
+        <view v-for="(item, idx) in reportWeaknesses" :key="idx" class="bullet danger">{{ item }}</view>
+      </view>
+      <view v-if="visibleReplacements.length" class="report-block">
+        <view class="block-title">替代战法建议</view>
+        <view v-for="item in visibleReplacements" :key="item.id" class="replacement">
+          <view class="replacement-name">{{ item.name }} · {{ item.quality || '-' }}{{ item.type || '战法' }}</view>
+          <view class="replacement-reason">{{ item.reason }}</view>
+        </view>
+        <view v-if="report.replacements && visibleReplacements.length < report.replacements.length" class="signal-note">高级订阅可展开完整替代战法池。</view>
       </view>
     </view>
 
@@ -220,6 +278,59 @@ export default {
         { label: "行军速度", value: this.currentTroopName === "骑兵" ? 132 : 120 },
         { label: "战斗评分", value: this.report ? "S+" : "A+" }
       ];
+    },
+
+    reportCatalogMeta() {
+      const context = this.report && this.report.catalogContext;
+      if (!context) return null;
+      const sourceNames = {
+        official: "官方公开资料",
+        static: "静态基线",
+        manual: "手动导入"
+      };
+      return {
+        season: context.seasonLabel || context.season || context.seasonKey || "默认赛季",
+        version: context.versionKey || (context.catalogVersionId ? `版本 ${context.catalogVersionId}` : context.status || "静态基线"),
+        source: sourceNames[context.source] || context.source || "数据库资料",
+        time: this.formatReportTime(context.publishedAt || context.generatedAt || "")
+      };
+    },
+
+    ruleCoverageSignal() {
+      return this.report && this.report.analysisSignals ? this.report.analysisSignals.ruleCoverage : null;
+    },
+
+    ruleCoverageSummary() {
+      const summary = this.ruleCoverageSignal && this.ruleCoverageSignal.summary ? this.ruleCoverageSignal.summary : {};
+      return [
+        { label: "显式规则", value: summary.explicit || 0 },
+        { label: "通用估算", value: summary.fallback || 0 },
+        { label: "未覆盖", value: summary.missed || 0 },
+        { label: "总战法", value: summary.total || 0 }
+      ];
+    },
+
+    simulationSignal() {
+      return this.report && this.report.analysisSignals ? this.report.analysisSignals.simulation : null;
+    },
+
+    simulationRows() {
+      const signal = this.simulationSignal;
+      if (!signal) return [];
+      const rows = [];
+      if (Number.isFinite(Number(signal.winRate))) rows.push({ label: "胜率", value: `${Math.round(Number(signal.winRate))}%` });
+      if (Number.isFinite(Number(signal.stability))) rows.push({ label: "稳定性", value: Math.round(Number(signal.stability)) });
+      if (Number.isFinite(Number(signal.averageRemaining))) rows.push({ label: "剩余兵力", value: Math.round(Number(signal.averageRemaining)) });
+      if (Number.isFinite(Number(signal.iterations))) rows.push({ label: "模拟轮次", value: Math.round(Number(signal.iterations)) });
+      return rows;
+    },
+
+    reportExplanations() {
+      return this.report && Array.isArray(this.report.explanations) ? this.report.explanations.filter(Boolean) : [];
+    },
+
+    reportWeaknesses() {
+      return this.report && Array.isArray(this.report.weaknesses) ? this.report.weaknesses.filter(Boolean) : [];
     }
   },
 
@@ -416,6 +527,14 @@ export default {
           replacements: []
         };
       }
+    },
+
+    formatReportTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      const pad = (num) => String(num).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     },
 
     updateVisibleReplacements(report) {
@@ -1374,16 +1493,180 @@ export default {
   background: rgba(8, 17, 31, 0.82);
 }
 
+.report-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 22rpx;
+}
+
+.report-label {
+  color: #8fa1ba;
+  font-size: 22rpx;
+  margin-bottom: 4rpx;
+}
+
 .report-score {
   color: #f3d58d;
   font-size: 72rpx;
   font-weight: 900;
+  line-height: 1;
+}
+
+.report-meta-block {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
 }
 
 .report-meta {
   color: #8fa1ba;
   font-size: 24rpx;
+  margin-bottom: 10rpx;
+}
+
+.catalog-meta {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8rpx;
+  flex-wrap: wrap;
+}
+
+.catalog-meta text {
+  padding: 6rpx 10rpx;
+  border-radius: 999rpx;
+  color: #f3d58d;
+  background: rgba(222, 181, 94, 0.12);
+  border: 1rpx solid rgba(222, 181, 94, 0.22);
+  font-size: 20rpx;
+}
+
+.catalog-time,
+.signal-note {
+  color: #8fa1ba;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.catalog-time {
+  margin-top: 8rpx;
+}
+
+.signal-card {
   margin-bottom: 18rpx;
+  padding: 18rpx;
+  border-radius: 10rpx;
+  background: rgba(16, 36, 66, 0.58);
+  border: 1rpx solid rgba(72, 132, 209, 0.22);
+}
+
+.signal-title {
+  color: #e9eef7;
+  font-size: 24rpx;
+  font-weight: 800;
+  margin-bottom: 12rpx;
+}
+
+.signal-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10rpx;
+  margin-bottom: 12rpx;
+}
+
+.signal-item {
+  min-height: 82rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.signal-value {
+  color: #f3d58d;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.signal-label {
+  color: #8fa1ba;
+  font-size: 20rpx;
+  margin-top: 4rpx;
+}
+
+.dimension-head {
+  color: #e9eef7;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.dimension-reason {
+  color: #8fa1ba;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.report-block {
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.danger-block {
+  border-top-color: rgba(236, 112, 99, 0.22);
+}
+
+.bullet {
+  position: relative;
+  padding-left: 18rpx;
+  margin-top: 10rpx;
+  color: #c7d2e4;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.bullet::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14rpx;
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: #f3d58d;
+}
+
+.bullet.danger {
+  color: #f0a398;
+}
+
+.bullet.danger::before {
+  background: #f0a398;
+}
+
+.replacement {
+  padding: 14rpx 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.replacement:first-of-type {
+  border-top: 0;
+}
+
+.replacement-name {
+  color: #f3d58d;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.replacement-reason {
+  margin-top: 6rpx;
+  color: #8fa1ba;
+  font-size: 22rpx;
+  line-height: 1.5;
 }
 
 .bar {

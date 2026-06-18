@@ -89,7 +89,7 @@ export default {
           this.errorMsg = res.message || "登录失败。";
         }
       } catch (e) {
-        this.errorMsg = "网络错误，请重试。";
+        this.errorMsg = this.formatRequestError(e);
       } finally {
         this.loading = false;
       }
@@ -128,10 +128,21 @@ export default {
           this.errorMsg = res.message || "注册失败。";
         }
       } catch (e) {
-        this.errorMsg = "网络错误，请重试。";
+        this.errorMsg = this.formatRequestError(e);
       } finally {
         this.loading = false;
       }
+    },
+    formatRequestError(error) {
+      const message = error && error.message ? error.message : "";
+      if (!message) return "系统错误，请稍后再试。";
+      if (/request:fail|timeout|network|failed to fetch|无法连接/i.test(message)) {
+        return "无法连接服务器，请检查网络后重试。";
+      }
+      if (/请求失败：5\d\d/.test(message)) {
+        return "系统错误，请稍后再试。";
+      }
+      return message;
     },
     saveAuth(token, user) {
       uni.setStorageSync("authToken", token);

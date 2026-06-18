@@ -1,4 +1,7 @@
 const catalog = require("./catalog");
+const { classifyTacticCoverage } = require("./simulator/tactics");
+
+const SCORING_VERSION = "1.0.0";
 
 const TROOP_KEY = {
   骑兵: "cavalry",
@@ -55,12 +58,12 @@ function average(values) {
   return usable.reduce((sum, value) => sum + value, 0) / usable.length;
 }
 
-function getGeneral(generalId) {
-  return typeof generalId === "object" ? generalId : catalog.findGeneralById(generalId);
+function getGeneral(generalId, context) {
+  return typeof generalId === "object" ? generalId : catalog.findGeneralById(generalId, context);
 }
 
-function getTactic(tacticId) {
-  return typeof tacticId === "object" ? tacticId : catalog.findTacticById(tacticId);
+function getTactic(tacticId, context) {
+  return typeof tacticId === "object" ? tacticId : catalog.findTacticById(tacticId, context);
 }
 
 function getAptitude(general, troop) {
@@ -97,10 +100,72 @@ function buildDimension(label, score, reason) {
   };
 }
 
-function recommendTactics(selectedTactics, troop, missingRoles) {
+function buildRuleCoverageSignal(tactics) {
+  const items = tactics.filter(Boolean).map((tactic) => classifyTacticCoverage(tactic));
+  const summary = items.reduce(
+    (result, item) => {
+      result.total += 1;
+      result[item.status] = (result[item.status] || 0) + 1;
+      return result;
+    },
+    { total: 0, explicit: 0, fallback: 0, missed: 0 }
+  );
+  const coverageRate = summary.total ? Math.round(((summary.explicit + summary.fallback * 0.6) / summary.total) * 100) : 0;
+  const score = summary.total ? clamp(45 + coverageRate * 0.55 - summary.missed * 8, 30, 100) : 55;
+  const confidenceImpact = summary.missed > 0 ? "部分战法未覆盖，评分可信度下调。" : summary.fallback > 0 ? "部分战法使用通用估算，建议结合模拟结果复核。" : "战法规则覆盖完整，评分可信度较高。";
+  return {
+    summary,
+    coverageRate,
+    score,
+    confidenceImpact,
+    items
+  };
+}
+
+function normalizeSimulationStats(stats) {
+  if (!stats || typeof stats !== "object") return null;
+  const winRate = Number(stats.winRate);
+  const stability = Number(stats.stability);
+  const scoreSuggestion = Number(stats.scoreSuggestion);
+  const averageRemaining = Number(stats.averageRemaining);
+  const baseScore = Number.isFinite(scoreSuggestion)
+    ? scoreSuggestion
+    : Number.isFinite(winRate)
+      ? clamp(winRate * 0.8 + (Number.isFinite(stability) ? stability * 0.2 : 10), 25, 100)
+      : null;
+  if (!Number.isFinite(baseScore)) return null;
+  return {
+    ...stats,
+    winRate: Number.isFinite(winRate) ? Math.round(winRate) : null,
+    stability: Number.isFinite(stability) ? Math.round(stability) : null,
+    averageRemaining: Number.isFinite(averageRemaining) ? Math.round(averageRemaining) : null,
+    score: Math.round(clamp(baseScore, 0, 100))
+  };
+}
+
+function describeSimulationSignal(signal) {
+  if (!signal) return "未接入战报模拟结果，本次评分以资料、兵种和战法规则为主。";
+  const parts = [];
+  if (Number.isFinite(signal.winRate)) parts.push(`模拟胜率 ${signal.winRate}%`);
+  if (Number.isFinite(signal.stability)) parts.push(`稳定性 ${signal.stability}`);
+  if (Number.isFinite(signal.averageRemaining)) parts.push(`平均剩余兵力 ${signal.averageRemaining}`);
+  return parts.length ? `${parts.join("，")}。` : "已接入战报模拟摘要。";
+}
+
+function adjustConfidence(baseConfidence, validation, ruleSignal, simulationSignal) {
+  if (validation.length) return "低";
+  const missed = ruleSignal.summary.missed || 0;
+  const fallback = ruleSignal.summary.fallback || 0;
+  if (missed >= 2) return "中低";
+  if (missed || fallback >= 3) return baseConfidence === "中高" && simulationSignal ? "中" : "中低";
+  if (simulationSignal && baseConfidence === "中高") return "高";
+  return baseConfidence;
+}
+
+function recommendTactics(selectedTactics, troop, missingRoles, context) {
   const selectedNames = new Set(selectedTactics.filter(Boolean).map((item) => item.name));
   const all = catalog
-    .getAllTactics()
+    .getAllTactics(context)
     .filter((item) => !selectedNames.has(item.name))
     .filter((item) => item.quality === "S" || item.quality === "A")
     .filter((item) => isTacticCompatible(item, troop));
@@ -136,10 +201,11 @@ function recommendTactics(selectedTactics, troop, missingRoles) {
 }
 
 function analyzeLineup(input) {
+  const context = input.catalogSnapshot ? { catalogSnapshot: input.catalogSnapshot } : input.snapshot ? { snapshot: input.snapshot } : undefined;
   const troop = input.troop || "骑兵";
   const scenario = input.scenario || "pk";
-  const generals = (input.generalIds || []).map(getGeneral).filter(Boolean);
-  const tactics = (input.tacticIds || []).map(getTactic).filter(Boolean);
+  const generals = (input.generalIds || []).map((id) => getGeneral(id, context)).filter(Boolean);
+  const tactics = (input.tacticIds || []).map((id) => getTactic(id, context)).filter(Boolean);
   const redLevels = input.redLevels || [0, 0, 0];
   const validation = [];
 
@@ -194,6 +260,8 @@ function analyzeLineup(input) {
   const scenarioHit = tags.filter((tag) => scenarioInfo.tags.includes(tag)).length;
   const identityScore = clamp(56 + sameFactionCount * 9 + scenarioHit * 5, 35, 100);
   const scenarioScore = clamp(58 + scenarioHit * 7 + roleCount.control * 4 + roleCount.defense * 4, 35, 100);
+  const ruleSignal = buildRuleCoverageSignal(tactics);
+  const simulationSignal = normalizeSimulationStats(input.simulationStats || input.simulationSummary);
 
   const dimensions = [
     buildDimension(
@@ -216,18 +284,45 @@ function analyzeLineup(input) {
       identityScore,
       `同阵营 ${sameFactionCount} 人，命中当前场景标签 ${scenarioHit} 个。`
     ),
-    buildDimension("环境适配", scenarioScore, scenarioInfo.text)
+    buildDimension("环境适配", scenarioScore, scenarioInfo.text),
+    buildDimension(
+      "规则可信度",
+      ruleSignal.score,
+      `显式规则 ${ruleSignal.summary.explicit}，通用估算 ${ruleSignal.summary.fallback}，未覆盖 ${ruleSignal.summary.missed}，覆盖可信度 ${ruleSignal.coverageRate}%。${ruleSignal.confidenceImpact}`
+    )
   ];
 
-  const totalScore = Math.round(
-    dimensions.reduce((sum, item) => sum + item.score, 0) / dimensions.length
+  if (simulationSignal) {
+    dimensions.push(buildDimension("模拟复核", simulationSignal.score, describeSimulationSignal(simulationSignal)));
+  }
+
+  const dimensionWeights = {
+    属性基础: 1.15,
+    兵种适性: 1.1,
+    战法协同: 1.25,
+    阵营标签: 0.9,
+    环境适配: 1,
+    规则可信度: 0.8,
+    模拟复核: 1
+  };
+  const weightedScore = dimensions.reduce(
+    (result, item) => {
+      const weight = dimensionWeights[item.label] || 1;
+      result.score += item.score * weight;
+      result.weight += weight;
+      return result;
+    },
+    { score: 0, weight: 0 }
   );
+  const totalScore = Math.round(weightedScore.weight ? weightedScore.score / weightedScore.weight : 0);
 
   const explanations = [
     dimensions[0].reason,
     dimensions[1].reason,
     dimensions[2].reason,
-    scenarioInfo.text
+    scenarioInfo.text,
+    ruleSignal.confidenceImpact,
+    describeSimulationSignal(simulationSignal)
   ];
 
   const weaknesses = [];
@@ -249,20 +344,28 @@ function analyzeLineup(input) {
   if (roleCount.defense < 1) missingRoles.push("defense");
   if (roleCount.damage < 2) missingRoles.push("damage");
 
-  const replacements = recommendTactics(tactics, troop, missingRoles);
-  const confidence = validation.length
-    ? "低"
-    : tactics.length < 6
-      ? "中"
-      : "中高";
+  const replacements = recommendTactics(tactics, troop, missingRoles, context);
+  const baseConfidence = tactics.length < 6 ? "中" : "中高";
+  const confidence = adjustConfidence(baseConfidence, validation, ruleSignal, simulationSignal);
 
   return {
+    scoringVersion: SCORING_VERSION,
     totalScore,
     totalCost,
     troop,
     scenario,
     scenarioName: scenarioInfo.name,
     confidence,
+    catalogContext: input.catalogContext || null,
+    analysisSignals: {
+      ruleCoverage: {
+        summary: ruleSignal.summary,
+        coverageRate: ruleSignal.coverageRate,
+        confidenceImpact: ruleSignal.confidenceImpact,
+        items: ruleSignal.items
+      },
+      simulation: simulationSignal
+    },
     validation,
     dimensions,
     explanations,
@@ -271,7 +374,46 @@ function analyzeLineup(input) {
     premiumHints: [
       "高级订阅可展开完整替代战法池。",
       "高级订阅可批量预览主流环境队伍对位。"
-    ]
+    ],
+    battleStats: null // 战报统计需要从服务端获取
+  };
+}
+
+function buildSimulationStats(simulation, side = "own") {
+  if (!simulation || !simulation.summary) return null;
+
+  if (simulation.aggregate) {
+    const iterations = simulation.summary.iterations || 1;
+    const ownWinRate = simulation.summary.winRate || 0;
+    const enemyWinRate = Math.round(((simulation.summary.losses || 0) / iterations) * 100);
+    return {
+      source: "simulator-v1",
+      iterations,
+      winRate: side === "own" ? ownWinRate : enemyWinRate,
+      drawRate: simulation.summary.drawRate || 0,
+      averageRemaining: side === "own" ? simulation.aggregate.averageOwnRemaining : simulation.aggregate.averageEnemyRemaining,
+      averageOpponentRemaining: side === "own" ? simulation.aggregate.averageEnemyRemaining : simulation.aggregate.averageOwnRemaining,
+      averageDamage: side === "own" ? simulation.aggregate.averageOwnDamage : simulation.aggregate.averageEnemyDamage,
+      averageHealing: side === "own" ? simulation.aggregate.averageOwnHealing : simulation.aggregate.averageEnemyHealing,
+      troopLossRatio: simulation.aggregate.averageTroopLossRatio,
+      stability: simulation.aggregate.stability,
+      scoreSuggestion: side === "own" ? simulation.aggregate.scoreSuggestion : Math.round(enemyWinRate * 0.7)
+    };
+  }
+
+  const isOwn = side === "own";
+  const result = simulation.summary.result;
+  return {
+    source: "simulator-v1",
+    iterations: 1,
+    result: isOwn ? result : result === "win" ? "loss" : result === "loss" ? "win" : "draw",
+    winner: simulation.summary.winner,
+    remaining: isOwn ? simulation.summary.ownRemaining : simulation.summary.enemyRemaining,
+    opponentRemaining: isOwn ? simulation.summary.enemyRemaining : simulation.summary.ownRemaining,
+    damage: isOwn ? simulation.metrics.ownDamage : simulation.metrics.enemyDamage,
+    healing: isOwn ? simulation.metrics.ownHealing : simulation.metrics.enemyHealing,
+    troopLossRatio: simulation.summary.troopLossRatio,
+    scoreSuggestion: result === "draw" ? 60 : (isOwn && result === "win") || (!isOwn && result === "loss") ? 75 : 45
   };
 }
 
@@ -293,6 +435,7 @@ module.exports = {
   TROOP_KEY,
   analyzeLineup,
   compareLineups,
+  buildSimulationStats,
   getAptitude,
   isTacticCompatible,
   classifyTacticText

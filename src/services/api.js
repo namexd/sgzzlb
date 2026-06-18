@@ -3,10 +3,53 @@ import { analyzeLineup as localAnalyze, compareLineups } from "../utils/scoring"
 import { optimizeLineups } from "../utils/optimizer";
 import * as catalog from "../utils/catalog";
 
-const DEFAULT_API_CONFIG = { mode: "local", baseUrl: "http://127.0.0.1:8787", adminToken: "" };
+const PRODUCTION_API_BASE_URL = "https://sz.qihangwk.com";
+const LOCAL_API_BASE_URL = "http://127.0.0.1:8787";
+const DEFAULT_API_CONFIG = { mode: "local", baseUrl: "", adminToken: "" };
+
+function isLoopbackHost(hostname) {
+  return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
+function isHostedBrowser() {
+  return typeof window !== "undefined" && window.location && !isLoopbackHost(window.location.hostname);
+}
+
+function isLoopbackUrl(url) {
+  try {
+    return isLoopbackHost(new URL(url).hostname);
+  } catch (e) {
+    return false;
+  }
+}
+
+function getDefaultApiBaseUrl() {
+  if (typeof window !== "undefined" && window.location) {
+    const { protocol, hostname, origin } = window.location;
+    if (protocol === "http:" || protocol === "https:") {
+      return isLoopbackHost(hostname) ? PRODUCTION_API_BASE_URL : origin;
+    }
+  }
+  return LOCAL_API_BASE_URL;
+}
+
+function normalizeBaseUrl(baseUrl) {
+  return (baseUrl || getDefaultApiBaseUrl()).replace(/\/$/, "");
+}
 
 export function getApiConfig() {
-  return { ...DEFAULT_API_CONFIG, ...(getStorage("apiConfig") || {}) };
+  const storedConfig = getStorage("apiConfig") || {};
+  const config = { ...DEFAULT_API_CONFIG, ...storedConfig };
+  if (isHostedBrowser()) {
+    config.mode = "remote";
+  }
+  config.baseUrl = normalizeBaseUrl(config.baseUrl);
+
+  if (isHostedBrowser() && isLoopbackUrl(config.baseUrl)) {
+    config.baseUrl = getDefaultApiBaseUrl();
+  }
+
+  return config;
 }
 
 export function setApiConfig(nextConfig) {
@@ -51,24 +94,44 @@ function requestRemote(path, options = {}) {
   if (authToken) headers["authorization"] = `Bearer ${authToken}`;
   if (config.adminToken) headers["x-admin-token"] = config.adminToken;
 
+  const buildUrl = (baseUrl) => `${normalizeBaseUrl(baseUrl)}${path.startsWith("/") ? path : "/" + path}`;
+  const fallbackBaseUrl = isLoopbackUrl(config.baseUrl) ? getDefaultApiBaseUrl() : "";
+  const canRetryWithFallback = (baseUrl, retried) => !retried && fallbackBaseUrl && fallbackBaseUrl !== baseUrl;
+  const shouldRetryResponse = (response) => {
+    if (response.statusCode >= 500) return true;
+    return path.startsWith("/api/v1/auth/") && response.statusCode >= 400;
+  };
+
   return new Promise((resolve, reject) => {
-    uni.request({
-      url: `${config.baseUrl}${path}`,
-      method,
-      data: options.data || {},
-      header: headers,
-      success(response) {
-        const body = response.data || {};
-        if (response.statusCode >= 200 && response.statusCode < 300 && body.ok !== false) {
-          resolve(body.data !== undefined ? body.data : body);
-        } else {
-          reject(new Error(body.message || `请求失败：${response.statusCode}`));
+    const send = (baseUrl, retried = false) => {
+      uni.request({
+        url: buildUrl(baseUrl),
+        method,
+        data: options.data || {},
+        header: headers,
+        success(response) {
+          const body = response.data || {};
+          if (response.statusCode >= 200 && response.statusCode < 300 && body.ok !== false) {
+            resolve(body.data !== undefined ? body.data : body);
+          } else {
+            if (canRetryWithFallback(baseUrl, retried) && shouldRetryResponse(response)) {
+              send(fallbackBaseUrl, true);
+              return;
+            }
+            reject(new Error(body.message || body.error || `请求失败：${response.statusCode}`));
+          }
+        },
+        fail(error) {
+          if (canRetryWithFallback(baseUrl, retried)) {
+            send(fallbackBaseUrl, true);
+            return;
+          }
+          reject(new Error(error.errMsg || "请求失败"));
         }
-      },
-      fail(error) {
-        reject(new Error(error.errMsg || "请求失败"));
-      }
-    });
+      });
+    };
+
+    send(config.baseUrl);
   });
 }
 
@@ -117,30 +180,35 @@ export function getProfile() {
 }
 
 // --- Catalog (local + remote) ---
-export function getCatalogSummary() {
-  if (shouldUseRemote()) return requestRemote("/api/v1/catalog/summary");
+export function getCatalogSummary(params = {}) {
+  if (shouldUseRemote()) return requestRemote(withQuery("/api/v1/catalog/summary", params));
   const meta = catalog.getMeta();
   return Promise.resolve({ generalsCount: meta.generalsCount || catalog.getGenerals().length, tacticsCount: meta.tacticsCount || catalog.getTactics().length, equipmentCount: meta.equipmentCount || catalog.getEquipment().length, troopTacticsCount: meta.troopTacticsCount || catalog.getTroopTactics().length, source: meta.source, fetchedAt: meta.fetchedAt });
 }
 
 export function getGenerals(params = {}) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/catalog/generals", { data: params });
+  if (shouldUseRemote()) return requestRemote(withQuery("/api/v1/catalog/generals", params));
   return Promise.resolve(catalog.searchRecords("generals", params.keyword || ""));
 }
 
 export function getTactics(params = {}) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/catalog/tactics", { data: params });
+  if (shouldUseRemote()) return requestRemote(withQuery("/api/v1/catalog/tactics", params));
   return Promise.resolve(catalog.searchRecords("tactics", params.keyword || ""));
 }
 
 export function getEquipment(params = {}) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/catalog/equipment", { data: params });
+  if (shouldUseRemote()) return requestRemote(withQuery("/api/v1/catalog/equipment", params));
   return Promise.resolve(catalog.searchRecords("equipment", params.keyword || ""));
 }
 
 export function getTroopTactics(params = {}) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/catalog/troop-tactics", { data: params });
+  if (shouldUseRemote()) return requestRemote(withQuery("/api/v1/catalog/troop-tactics", params));
   return Promise.resolve(catalog.searchRecords("troopTactics", params.keyword || ""));
+}
+
+export function getCatalogVersions(params = {}) {
+  if (shouldUseRemote()) return requestRemote(withQuery("/api/v1/catalog/versions", params));
+  return Promise.resolve({ items: [] });
 }
 
 export function getRecords(type, params = {}) {
@@ -159,6 +227,11 @@ export function previewMatchupAsync(payload) {
   const own = localAnalyze(payload.own || {});
   const enemy = localAnalyze(payload.enemy || {});
   return Promise.resolve({ own, enemy, result: compareLineups(own, enemy) });
+}
+
+export function simulateBattleAsync(payload) {
+  if (shouldUseRemote()) return requestRemote("/api/v1/battles/simulate", { method: "POST", data: payload });
+  return Promise.reject(new Error("战报模拟器需要切换到远程 API 模式。"));
 }
 
 export function optimizeAccountAsync(payload) {

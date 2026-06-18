@@ -15,64 +15,75 @@ function byName(a, b) {
   return String(a.name || "").localeCompare(String(b.name || ""), "zh-Hans-CN");
 }
 
-function getCatalog() {
+function resolveCatalog(context = {}) {
+  if (context.catalogSnapshot && typeof context.catalogSnapshot === "object") return context.catalogSnapshot;
+  if (context.snapshot && typeof context.snapshot === "object") return context.snapshot;
   return catalog;
 }
 
-function getMeta() {
-  return catalog.meta || {};
+function getCatalog(context) {
+  return resolveCatalog(context);
 }
 
-function getGenerals() {
-  return [...catalog.generals].sort((a, b) => {
+function getMeta(context) {
+  return resolveCatalog(context).meta || {};
+}
+
+function getCollection(key, context) {
+  const source = resolveCatalog(context);
+  return Array.isArray(source[key]) ? source[key] : [];
+}
+
+function getGenerals(context) {
+  return [...getCollection("generals", context)].sort((a, b) => {
     const factionDiff = (GENERAL_SORT[a.faction] || 9) - (GENERAL_SORT[b.faction] || 9);
     return factionDiff || byName(a, b);
   });
 }
 
-function getTactics() {
-  return [...catalog.tactics].sort(byName);
+function getTactics(context) {
+  return [...getCollection("tactics", context)].sort(byName);
 }
 
-function getEquipment() {
-  return [...catalog.equipment].sort(byName);
+function getEquipment(context) {
+  return [...getCollection("equipment", context)].sort(byName);
 }
 
-function getTroopTactics() {
-  return [...catalog.troopTactics].sort(byName);
+function getTroopTactics(context) {
+  return [...getCollection("troopTactics", context)].sort(byName);
 }
 
-function findGeneralById(id) {
-  return catalog.generals.find((item) => item.id === id) || null;
+function findGeneralById(id, context) {
+  return getCollection("generals", context).find((item) => item.id === id) || null;
 }
 
-function findTacticById(id) {
+function findTacticById(id, context) {
   return (
-    catalog.tactics.find((item) => item.id === id) ||
-    catalog.troopTactics.find((item) => item.id === id) ||
+    getCollection("tactics", context).find((item) => item.id === id) ||
+    getCollection("troopTactics", context).find((item) => item.id === id) ||
     null
   );
 }
 
-function getAllTactics() {
-  return [...catalog.tactics, ...catalog.troopTactics].sort(byName);
+function getAllTactics(context) {
+  return [...getCollection("tactics", context), ...getCollection("troopTactics", context)].sort(byName);
 }
 
-function getGeneralPickerOptions() {
-  return getGenerals().map((item) => `${item.faction || "?"} · ${item.name} · ${item.cost || "?"}御`);
+function getGeneralPickerOptions(context) {
+  return getGenerals(context).map((item) => `${item.faction || "?"} · ${item.name} · ${item.cost || "?"}御`);
 }
 
-function getTacticPickerOptions() {
-  return getAllTactics().map((item) => `${item.quality || "-"} · ${item.type || "战法"} · ${item.name}`);
+function getTacticPickerOptions(context) {
+  return getAllTactics(context).map((item) => `${item.quality || "-"} · ${item.type || "战法"} · ${item.name}`);
 }
 
-function searchRecords(type, keyword) {
+function searchRecords(type, keyword, context) {
   const text = normalizeText(keyword);
   const poolMap = {
-    generals: getGenerals(),
-    tactics: getTactics(),
-    equipment: getEquipment(),
-    troopTactics: getTroopTactics()
+    generals: getGenerals(context),
+    tactics: getTactics(context),
+    equipment: getEquipment(context),
+    troopTactics: getTroopTactics(context)
   };
   const records = poolMap[type] || [];
   if (!text) return records;
@@ -96,9 +107,9 @@ function searchRecords(type, keyword) {
   });
 }
 
-function getTacticsByNames(names) {
+function getTacticsByNames(names, context) {
   const wanted = new Set((names || []).filter(Boolean));
-  return getAllTactics().filter((item) => wanted.has(item.name));
+  return getAllTactics(context).filter((item) => wanted.has(item.name));
 }
 
 module.exports = {

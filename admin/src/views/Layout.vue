@@ -60,6 +60,7 @@ const menuItems = [
   { path: "/feedback", title: "意见反馈", icon: "ChatDotRound" },
   { path: "/lineups", title: "阵容管理", icon: "Trophy" },
   { path: "/catalog", title: "资料数据", icon: "Document" },
+  { path: "/catalog-updates", title: "赛季资料", icon: "Collection" },
   { path: "/rules", title: "评分规则", icon: "Setting" },
   { path: "/audit", title: "审计日志", icon: "Notebook" }
 ];
