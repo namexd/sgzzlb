@@ -118,6 +118,16 @@
 - [x] 12.6 运行 simulator、server、全量测试和 H5/后台构建验证
 - [x] 12.7 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
 
+## P13：规则库显式覆盖与战报精度继续补强
+
+- [x] 13.1 记录 P13 实施范围、验收标准和验证命令
+- [x] 13.2 补充指挥/阵法、兵种、主动、突击显式规则回归测试
+- [x] 13.3 实现高影响战法 explicit 规则并保持现有模拟流程
+- [x] 13.4 复核 ruleCoverage explicit/fallback/missed 分类和 published catalog 数据源
+- [x] 13.5 更新模拟器规格、估算边界和工具误用教训
+- [x] 13.6 运行 simulator、server、全量测试和 H5/后台构建验证
+- [x] 13.7 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
+
 ## Review
 
 ### 已完成
@@ -238,8 +248,17 @@
     - 新增 `锋矢阵` 与 `象兵` 代表性显式规则，继续在 `ruleCoverage` 与 `assumptions` 标注无法精确复刻官方隐藏公式的估算边界。
     - 生产 API 继续从数据库 published catalog snapshot 读取资料；静态 catalog 只作为开发、测试或初始化 fallback。
 
+21. **P13 高影响战法显式覆盖补强**：
+    - 新增八门金锁阵、抚辑军民、御敌屏障等指挥/阵法代表规则，准备阶段稳定施加先攻、减伤或休整近似效果。
+    - 新增藤甲兵、陷阵营、白马义从、虎豹骑、青州兵等兵种战法规则，继续检查队伍兵种，不匹配时跳过并写入 assumptions。
+    - 新增破阵摧坚、杯蛇鬼车、所向披靡、据水断桥等主动规则，覆盖群体伤害、属性削弱近似、治疗和控制。
+    - 新增暴戾无仁、速乘其利、弯弓饮羽等突击代表规则，仅在突击阶段触发伤害与控制。
+    - 伤害、治疗和状态日志补充 `tactic` 来源字段，便于前台回合日志和测试按战法追踪效果。
+
 ### 验证结果
 
+- `node tests/simulator.test.mjs` 通过 33/33，新增覆盖 P13 指挥/阵法、兵种、主动和突击代表显式规则。
+- `npm test` 全部通过，覆盖 catalog、catalogDiff、catalogVersionStore、scoring、simulator 33/33、server 23/23、drawStorage。
 - `npm test` 全部通过（catalog、catalogDiff、catalogVersionStore、scoring、simulator、server、drawStorage）
 - `node tests/scoring.test.mjs` 已覆盖评分新增维度、规则覆盖信号、模拟摘要、资料快照上下文和对位共享 `catalogContext`
 - `node tests/simulator.test.mjs` 通过 16/16，覆盖状态系统、规则覆盖率、阵容扩展输入、初始状态入场和指定资料快照模拟
@@ -265,6 +284,9 @@
 - `npm --prefix src run build:h5` 构建成功；`./scripts/deploy.sh` 已重新部署，PM2 `sgzzlb-server` 为 online
 - 线上复验 `GET https://sz.qihangwk.com/health`、`GET https://sz.qihangwk.com/`、`GET https://sz.qihangwk.com/api/v1/catalog/summary` 均返回 200，catalog summary 命中数据库 published 版本
 - 线上 H5 分包已确认包含 `U()&&(t.mode="remote")` 修复逻辑，对位页分包已确认包含“服务器默认发布资料”文案
+- P13 已部署到生产服务器，PM2 `sgzzlb-server` 重启后为 online；`GET https://sz.qihangwk.com/health` 返回 200，`GET https://sz.qihangwk.com/api/v1/catalog/summary` 返回 200 并命中数据库 published 资料版本 `cv_1781684387650_jblo3z`。
+- P13 线上 rule coverage 复验通过：published 版本统计为 `total=221`、`explicit=45`、`fallback=157`、`missed=19`、`todo=20`，较 P12 前 explicit 从 27 增至 45。
+- P13 线上 `POST https://sz.qihangwk.com/api/v1/battles/simulate` 使用 published 真实资料 ID 冒烟通过，`catalogContext.status=published`，战报日志包含 `八门金锁阵`、`白马义从`、`虎豹骑`、`暴戾无仁`、`杯蛇鬼车`、`据水断桥` 的 `tactic` 来源字段，`ruleCoverage.coverageByTactic` 中相关战法为 `explicit` / `explicit-rule`。
 
 
 - `node tests/simulator.test.mjs` 通过 22/22，新增覆盖准备 1/2 回合、发动概率、跳过准备和控制打断 pending 取消。

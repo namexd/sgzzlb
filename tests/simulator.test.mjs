@@ -424,6 +424,103 @@ test("P12 代表性显式规则应标记 explicit", () => {
   assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === "测试未知机制" && item.status === "missed"), "未知机制应保持 missed");
 });
 
+
+test("P13 指挥和阵法代表规则应稳定进入 explicit 并在准备阶段生效", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("八门金锁阵", "战斗前3回合，使敌军群体造成伤害降低，并使我军主将获得先攻状态", "阵法"),
+    makeTactic("抚辑军民", "战斗前3回合，使我军全体受到伤害降低，第4回合恢复兵力", "指挥"),
+    makeTactic("御敌屏障", "战斗前4回合，使我军群体受到伤害降低", "指挥")
+  ]);
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P13指挥阵法", options: { maxRounds: 1 } }));
+  const actions = getActions(result);
+
+  assert.ok(actions.some((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "八门金锁阵" && action.target === "甲" && action.state === "先攻"), "八门金锁阵应给我军主将先攻");
+  assert.ok(actions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "八门金锁阵" && action.state === "减伤").length >= 2, "八门金锁阵应压制敌军群体输出");
+  assert.ok(actions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "抚辑军民" && action.state === "减伤").length >= 3, "抚辑军民应给我军全体减伤");
+  assert.ok(actions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "御敌屏障" && action.state === "减伤").length >= 2, "御敌屏障应给我军群体减伤");
+  ["八门金锁阵", "抚辑军民", "御敌屏障"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P13 兵种代表规则应检查兵种条件并记录 explicit", () => {
+  const tactics = [
+    makeTactic("藤甲兵", "盾兵专属：我军全体受到兵刃伤害降低，但受到灼烧伤害提高", "盾兵"),
+    makeTactic("陷阵营", "盾兵专属：我军全体武力、统率提高，并获得急救", "盾兵"),
+    makeTactic("白马义从", "弓兵专属：我军全体获得先攻，主动战法发动率提高", "弓兵"),
+    makeTactic("虎豹骑", "骑兵专属：我军全体突击战法发动率提高，并获得会心", "骑兵"),
+    makeTactic("青州兵", "枪兵专属：战斗中造成兵刃伤害并使我军恢复兵力", "枪兵")
+  ];
+  const matched = simulateBattle(makePayload({
+    own: makeCustomLineup(["甲", "乙", "丙"], tactics, { troop: "盾兵" }),
+    enemy: makeCustomLineup(["丁", "戊", "己"], [], { troop: "枪兵" }),
+    seed: "P13兵种匹配",
+    options: { maxRounds: 1 }
+  }));
+  const mismatched = simulateBattle(makePayload({
+    own: makeCustomLineup(["甲", "乙", "丙"], [tactics[0]], { troop: "弓兵" }),
+    enemy: makeCustomLineup(["丁", "戊", "己"], [], { troop: "枪兵" }),
+    seed: "P13兵种不匹配",
+    options: { maxRounds: 1 }
+  }));
+  const matchedActions = getActions(matched);
+  const mismatchedActions = getActions(mismatched);
+
+  assert.ok(matchedActions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "藤甲兵" && action.state === "减伤").length >= 3, "盾兵藤甲兵应给全队兵刃减伤");
+  assert.ok(matchedActions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "陷阵营" && action.state === "急救").length >= 3, "盾兵陷阵营应给全队急救");
+  assert.equal(matchedActions.some((action) => action.tactic === "白马义从" && action.state === "先攻"), false, "非弓兵队伍不应套用白马义从");
+  assert.equal(matchedActions.some((action) => action.tactic === "虎豹骑" && action.state === "会心"), false, "非骑兵队伍不应套用虎豹骑");
+  assert.equal(matchedActions.some((action) => action.tactic === "青州兵" && action.state === "持续治疗"), false, "非枪兵队伍不应套用青州兵");
+  assert.ok(mismatched.assumptions.some((item) => item.includes("藤甲兵") && item.includes("兵种不匹配") && item.includes("需要盾兵")), "兵种不匹配应记录盾兵要求");
+  assert.equal(mismatchedActions.some((action) => action.tactic === "藤甲兵" && action.state === "减伤"), false, "兵种不匹配时藤甲兵不应生效");
+  ["藤甲兵", "陷阵营", "白马义从", "虎豹骑", "青州兵"].forEach((name) => {
+    assert.ok(matched.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P13 主动代表规则应覆盖群伤、削弱、治疗和控制", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("破阵摧坚", "100%概率发动，对敌军2人造成兵刃伤害，并降低统率和智力", "主动"),
+    makeTactic("杯蛇鬼车", "100%概率发动，对敌军群体造成谋略伤害，并为我军群体恢复兵力", "主动"),
+    makeTactic("所向披靡", "100%概率发动，准备1回合，对敌军全体造成兵刃伤害", "主动"),
+    makeTactic("据水断桥", "100%概率发动，对敌军群体造成兵刃伤害并使其虚弱", "主动")
+  ], { troops: [10000, 8200, 7600] });
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P13主动", options: { maxRounds: 2 } }));
+  const actions = getActions(result);
+
+  assert.ok(actions.filter((action) => action.tactic === "破阵摧坚" && action.amount > 0).length >= 2, "破阵摧坚应造成敌军群体伤害");
+  assert.ok(actions.some((action) => action.tactic === "破阵摧坚" && action.state === "易伤"), "破阵摧坚应记录属性削弱近似状态");
+  assert.ok(actions.filter((action) => action.tactic === "杯蛇鬼车" && action.amount > 0 && action.type === "主动").length >= 2, "杯蛇鬼车应造成群体谋略伤害");
+  assert.ok(actions.some((action) => action.tactic === "杯蛇鬼车" && action.amount > 0 && action.type === "治疗"), "杯蛇鬼车应治疗我军兵力最低目标");
+  assert.ok(actions.some((action) => action.round === 1 && action.type === "开始准备" && action.tactic === "所向披靡"), "所向披靡应先进入准备");
+  assert.ok(actions.filter((action) => action.round === 2 && action.tactic === "所向披靡" && action.amount > 0).length >= 3, "所向披靡准备完成后应打击敌军全体");
+  assert.ok(actions.some((action) => action.tactic === "据水断桥" && action.state === "虚弱"), "据水断桥应施加虚弱");
+  ["破阵摧坚", "杯蛇鬼车", "所向披靡", "据水断桥"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P13 突击代表规则应仅在突击阶段触发并记录 explicit", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("暴戾无仁", "100%概率发动，普通攻击后对敌军单体造成兵刃伤害，并使其混乱", "突击"),
+    makeTactic("速乘其利", "100%概率发动，普通攻击后造成兵刃伤害，并使其计穷", "突击"),
+    makeTactic("弯弓饮羽", "100%概率发动，普通攻击后造成兵刃伤害，并使其缴械", "突击")
+  ]);
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P13突击", options: { maxRounds: 1 } }));
+  const actions = getActions(result);
+
+  assert.equal(actions.some((action) => action.round === 0 && action.phase === "准备阶段" && ["暴戾无仁", "速乘其利", "弯弓饮羽"].includes(action.tactic)), false, "突击战法不应在准备阶段触发");
+  assert.ok(actions.some((action) => action.phase === "突击" && action.tactic === "暴戾无仁" && action.state === "混乱"), "暴戾无仁应在突击阶段施加混乱");
+  assert.ok(actions.some((action) => action.phase === "突击" && action.tactic === "速乘其利" && action.state === "计穷"), "速乘其利应在突击阶段施加计穷");
+  assert.ok(actions.some((action) => action.phase === "突击" && action.tactic === "弯弓饮羽" && action.state === "缴械"), "弯弓饮羽应在突击阶段施加缴械");
+  ["暴戾无仁", "速乘其利", "弯弓饮羽"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
 function getActions(result) {
   return result.rounds.flatMap((round) => round.actions.map((action) => ({ ...action, round: round.round, phase: round.phase })));
 }

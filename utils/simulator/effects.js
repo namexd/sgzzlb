@@ -144,6 +144,7 @@ function applyDamage(state, round, phase, attacker, defender, options = {}) {
     actor: attacker.name,
     target: defender.name,
     type: options.actionType || "伤害",
+    tactic: options.tactic || options.source,
     damageType,
     amount,
     text: `${attacker.name}${options.source ? `发动${options.source}` : "发起攻击"}${critical.criticalType ? `并触发${critical.criticalType}` : ""}，对${defender.name}造成 ${amount} ${damageType}伤害。`
@@ -181,6 +182,7 @@ function applyHealing(state, round, phase, healer, target, options = {}) {
     actor: healer.name,
     target: target.name,
     type: actionType,
+    tactic: options.tactic || options.source,
     amount,
     text: `${healer.name}${options.source ? `发动${options.source}` : "进行治疗"}，为${target.name}恢复 ${amount} 兵力。`
   });
@@ -215,6 +217,7 @@ function applyState(state, round, phase, actor, target, nextState, options = {})
     actor: actor ? actor.name : stateToApply.source || "状态",
     target: target.name,
     type: "状态",
+    tactic: options.tactic || options.source || stateToApply.source,
     state: nextState.type,
     text: `${actor ? actor.name : stateToApply.source || "状态"}${options.source ? `发动${options.source}` : "施加状态"}，使${target.name}获得${nextState.type}${nextState.remaining}回合。`
   });

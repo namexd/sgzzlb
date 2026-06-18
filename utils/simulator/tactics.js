@@ -628,6 +628,144 @@ function applyXiangbing(context) {
   addAssumptionOnce(state, `${getTacticName(tactic)} 的延后伤害结算按全队减伤近似处理。`);
 }
 
+function applyBamen(context) {
+  const { state, actor, tactic, round, phase } = context;
+  const team = getTeam(state, actor.side);
+  const commander = getCommander(team);
+  if (commander) applyTacticState(state, round, phase, actor, tactic, commander, { type: "先攻", value: 1, remaining: 3 });
+  getAliveMembers(getEnemyTeam(state, actor.side)).slice(0, 2).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "减伤", value: 0.18, remaining: 3 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的敌军输出压制按目标减伤近似处理。`);
+}
+
+function applyFujijunmin(context) {
+  const { state, actor, tactic, round, phase } = context;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "减伤", value: 0.2, remaining: 3 });
+  });
+  applyTacticState(state, round, phase, actor, tactic, getLowestTroopMember(getTeam(state, actor.side)), {
+    type: "休整",
+    value: 80,
+    remaining: 2
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的第4回合恢复按前期休整近似处理。`);
+}
+
+function applyYudi(context) {
+  const { state, actor, tactic, round, phase } = context;
+  getAliveMembers(getTeam(state, actor.side)).slice(0, 2).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "减伤", value: 0.16, remaining: 4 });
+  });
+}
+
+function applyTengjia(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "减伤", value: 0.22, remaining: 8 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的灼烧易损按 assumptions 标注，当前伤害模型暂按兵刃减伤体现。`);
+}
+
+function applyXianzhen(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "急救", value: 85, remaining: 3 });
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "增伤", value: 0.08, remaining: 8 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的属性提高按增伤与急救近似处理。`);
+}
+
+function applyBaima(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "先攻", value: 1, remaining: 2 });
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "增伤", value: 0.08, remaining: 2 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的主动发动率提高按前期增伤近似处理。`);
+}
+
+function applyHubaogi(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "会心", value: 0.16, multiplier: 1.35, remaining: 3 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的突击发动率提高按会心近似处理。`);
+}
+
+function applyQingzhou(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "持续治疗", value: 70, remaining: 3 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的反击与治疗按持续治疗近似处理。`);
+}
+
+function applyPozhen(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  getRandomTargets(random, getEnemyTeam(state, actor.side), 2).forEach((target) => {
+    applyDamage(state, round, phase, actor, target, { rate: 158, damageType: "兵刃", random, source: tactic.name, actionType: tactic.type || "主动" });
+    applyState(state, round, phase, actor, target, {
+      type: "易伤",
+      value: 0.12,
+      remaining: 2,
+      source: tactic.name
+    }, { source: tactic.name });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的统率和智力降低按易伤近似处理。`);
+}
+
+function applyBeishe(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  getRandomTargets(random, getEnemyTeam(state, actor.side), 2).forEach((target) => {
+    applyDamage(state, round, phase, actor, target, { rate: 153, damageType: "谋略", random, source: tactic.name, actionType: tactic.type || "主动" });
+  });
+  getAliveMembers(getTeam(state, actor.side)).sort((a, b) => a.troops / a.maxTroops - b.troops / b.maxTroops).slice(0, 2).forEach((target) => {
+    applyHealing(state, round, phase, actor, target, { rate: 102, random, source: tactic.name });
+  });
+}
+
+function applySuoxiang(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  getAliveMembers(getEnemyTeam(state, actor.side)).forEach((target) => {
+    applyDamage(state, round, phase, actor, target, { rate: 246, damageType: "兵刃", random, source: tactic.name, actionType: tactic.type || "主动" });
+  });
+}
+
+function applyJushui(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  getRandomTargets(random, getEnemyTeam(state, actor.side), 2).forEach((target) => {
+    applyDamage(state, round, phase, actor, target, { rate: 138, damageType: "兵刃", random, source: tactic.name, actionType: tactic.type || "主动" });
+    applyState(state, round, phase, actor, target, {
+      type: "虚弱",
+      value: 1,
+      remaining: 1,
+      source: tactic.name
+    }, { source: tactic.name });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的倒戈/水攻附加效果按群伤与虚弱近似处理。`);
+}
+
+function applyAssaultControl(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  const target = getRandomTargets(random, getEnemyTeam(state, actor.side), 1)[0];
+  if (!target) return false;
+  const text = getTacticText(tactic);
+  const stateType = /混乱/.test(text) || getTacticName(tactic).includes("暴戾无仁") ? "混乱" : /计穷/.test(text) || getTacticName(tactic).includes("速乘其利") ? "计穷" : "缴械";
+  applyDamage(state, round, phase, actor, target, { rate: 120, damageType: "兵刃", random, source: tactic.name, actionType: "突击" });
+  applyState(state, round, phase, actor, target, {
+    type: stateType,
+    value: 1,
+    remaining: 1,
+    source: tactic.name
+  }, { source: tactic.name });
+}
+
 const EXPLICIT_RULES = [
   { names: ["盛气凌敌"], apply: applyShengqi },
   { names: ["横扫千军"], apply: applyHengsao },
@@ -639,6 +777,19 @@ const EXPLICIT_RULES = [
   { names: ["刮骨疗毒"], apply: applyGuagu },
   { names: ["锋矢阵"], apply: applyFengshi },
   { names: ["象兵"], apply: applyXiangbing },
+  { names: ["八门金锁阵"], apply: applyBamen },
+  { names: ["抚辑军民"], apply: applyFujijunmin },
+  { names: ["御敌屏障"], apply: applyYudi },
+  { names: ["藤甲兵"], apply: applyTengjia },
+  { names: ["陷阵营"], apply: applyXianzhen },
+  { names: ["白马义从"], apply: applyBaima },
+  { names: ["虎豹骑"], apply: applyHubaogi },
+  { names: ["青州兵"], apply: applyQingzhou },
+  { names: ["破阵摧坚"], apply: applyPozhen },
+  { names: ["杯蛇鬼车"], apply: applyBeishe },
+  { names: ["所向披靡"], apply: applySuoxiang },
+  { names: ["据水断桥"], apply: applyJushui },
+  { names: ["暴戾无仁", "速乘其利", "弯弓饮羽"], apply: applyAssaultControl },
   { names: ["坐断东南"], apply: applyZuoduan },
   { names: ["神射", "兵锋", "裸衣血战"], apply: applyComboRule },
   { names: ["一身是胆"], apply: applyInsightRule },
