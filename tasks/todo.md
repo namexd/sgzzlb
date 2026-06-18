@@ -128,6 +128,18 @@
 - [x] 13.6 运行 simulator、server、全量测试和 H5/后台构建验证
 - [x] 13.7 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
 
+## P14：继续补强高影响战法规则与覆盖闭环
+
+- [x] 14.1 记录 P14 实施范围、验收标准和验证命令
+- [x] 14.2 确认 published 版本覆盖基线和 P14 候选规则
+- [x] 14.3 补充阵法/指挥、兵种、主动、突击显式规则回归测试
+- [x] 14.4 实现 P14 高影响战法 explicit 规则并保持现有模拟流程
+- [x] 14.5 复核 ruleCoverage 分类、published catalog 数据源和 assumptions 边界
+- [x] 14.6 更新模拟器规格与 P14 验证记录
+- [x] 14.7 运行 simulator、server、全量测试和 H5/后台构建验证
+- [x] 14.8 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
+- [x] 14.9 创建中文 commit，不执行 push
+
 ## Review
 
 ### 已完成
@@ -287,6 +299,14 @@
 - P13 已部署到生产服务器，PM2 `sgzzlb-server` 重启后为 online；`GET https://sz.qihangwk.com/health` 返回 200，`GET https://sz.qihangwk.com/api/v1/catalog/summary` 返回 200 并命中数据库 published 资料版本 `cv_1781684387650_jblo3z`。
 - P13 线上 rule coverage 复验通过：published 版本统计为 `total=221`、`explicit=45`、`fallback=157`、`missed=19`、`todo=20`，较 P12 前 explicit 从 27 增至 45。
 - P13 线上 `POST https://sz.qihangwk.com/api/v1/battles/simulate` 使用 published 真实资料 ID 冒烟通过，`catalogContext.status=published`，战报日志包含 `八门金锁阵`、`白马义从`、`虎豹骑`、`暴戾无仁`、`杯蛇鬼车`、`据水断桥` 的 `tactic` 来源字段，`ruleCoverage.coverageByTactic` 中相关战法为 `explicit` / `explicit-rule`。
+- P14 基线已确认：线上 `GET https://sz.qihangwk.com/api/v1/catalog/summary` 命中数据库 published 版本 `cv_1781684387650_jblo3z`；P13 线上覆盖基线为 `total=221`、`explicit=45`、`fallback=157`、`missed=19`、`todo=20`。P14 候选从该 published 初始快照中选择，优先补 `箕形阵`、`三势阵`、`武锋阵`、`无当飞军`、`白毦兵`、`大戟士`、`锦帆军`、`夺魂挟魄`、`威谋靡亢`、`焚辎营垒`、`绝其汲道` 等仍需显式覆盖或高影响 fallback 的战法。
+- P14 已新增 `箕形阵`、`三势阵`、`武锋阵`、`无当飞军`、`白毦兵`、`大戟士`、`锦帆军`、`夺魂挟魄`、`威谋靡亢`、`焚辎营垒`、`绝其汲道`、`鬼神霆威`、`克敌制胜` 显式规则；`node tests/simulator.test.mjs` 通过 37/37，新增用例覆盖阵法、兵种、主动、突击规则及兵种不匹配 assumptions。
+- P14 覆盖复核完成：生产资料来源仍为数据库 published catalog snapshot，线上 catalog summary 命中 `cv_1781684387650_jblo3z`；本地 `classifyTacticCoverage()` 复核为 `total=221`、`explicit=62`、`fallback=141`、`missed=18`，新增规则均为 `explicit` / `explicit-rule`，公开资料无法精确还原的阵法目标、适性、属性偷取、概率追击等继续写入 assumptions。
+- P14 模拟器规格已更新到 `docs/battle-simulator-spec.md`，新增阵法、兵种、主动、突击规则列表和估算边界说明。
+- P14 本地完整验证通过：`node tests/simulator.test.mjs`、`node tests/server.test.mjs`、`npm test`、`npm --prefix src run build:h5`、`npm --prefix admin run build` 均成功；后台构建仅保留既有 `@vueuse/core` pure annotation 与 chunk 体积警告。
+- P14 已部署到生产服务器：`./scripts/deploy.sh` 执行成功，PM2 `sgzzlb-server` online；线上 `GET https://sz.qihangwk.com/health` 返回 200 且数据库正常，`GET /api/v1/catalog/summary` 继续命中数据库 published 版本 `cv_1781684387650_jblo3z`。
+- P14 线上 coverage 复验通过：published 版本统计为 `total=221`、`explicit=62`、`fallback=141`、`missed=18`、`todo=20`，`箕形阵`、`三势阵`、`武锋阵`、`无当飞军`、`白毦兵`、`大戟士`、`锦帆军`、`夺魂挟魄`、`威谋靡亢`、`焚辎营垒`、`绝其汲道`、`鬼神霆威`、`克敌制胜` 均为 `explicit` / `explicit-rule`。
+- P14 线上真实战报模拟冒烟通过：响应使用数据库 `published` catalog snapshot，回合日志覆盖阵法、兵种、主动代表规则；单独突击 payload 验证 `鬼神霆威` 在突击阶段造成兵刃伤害、`克敌制胜` 在突击阶段造成谋略伤害，二者均出现在 `ruleCoverage.coverageByTactic`。
 
 
 - `node tests/simulator.test.mjs` 通过 22/22，新增覆盖准备 1/2 回合、发动概率、跳过准备和控制打断 pending 取消。

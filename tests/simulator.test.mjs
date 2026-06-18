@@ -521,6 +521,114 @@ test("P13 突击代表规则应仅在突击阶段触发并记录 explicit", () =
   });
 });
 
+
+test("P14 阵法代表规则应进入 explicit 并在准备阶段生效", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("箕形阵", "战斗前3回合，使敌军主将造成伤害降低20%，并使我军随机副将受到兵刃伤害降低9%，另一名副将受到谋略伤害降低9%", "阵法"),
+    makeTactic("三势阵", "战斗前5回合，主将提高自带主动、突击战法发动几率，每回合行动前使损失兵力较多的副将受到伤害降低，另一名副将造成伤害提高", "阵法"),
+    makeTactic("武锋阵", "战斗前5回合，我军主将优先成为敌军战法目标且受到伤害降低；奇数回合使副将恢复兵力，偶数回合使副将造成伤害提高", "阵法")
+  ], { troops: [10000, 7800, 9200] });
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P14阵法", options: { maxRounds: 1 } }));
+  const actions = getActions(result);
+
+  assert.ok(actions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "箕形阵" && action.state === "减伤").length >= 2, "箕形阵应在准备阶段给我军副将减伤");
+  assert.ok(actions.some((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "三势阵" && action.state === "增伤"), "三势阵应近似提高队伍输出");
+  assert.ok(actions.some((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "三势阵" && action.state === "减伤"), "三势阵应近似保护损兵副将");
+  assert.ok(actions.some((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "武锋阵" && action.state === "休整"), "武锋阵应近似奇数回合治疗副将");
+  assert.ok(actions.some((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "武锋阵" && action.state === "增伤"), "武锋阵应近似偶数回合副将增伤");
+  ["箕形阵", "三势阵", "武锋阵"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P14 兵种代表规则应检查兵种条件并记录 explicit", () => {
+  const bowTactics = [
+    makeTactic("无当飞军", "将弓兵进阶为无当飞军：我军全体统率、速度提高，首回合对敌军群体施加中毒状态，每回合持续造成谋略伤害，持续3回合", "弓兵"),
+    makeTactic("锦帆军", "将弓兵进阶为锦帆军：部队普通攻击时有概率使目标进入溃逃状态；若甘宁统领，提高友军会心", "弓兵")
+  ];
+  const spearTactics = [
+    makeTactic("白毦兵", "将枪兵进阶为白毦兵：我军全体普通攻击后有概率再次发起谋略攻击", "枪兵"),
+    makeTactic("大戟士", "将枪兵进阶为大戟士：我军全体武力提高，普通攻击时有概率对敌军单体造成兵刃伤害", "枪兵")
+  ];
+  const bowMatched = simulateBattle(makePayload({
+    own: makeCustomLineup(["甲", "乙", "丙"], bowTactics, { troop: "弓兵" }),
+    enemy: makeCustomLineup(["丁", "戊", "己"], [], { troop: "枪兵" }),
+    seed: "P14弓兵匹配",
+    options: { maxRounds: 1 }
+  }));
+  const spearMatched = simulateBattle(makePayload({
+    own: makeCustomLineup(["甲", "乙", "丙"], spearTactics, { troop: "枪兵" }),
+    enemy: makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" }),
+    seed: "P14枪兵匹配",
+    options: { maxRounds: 1 }
+  }));
+  const mismatched = simulateBattle(makePayload({
+    own: makeCustomLineup(["甲", "乙", "丙"], [bowTactics[0]], { troop: "盾兵" }),
+    enemy: makeCustomLineup(["丁", "戊", "己"], [], { troop: "枪兵" }),
+    seed: "P14兵种不匹配",
+    options: { maxRounds: 1 }
+  }));
+  const bowActions = getActions(bowMatched);
+  const spearActions = getActions(spearMatched);
+  const mismatchedActions = getActions(mismatched);
+
+  assert.ok(bowActions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "无当飞军" && action.state === "持续伤害").length >= 2, "无当飞军应对敌军群体施加中毒近似持续伤害");
+  assert.ok(bowActions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "锦帆军" && action.state === "会心").length >= 3, "锦帆军应近似提高队伍会心");
+  assert.ok(spearActions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "白毦兵" && action.state === "奇谋").length >= 3, "白毦兵应近似普通攻击后的谋略追击能力");
+  assert.ok(spearActions.filter((action) => action.round === 0 && action.phase === "准备阶段" && action.tactic === "大戟士" && action.state === "增伤").length >= 3, "大戟士应近似普通攻击附加兵刃输出");
+  assert.ok(mismatched.assumptions.some((item) => item.includes("无当飞军") && item.includes("兵种不匹配") && item.includes("需要弓兵")), "兵种不匹配应记录弓兵要求");
+  assert.equal(mismatchedActions.some((action) => action.tactic === "无当飞军" && action.state === "持续伤害"), false, "兵种不匹配时无当飞军不应生效");
+  ["无当飞军", "锦帆军"].forEach((name) => {
+    assert.ok(bowMatched.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+  ["白毦兵", "大戟士"].forEach((name) => {
+    assert.ok(spearMatched.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P14 主动代表规则应覆盖属性偷取、准备控制、禁疗和群伤", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("夺魂挟魄", "100%概率发动，偷取敌军单体武力、智力、速度、统率，持续2回合，可叠加2次", "主动"),
+    makeTactic("威谋靡亢", "100%概率发动，准备1回合，对敌军群体2人施加虚弱状态，持续2回合；如果目标已处于虚弱状态则使其陷入叛逃状态", "主动"),
+    makeTactic("焚辎营垒", "100%概率发动，对敌军群体2人造成谋略伤害并使其进入禁疗状态，持续1回合", "主动"),
+    makeTactic("绝其汲道", "100%概率发动，准备1回合，对敌军群体2-3人造成一次兵刃攻击，使其进入禁疗状态，持续1回合", "主动")
+  ], { troops: [10000, 8400, 7600] });
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P14主动", options: { maxRounds: 2 } }));
+  const actions = getActions(result);
+
+  assert.ok(actions.some((action) => action.tactic === "夺魂挟魄" && action.state === "易伤"), "夺魂挟魄应以易伤近似属性偷取削弱");
+  assert.ok(actions.some((action) => action.tactic === "夺魂挟魄" && action.state === "增伤"), "夺魂挟魄应以增伤近似偷取属性收益");
+  assert.ok(actions.some((action) => action.round === 1 && action.type === "开始准备" && action.tactic === "威谋靡亢"), "威谋靡亢应先进入准备");
+  assert.ok(actions.some((action) => action.round === 2 && action.tactic === "威谋靡亢" && action.state === "虚弱"), "威谋靡亢准备完成后应施加虚弱");
+  assert.ok(actions.filter((action) => action.tactic === "焚辎营垒" && action.amount > 0 && action.damageType === "谋略").length >= 2, "焚辎营垒应造成敌军群体谋略伤害");
+  assert.ok(actions.some((action) => action.tactic === "焚辎营垒" && action.state === "禁疗"), "焚辎营垒应施加禁疗");
+  assert.ok(actions.some((action) => action.round === 1 && action.type === "开始准备" && action.tactic === "绝其汲道"), "绝其汲道应先进入准备");
+  assert.ok(actions.filter((action) => action.round === 2 && action.tactic === "绝其汲道" && action.amount > 0 && action.damageType === "兵刃").length >= 2, "绝其汲道准备完成后应造成群体兵刃伤害");
+  assert.ok(actions.some((action) => action.round === 2 && action.tactic === "绝其汲道" && action.state === "禁疗"), "绝其汲道准备完成后应施加禁疗");
+  ["夺魂挟魄", "威谋靡亢", "焚辎营垒", "绝其汲道"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P14 突击代表规则应在突击阶段造成追击并记录 explicit", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("鬼神霆威", "100%概率发动，普通攻击之后，对攻击目标再次发起一次兵刃攻击，自身为主将且目标兵力低于50%时额外提高伤害", "突击"),
+    makeTactic("克敌制胜", "100%概率发动，普通攻击之后，对攻击目标再次造成一次谋略伤害；若目标处于溃逃或中毒状态，则有70%概率使目标进入虚弱状态", "突击")
+  ]);
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵", troops: [4500, 10000, 10000] });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P14突击", options: { maxRounds: 1 } }));
+  const actions = getActions(result);
+
+  assert.equal(actions.some((action) => action.round === 0 && action.phase === "准备阶段" && ["鬼神霆威", "克敌制胜"].includes(action.tactic)), false, "突击战法不应在准备阶段触发");
+  assert.ok(actions.some((action) => action.phase === "突击" && action.tactic === "鬼神霆威" && action.amount > 0 && action.damageType === "兵刃"), "鬼神霆威应在突击阶段造成兵刃追击");
+  assert.ok(actions.some((action) => action.phase === "突击" && action.tactic === "克敌制胜" && action.amount > 0 && action.damageType === "谋略"), "克敌制胜应在突击阶段造成谋略追击");
+  ["鬼神霆威", "克敌制胜"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
 function getActions(result) {
   return result.rounds.flatMap((round) => round.actions.map((action) => ({ ...action, round: round.round, phase: round.phase })));
 }

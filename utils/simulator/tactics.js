@@ -766,6 +766,164 @@ function applyAssaultControl(context) {
   }, { source: tactic.name });
 }
 
+function getLowestRatioMember(members) {
+  return [...members].sort((a, b) => a.troops / a.maxTroops - b.troops / b.maxTroops)[0] || null;
+}
+
+function getHighestRatioMember(members) {
+  return [...members].sort((a, b) => b.troops / b.maxTroops - a.troops / a.maxTroops)[0] || null;
+}
+
+function applyJixing(context) {
+  const { state, actor, tactic, round, phase } = context;
+  const team = getTeam(state, actor.side);
+  const enemyCommander = getCommander(getEnemyTeam(state, actor.side));
+  if (enemyCommander) {
+    applyTacticState(state, round, phase, actor, tactic, enemyCommander, { type: "减伤", value: 0.2, remaining: 3 });
+  }
+  getDeputies(team).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "减伤", value: 0.09, remaining: 3 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的敌军主将输出降低当前按前 3 回合减伤状态近似，副将兵刃/谋略分项减伤暂按统一减伤处理。`);
+}
+
+function applySanshi(context) {
+  const { state, actor, tactic, round, phase } = context;
+  const team = getTeam(state, actor.side);
+  const commander = getCommander(team);
+  const deputies = getDeputies(team);
+  if (commander) applyTacticState(state, round, phase, actor, tactic, commander, { type: "增伤", value: 0.08, remaining: 5 });
+  const protectedDeputy = getLowestRatioMember(deputies);
+  const damageDeputy = deputies.find((target) => target !== protectedDeputy) || deputies[0];
+  if (protectedDeputy) applyTacticState(state, round, phase, actor, tactic, protectedDeputy, { type: "减伤", value: 0.15, remaining: 5 });
+  if (damageDeputy) applyTacticState(state, round, phase, actor, tactic, damageDeputy, { type: "增伤", value: 0.125, remaining: 5 });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的阵营差异、自带战法发动率和每回合副将轮换按前 5 回合增伤/减伤光环近似。`);
+}
+
+function applyWufeng(context) {
+  const { state, actor, tactic, round, phase } = context;
+  const team = getTeam(state, actor.side);
+  const commander = getCommander(team);
+  const deputies = getDeputies(team);
+  if (commander) applyTacticState(state, round, phase, actor, tactic, commander, { type: "减伤", value: 0.15, remaining: 5 });
+  const healingDeputy = getLowestRatioMember(deputies) || deputies[0];
+  const damageDeputy = getHighestRatioMember(deputies.filter((target) => target !== healingDeputy)) || deputies.find((target) => target !== healingDeputy);
+  if (healingDeputy) applyTacticState(state, round, phase, actor, tactic, healingDeputy, { type: "休整", value: 92, remaining: 5 });
+  if (damageDeputy) applyTacticState(state, round, phase, actor, tactic, damageDeputy, { type: "增伤", value: 0.075, remaining: 5 });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的战法目标牵引、兵种适性高低和奇偶回合效果按主将减伤、副将休整/增伤近似。`);
+}
+
+function applyWudang(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getRandomTargets(random, getEnemyTeam(state, actor.side), 2).forEach((target) => {
+    applyState(state, round, phase, actor, target, {
+      type: "持续伤害",
+      value: 40,
+      remaining: 3,
+      source: tactic.name,
+      damageType: "谋略"
+    }, { source: tactic.name });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的统率和速度提高暂不直接改写属性，按开局群体中毒持续伤害体现主要收益。`);
+}
+
+function applyBaier(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "奇谋", value: 0.2, multiplier: 1.25, remaining: 8 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的普攻后概率谋略追击按全队奇谋收益近似。`);
+}
+
+function applyDaji(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "增伤", value: 0.08, remaining: 8 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的武力提高和普攻附加兵刃伤害按全队增伤近似。`);
+}
+
+function applyJinfanjun(context) {
+  const { state, actor, tactic, round, phase } = context;
+  if (!isTroopRequirementMatched(state, actor, tactic)) return false;
+  getAliveMembers(getTeam(state, actor.side)).forEach((target) => {
+    applyTacticState(state, round, phase, actor, tactic, target, { type: "会心", value: 0.12, multiplier: 1.35, remaining: 8 });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的普攻溃逃、已溃逃追击和甘宁会心加成按全队会心近似。`);
+}
+
+function applyDuohun(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  const target = getRandomTargets(random, getEnemyTeam(state, actor.side), 1)[0];
+  if (!target) return false;
+  applyState(state, round, phase, actor, target, {
+    type: "易伤",
+    value: 0.16,
+    remaining: 2,
+    source: tactic.name
+  }, { source: tactic.name });
+  applyTacticState(state, round, phase, actor, tactic, actor, { type: "增伤", value: 0.12, remaining: 2 });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的四维偷取和可叠加层数按自身增伤与目标易伤近似。`);
+}
+
+function applyWeimou(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  getRandomTargets(random, getEnemyTeam(state, actor.side), 2).forEach((target) => {
+    if (hasState(target, "虚弱")) {
+      applyState(state, round, phase, actor, target, {
+        type: "叛逃",
+        value: 79,
+        remaining: 2,
+        source: tactic.name,
+        damageType: "兵刃"
+      }, { source: tactic.name });
+      return;
+    }
+    applyState(state, round, phase, actor, target, { type: "虚弱", value: 1, remaining: 2, source: tactic.name }, { source: tactic.name });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的最高属性叛逃与无视防御按叛逃持续伤害近似，准备流程仍使用通用 pending 队列。`);
+}
+
+function applyFenzi(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  getRandomTargets(random, getEnemyTeam(state, actor.side), 2).forEach((target) => {
+    applyDamage(state, round, phase, actor, target, { rate: 73, damageType: "谋略", random, source: tactic.name, actionType: tactic.type || "主动" });
+    applyState(state, round, phase, actor, target, { type: "禁疗", value: 1, remaining: 1, source: tactic.name }, { source: tactic.name });
+  });
+}
+
+function applyJueqi(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  getRandomTargets(random, getEnemyTeam(state, actor.side), 3).forEach((target) => {
+    applyDamage(state, round, phase, actor, target, { rate: 81, damageType: "兵刃", random, source: tactic.name, actionType: tactic.type || "主动" });
+    applyState(state, round, phase, actor, target, { type: "禁疗", value: 1, remaining: 1, source: tactic.name }, { source: tactic.name });
+  });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的 2-3 人目标随机性按最多 3 人结算，准备流程仍使用通用 pending 队列。`);
+}
+
+function applyGuishen(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  const target = getRandomTargets(random, getEnemyTeam(state, actor.side), 1)[0];
+  if (!target) return false;
+  const executeBonus = actor.position === 0 && target.troops / target.maxTroops < 0.5 ? 25 : 0;
+  applyDamage(state, round, phase, actor, target, { rate: 102 + executeBonus, damageType: "兵刃", random, source: tactic.name, actionType: "突击" });
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的目标损兵动态增伤按低于 50% 兵力时固定额外伤害率近似。`);
+}
+
+function applyKedi(context) {
+  const { state, actor, tactic, round, phase, random } = context;
+  const target = getRandomTargets(random, getEnemyTeam(state, actor.side), 1)[0];
+  if (!target) return false;
+  applyDamage(state, round, phase, actor, target, { rate: 90, damageType: "谋略", random, source: tactic.name, actionType: "突击" });
+  if ((hasState(target, "持续伤害") || hasState(target, "叛逃") || hasState(target, "灼烧")) && random() < 0.7) {
+    applyState(state, round, phase, actor, target, { type: "虚弱", value: 1, remaining: 1, source: tactic.name }, { source: tactic.name });
+  }
+  addAssumptionOnce(state, `${getTacticName(tactic)} 的溃逃/中毒判定按持续伤害类状态近似。`);
+}
+
 const EXPLICIT_RULES = [
   { names: ["盛气凌敌"], apply: applyShengqi },
   { names: ["横扫千军"], apply: applyHengsao },
@@ -790,6 +948,19 @@ const EXPLICIT_RULES = [
   { names: ["所向披靡"], apply: applySuoxiang },
   { names: ["据水断桥"], apply: applyJushui },
   { names: ["暴戾无仁", "速乘其利", "弯弓饮羽"], apply: applyAssaultControl },
+  { names: ["箕形阵"], apply: applyJixing },
+  { names: ["三势阵"], apply: applySanshi },
+  { names: ["武锋阵"], apply: applyWufeng },
+  { names: ["无当飞军"], apply: applyWudang },
+  { names: ["白毦兵"], apply: applyBaier },
+  { names: ["大戟士"], apply: applyDaji },
+  { names: ["锦帆军"], apply: applyJinfanjun },
+  { names: ["夺魂挟魄"], apply: applyDuohun },
+  { names: ["威谋靡亢"], apply: applyWeimou },
+  { names: ["焚辎营垒"], apply: applyFenzi },
+  { names: ["绝其汲道"], apply: applyJueqi },
+  { names: ["鬼神霆威"], apply: applyGuishen },
+  { names: ["克敌制胜"], apply: applyKedi },
   { names: ["坐断东南"], apply: applyZuoduan },
   { names: ["神射", "兵锋", "裸衣血战"], apply: applyComboRule },
   { names: ["一身是胆"], apply: applyInsightRule },
