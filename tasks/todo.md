@@ -150,7 +150,7 @@
 - [x] 15.6 更新模拟器规格与 P15 验证记录
 - [x] 15.7 运行 simulator、server、全量测试和 H5/后台构建验证
 - [x] 15.8 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
-- [ ] 15.9 创建中文 commit，不执行 push
+- [x] 15.9 创建中文 commit，不执行 push
 
 ## Review
 
