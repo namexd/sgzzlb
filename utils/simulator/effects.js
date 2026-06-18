@@ -34,7 +34,7 @@ function getTroopCounterFactor(attackerTroop, defenderTroop) {
 }
 
 function addOrRefreshState(target, nextState) {
-  const existing = target.states.find((state) => state.type === nextState.type);
+  const existing = target.states.find((state) => state.type === nextState.type && state.source === nextState.source);
   if (existing) {
     existing.value = Math.max(Number(existing.value) || 0, Number(nextState.value) || 0);
     existing.remaining = Math.max(existing.remaining, nextState.remaining);
@@ -53,12 +53,28 @@ function addOrRefreshState(target, nextState) {
   return nextState;
 }
 
+function getStateTotal(member, type) {
+  return (member.states || [])
+    .filter((state) => state.type === type && state.remaining > 0)
+    .reduce((total, state) => total + (Number(state.value) || 0), 0);
+}
+
+function getEffectiveAttribute(member, attribute) {
+  const base = Number(member.stats && member.stats[attribute]) || 0;
+  const labels = { force: "武力", intellect: "智力", command: "统率", speed: "速度" };
+  const label = labels[attribute];
+  if (!label) return base;
+  const specific = getStateTotal(member, `${label}提升`) - getStateTotal(member, `${label}降低`);
+  const generic = getStateTotal(member, "属性提升") - getStateTotal(member, "属性降低");
+  return Math.max(1, base + specific + generic);
+}
+
 function getDamageAttribute(attacker, damageType) {
-  return damageType === "谋略" ? attacker.stats.intellect : attacker.stats.force;
+  return damageType === "谋略" ? getEffectiveAttribute(attacker, "intellect") : getEffectiveAttribute(attacker, "force");
 }
 
 function getDefenseAttribute(defender, damageType) {
-  return damageType === "谋略" ? defender.stats.intellect : defender.stats.command;
+  return damageType === "谋略" ? getEffectiveAttribute(defender, "intellect") : getEffectiveAttribute(defender, "command");
 }
 
 function calculateDamage({ attacker, defender, rate = 100, damageType = "兵刃", random }) {
@@ -153,7 +169,7 @@ function applyDamage(state, round, phase, attacker, defender, options = {}) {
 }
 
 function calculateHealing({ healer, target, rate = 100, random }) {
-  const intellectFactor = clamp(0.72 + (healer.stats.intellect || 70) / 180, 0.75, 1.55);
+  const intellectFactor = clamp(0.72 + (getEffectiveAttribute(healer, "intellect") || 70) / 180, 0.75, 1.55);
   const strengthFactor = clamp(0.55 + (healer.troops / healer.maxTroops) * 0.45, 0.4, 1);
   return Math.max(1, Math.round(rate * 7.2 * intellectFactor * strengthFactor * randomBetween(random, 0.9, 1.1)));
 }
@@ -276,6 +292,7 @@ function applyOngoingDamage(state, round, phase, target, effect, random) {
     actor: sourceName,
     target: target.name,
     type: effect.type,
+    tactic: effect.source,
     damageType,
     amount,
     text: `${target.name}受到${sourceName}的${effect.type}影响，损失 ${amount} 兵力。`

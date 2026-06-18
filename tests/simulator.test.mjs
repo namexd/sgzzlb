@@ -629,6 +629,121 @@ test("P14 突击代表规则应在突击阶段造成追击并记录 explicit", (
   });
 });
 
+
+test("P15 发动率修正状态应影响主动战法触发判定", () => {
+  const state = createTestState({
+    ownTactics: [makeTactic("测试发动率主动", "50%概率发动，对敌军单体造成伤害率120%的兵刃伤害", "主动")]
+  });
+  const actor = state.teams.own.members[0];
+  addOrRefreshState(actor, { type: "发动率提升", value: 0.35, remaining: 2, source: "测试发动率" });
+
+  applyActiveTactics(state, actor, 1, "主动", () => 0.6);
+  const actions = state.rounds.flatMap((round) => round.actions.map((action) => ({ ...action, round: round.round, phase: round.phase })));
+
+  assert.equal(actions.some((action) => action.type === "未发动" && action.tactic === "测试发动率主动"), false, "发动率提升后不应按原始 50% 判失败");
+  assert.ok(actions.some((action) => action.tactic === "测试发动率主动" && action.amount > 0), "发动率提升后应触发主动战法伤害");
+});
+
+test("P15 属性提升和降低状态应实际影响伤害计算", () => {
+  const normalState = createTestState();
+  const adjustedState = createTestState();
+  const normalActor = normalState.teams.own.members[0];
+  const normalTarget = normalState.teams.enemy.members[0];
+  const adjustedActor = adjustedState.teams.own.members[0];
+  const adjustedTarget = adjustedState.teams.enemy.members[0];
+  addOrRefreshState(adjustedActor, { type: "武力提升", value: 45, remaining: 2, source: "测试属性提升" });
+  addOrRefreshState(adjustedTarget, { type: "统率降低", value: 35, remaining: 2, source: "测试属性降低" });
+
+  const normalDamage = applyDamage(normalState, 1, "主动", normalActor, normalTarget, { rate: 120, damageType: "兵刃", random: () => 0.5 });
+  const adjustedDamage = applyDamage(adjustedState, 1, "主动", adjustedActor, adjustedTarget, { rate: 120, damageType: "兵刃", random: () => 0.5 });
+
+  assert.ok(adjustedDamage > normalDamage, "武力提升和统率降低应提高同 seed 下的兵刃伤害");
+});
+
+test("P15 剩余 missed 战斗战法应进入 explicit 并产生可验证状态", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("舌战群儒", "战斗中，敌军尝试发动主动战法时有概率使其发动率降低，并提高我军主动战法发动率", "指挥"),
+    makeTactic("智计", "100%概率发动，使敌军群体2人武力、智力降低，持续2回合，可叠加", "主动"),
+    makeTactic("竭力佐谋", "100%概率发动，降低敌方智力最高单体智力，并提高自身本回合主动战法发动率", "主动"),
+    makeTactic("顾盼生姿", "100%概率发动，偷取敌军男性武将智力给自身和友军单体，持续2回合，可叠加", "主动")
+  ]);
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], {
+    troop: "骑兵",
+    stats: [{ intellect: 120 }, { intellect: 92 }, { intellect: 88 }]
+  });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P15 missed战斗", options: { maxRounds: 1 } }));
+  const actions = getActions(result);
+
+  assert.ok(actions.some((action) => action.round === 0 && action.tactic === "舌战群儒" && action.state === "发动率提升"), "舌战群儒应提高我方主动发动率");
+  assert.ok(actions.some((action) => action.round === 0 && action.tactic === "舌战群儒" && action.state === "发动率降低"), "舌战群儒应压制敌方主动发动率");
+  assert.ok(actions.filter((action) => action.tactic === "智计" && action.state === "武力降低").length >= 2, "智计应降低敌军群体武力");
+  assert.ok(actions.filter((action) => action.tactic === "智计" && action.state === "智力降低").length >= 2, "智计应降低敌军群体智力");
+  assert.ok(actions.some((action) => action.tactic === "竭力佐谋" && action.state === "智力降低" && action.target === "丁"), "竭力佐谋应优先降低敌方高智力目标");
+  assert.ok(actions.some((action) => action.tactic === "竭力佐谋" && action.state === "发动率提升"), "竭力佐谋应提高自身主动发动率");
+  assert.ok(actions.some((action) => action.tactic === "顾盼生姿" && action.state === "智力提升"), "顾盼生姿应给己方提供智力偷取收益");
+  assert.ok(actions.some((action) => action.tactic === "顾盼生姿" && action.state === "智力降低"), "顾盼生姿应降低敌方智力");
+  ["舌战群儒", "智计", "竭力佐谋", "顾盼生姿"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P15 内政战法应作为 non-combat explicit no-op 记录且不制造战斗收益", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("清流雅望", "委任为冶铁官时，铁矿产量提升", "内政"),
+    makeTactic("功勋克举", "委任为主政官时，全资源产量提升", "内政")
+  ]);
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P15内政", options: { maxRounds: 1 } }));
+  const actions = getActions(result).filter((action) => ["清流雅望", "功勋克举"].includes(action.tactic));
+
+  assert.ok(actions.length >= 2, "内政战法应记录为战斗不结算事件");
+  assert.equal(actions.some((action) => action.amount > 0 || action.state), false, "内政 no-op 不应制造伤害、治疗或状态");
+  assert.ok(result.assumptions.some((item) => item.includes("内政") && item.includes("不参与战斗模拟")), "应说明内政战法不参与战斗模拟");
+  ["清流雅望", "功勋克举"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P15 高影响阵法和指挥 fallback 应推进 explicit", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("潜龙阵", "我军三名武将阵营均不同时，主将属性提高但造成伤害降低，副将造成伤害提高并受到伤害降低", "阵法"),
+    makeTactic("形一阵", "我军三名武将自带战法类型相同时，提高最高属性，并按回合变化增伤和减伤", "阵法"),
+    makeTactic("工神", "战斗前3回合我军全体获得先攻，主将和副将造成伤害提高，第4回合起造成伤害降低", "指挥"),
+    makeTactic("乱世奸雄", "提高友军群体兵刃和谋略伤害，并降低自身受到伤害；副将造成伤害时为主将恢复兵力", "指挥")
+  ], { troops: [8200, 10000, 9300] });
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P15阵法指挥", options: { maxRounds: 1 } }));
+  const actions = getActions(result);
+
+  assert.ok(actions.some((action) => action.round === 0 && action.tactic === "潜龙阵" && action.state === "属性提升"), "潜龙阵应近似主将属性提升");
+  assert.ok(actions.some((action) => action.round === 0 && action.tactic === "形一阵" && action.state === "属性提升"), "形一阵应近似最高属性提升");
+  assert.ok(actions.filter((action) => action.round === 0 && action.tactic === "工神" && action.state === "先攻").length >= 3, "工神应给全体先攻");
+  assert.ok(actions.some((action) => action.round === 0 && action.tactic === "乱世奸雄" && action.state === "持续治疗"), "乱世奸雄应近似副将伤害转治疗");
+  ["潜龙阵", "形一阵", "工神", "乱世奸雄"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
+test("P15 高影响主动 fallback 应推进 explicit 并复用准备机制", () => {
+  const own = makeCustomLineup(["甲", "乙", "丙"], [
+    makeTactic("火烧连营", "100%概率发动，对敌军单体施加灼烧；若目标已有灼烧则触发焚营，对敌军群体造成谋略伤害并概率震慑", "主动"),
+    makeTactic("威震华夏", "100%概率发动，准备1回合，对敌军全体造成兵刃伤害，并概率施加缴械和计穷，自身兵刃伤害提高", "主动"),
+    makeTactic("五雷轰顶", "100%概率发动，准备1回合，对敌军随机单体发动5次谋略攻击，并概率使其震慑", "主动")
+  ]);
+  const enemy = makeCustomLineup(["丁", "戊", "己"], [], { troop: "骑兵" });
+  const result = simulateBattle(makePayload({ own, enemy, seed: "P15主动fallback", options: { maxRounds: 2 } }));
+  const actions = getActions(result);
+
+  assert.ok(actions.some((action) => action.tactic === "火烧连营" && action.state === "灼烧"), "火烧连营应施加灼烧");
+  assert.ok(actions.some((action) => action.round === 1 && action.type === "开始准备" && action.tactic === "威震华夏"), "威震华夏应先进入准备");
+  assert.ok(actions.filter((action) => action.round === 2 && action.tactic === "威震华夏" && action.amount > 0 && action.damageType === "兵刃").length >= 3, "威震华夏准备完成后应造成全体兵刃伤害");
+  assert.ok(actions.some((action) => action.round === 1 && action.type === "开始准备" && action.tactic === "五雷轰顶"), "五雷轰顶应先进入准备");
+  assert.ok(actions.filter((action) => action.round === 2 && action.tactic === "五雷轰顶" && action.amount > 0 && action.damageType === "谋略").length >= 3, "五雷轰顶准备完成后应造成多段谋略伤害");
+  ["火烧连营", "威震华夏", "五雷轰顶"].forEach((name) => {
+    assert.ok(result.ruleCoverage.coverageByTactic.some((item) => item.tacticName === name && item.status === "explicit"), `${name} 应标记 explicit`);
+  });
+});
+
 function getActions(result) {
   return result.rounds.flatMap((round) => round.actions.map((action) => ({ ...action, round: round.round, phase: round.phase })));
 }

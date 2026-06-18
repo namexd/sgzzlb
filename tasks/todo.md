@@ -140,6 +140,18 @@
 - [x] 14.8 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
 - [x] 14.9 创建中文 commit，不执行 push
 
+## P15：战报模拟器机制深水区与覆盖缺口持续补强
+
+- [x] 15.1 记录 P15 实施范围、验收标准和验证命令
+- [x] 15.2 复核 published 版本覆盖基线和 P15 候选规则
+- [x] 15.3 补充发动率修正、属性增减、missed 战斗战法、内政 no-op 和高影响 fallback 回归测试
+- [x] 15.4 实现 P15 最小机制补强和显式规则，不重写主流程
+- [x] 15.5 复核 ruleCoverage 分类、published catalog 数据源和 assumptions 边界
+- [x] 15.6 更新模拟器规格与 P15 验证记录
+- [x] 15.7 运行 simulator、server、全量测试和 H5/后台构建验证
+- [x] 15.8 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
+- [ ] 15.9 创建中文 commit，不执行 push
+
 ## Review
 
 ### 已完成
@@ -267,6 +279,14 @@
     - 新增暴戾无仁、速乘其利、弯弓饮羽等突击代表规则，仅在突击阶段触发伤害与控制。
     - 伤害、治疗和状态日志补充 `tactic` 来源字段，便于前台回合日志和测试按战法追踪效果。
 
+
+22. **P15 机制深水区与覆盖缺口补强**：
+    - 新增发动率修正状态，主动和突击战法触发概率会受 `发动率提升/降低` 影响，准备战法仍遵循“判定发动 → 准备 → 释放”的既有队列。
+    - 新增有效属性计算，`武力/智力/统率/属性` 提升或降低会实际影响兵刃伤害、谋略伤害和治疗量，而不是只写日志。
+    - 清理剩余战斗 `missed`：`舌战群儒`、`智计`、`竭力佐谋`、`顾盼生姿` 均进入 explicit，并通过状态、发动率或属性效果验证。
+    - 将 `清流雅望`、`功勋克举`、`国色`、`花容月貌`、`七步成诗`、`水镜先生`、`克遵画一`、`王佐之才`、`奇施经略`、`天香`、`戮力上国`、`晓知良木`、`经术政要`、`仓廪而实` 标为内政/非战斗 explicit no-op，不再污染战斗规则缺口。
+    - 新增 `潜龙阵`、`形一阵`、`工神`、`乱世奸雄`、`火烧连营`、`威震华夏`、`五雷轰顶` 显式规则；公开资料无法精确还原的条件、目标权重和隐藏系数继续写入 assumptions。
+
 ### 验证结果
 
 - `node tests/simulator.test.mjs` 通过 33/33，新增覆盖 P13 指挥/阵法、兵种、主动和突击代表显式规则。
@@ -336,6 +356,16 @@
 - `npm test` 全部通过，覆盖 catalog、catalogDiff、catalogVersionStore、scoring、simulator 28/28、server 23/23、drawStorage。
 - `npm --prefix src run build:h5` 构建成功。
 - `npm --prefix admin run build` 构建成功，仅保留依赖 pure annotation 与 chunk 体积既有警告。
+
+
+- P15 本地规则覆盖复核通过：`total=221`、`explicit=87`、`fallback=134`、`missed=0`；`舌战群儒`、`智计`、`竭力佐谋`、`顾盼生姿`、`潜龙阵`、`形一阵`、`工神`、`乱世奸雄`、`火烧连营`、`威震华夏`、`五雷轰顶` 以及内政 no-op 代表项均为 `explicit` / `explicit-rule`。
+- `node tests/simulator.test.mjs` 通过 43/43，新增覆盖 P15 发动率修正、属性增减、剩余 missed 战斗战法、内政 no-op、高影响阵法/指挥和主动准备规则。
+
+- P15 本地完整验证通过：`node tests/simulator.test.mjs` 43/43、`node tests/server.test.mjs` 23/23、`npm test` 全部通过，`npm --prefix src run build:h5` 和 `npm --prefix admin run build` 构建成功；后台构建仅保留既有 `@vueuse/core` pure annotation 与 chunk 体积警告。
+
+- P15 已部署到生产服务器：`./scripts/deploy.sh` 执行成功，PM2 `sgzzlb-server` online；线上 `GET https://sz.qihangwk.com/health` 返回 `ok`，`GET /api/v1/catalog/summary` 继续命中数据库 published catalog snapshot `cv_1781684387650_jblo3z`。
+- P15 线上 coverage 复验通过：published 版本统计为 `total=221`、`explicit=87`、`fallback=134`、`missed=0`、`todo=20`，`舌战群儒`、`智计`、`竭力佐谋`、`顾盼生姿`、`潜龙阵`、`形一阵`、`工神`、`乱世奸雄`、`火烧连营`、`威震华夏`、`五雷轰顶` 以及内政 no-op 代表项均为 `explicit` / `explicit-rule`。
+- P15 线上真实战报模拟冒烟通过：响应使用数据库 `published` catalog snapshot，回合日志包含发动率提升/降低、武力/智力降低、属性提升、内政 `战斗不结算`、准备完成、伤害、控制和持续治疗等 P15 规则效果，`ruleCoverage.coverageByTactic` 中相关战法均为 `explicit` / `explicit-rule`。
 
 ### 剩余任务（非代码层面）
 
