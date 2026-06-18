@@ -122,6 +122,33 @@ const ENEMY_PAYLOAD = {
   tacticIds: tactics.slice(6, 12).map((item) => item.id)
 };
 
+
+function makeLargeOptimizationSnapshot(label) {
+  const baseTroops = [
+    { spear: "S", cavalry: "A", shield: "A", bow: "B" },
+    { spear: "A", cavalry: "S", shield: "A", bow: "B" },
+    { spear: "A", cavalry: "A", shield: "S", bow: "B" },
+    { spear: "B", cavalry: "A", shield: "A", bow: "S" }
+  ];
+  return {
+    meta: { source: "test" },
+    generals: Array.from({ length: 9 }, (_, index) => ({
+      id: `${label}-g${index + 1}`,
+      name: `${label}武将${index + 1}`,
+      stats: { force: 90 - index, intellect: 80 + index, command: 85, speed: 70 - index },
+      arms: baseTroops[index % baseTroops.length]
+    })),
+    tactics: Array.from({ length: 18 }, (_, index) => ({
+      id: `${label}-t${index + 1}`,
+      name: `${label}战法${index + 1}`,
+      type: index % 3 === 0 ? "主动" : index % 3 === 1 ? "指挥" : "被动",
+      description: index % 2 === 0 ? "造成兵刃伤害" : "造成的伤害提高"
+    })),
+    troopTactics: [],
+    equipment: []
+  };
+}
+
 function makeCatalogSnapshotForOptimization(label) {
   const snapshot = makeCatalogSnapshot(label);
   return {
@@ -682,6 +709,94 @@ test("保存资产审核后重建 app 仍能读到", async () => {
     }
   });
 });
+test("P17 账号优化支持目标队数、排除项和稳定响应结构", async () => {
+  await withServer(async (baseUrl) => {
+    const seasonKey = `p17-optimize-${Date.now()}`;
+    const snapshot = makeLargeOptimizationSnapshot("p17opt");
+    const version = await publishCatalogVersion(baseUrl, {
+      seasonKey,
+      seasonLabel: "P17配将",
+      versionKey: `${seasonKey}-v1`,
+      snapshot
+    });
+
+    const optimizeRes = await httpRequest(baseUrl, "/api/v1/accounts/optimize", {
+      method: "POST",
+      body: {
+        catalogVersionId: version.id,
+        scenario: "pk",
+        targetLineupCount: 1,
+        generalIds: snapshot.generals.map((item) => item.id),
+        tacticIds: snapshot.tactics.map((item) => item.id),
+        options: {
+          excludedGeneralIds: [snapshot.generals[0].id],
+          excludedTacticIds: [snapshot.tactics[0].id],
+          preferredTroop: "枪兵"
+        }
+      }
+    });
+
+    assert.equal(optimizeRes.statusCode, 200);
+    assert.equal(optimizeRes.body.status, "ok");
+    assert.equal(optimizeRes.body.catalogContext.catalogVersionId, version.id);
+    assert.equal(optimizeRes.body.summary.targetLineupCount, 1);
+    assert.equal(optimizeRes.body.summary.generatedLineupCount, optimizeRes.body.lineups.length);
+    assert.ok(optimizeRes.body.lineups.length <= 1);
+    assert.ok(Array.isArray(optimizeRes.body.warnings));
+    assert.ok(optimizeRes.body.lineups.every((lineup) => !lineup.generalIds.includes(snapshot.generals[0].id)));
+    assert.ok(optimizeRes.body.lineups.every((lineup) => !lineup.tacticIds.includes(snapshot.tactics[0].id)));
+    assert.ok(Array.isArray(optimizeRes.body.unused.generalIds));
+    assert.ok(Array.isArray(optimizeRes.body.unused.tacticIds));
+    assert.ok(optimizeRes.body.lineups[0].rank >= 1);
+    assert.ok(Array.isArray(optimizeRes.body.lineups[0].reasons));
+  });
+});
+
+test("P17 账号优化裁剪目标队数并在库存不足时返回稳定结构", async () => {
+  await withServer(async (baseUrl) => {
+    const seasonKey = `p17-insufficient-${Date.now()}`;
+    const snapshot = makeLargeOptimizationSnapshot("p17few");
+    const version = await publishCatalogVersion(baseUrl, {
+      seasonKey,
+      seasonLabel: "P17库存不足",
+      versionKey: `${seasonKey}-v1`,
+      snapshot
+    });
+
+    const cappedRes = await httpRequest(baseUrl, "/api/v1/accounts/optimize", {
+      method: "POST",
+      body: {
+        season: seasonKey,
+        targetLineupCount: 99,
+        generalIds: snapshot.generals.map((item) => item.id),
+        tacticIds: snapshot.tactics.map((item) => item.id)
+      }
+    });
+
+    assert.equal(cappedRes.statusCode, 200);
+    assert.equal(cappedRes.body.catalogContext.catalogVersionId, version.id);
+    assert.equal(cappedRes.body.summary.targetLineupCount, 3);
+    assert.ok(cappedRes.body.lineups.length <= 3);
+
+    const insufficientRes = await httpRequest(baseUrl, "/api/v1/accounts/optimize", {
+      method: "POST",
+      body: {
+        catalogVersionId: version.id,
+        generalIds: snapshot.generals.slice(0, 2).map((item) => item.id),
+        tacticIds: snapshot.tactics.slice(0, 6).map((item) => item.id)
+      }
+    });
+
+    assert.equal(insufficientRes.statusCode, 200);
+    assert.equal(insufficientRes.body.status, "insufficient");
+    assert.equal(insufficientRes.body.catalogContext.catalogVersionId, version.id);
+    assert.equal(insufficientRes.body.summary.generatedLineupCount, 0);
+    assert.ok(Array.isArray(insufficientRes.body.warnings));
+    assert.ok(Array.isArray(insufficientRes.body.unused.generalIds));
+    assert.ok(Array.isArray(insufficientRes.body.unused.tacticIds));
+  });
+});
+
 
 test("阵容 API 使用 MySQL 存储：保存、查询、删除", async () => {
   await withServer(async (baseUrl) => {

@@ -422,6 +422,7 @@
 <script>
 import catalog from "../../utils/catalog";
 import { getEntitlements } from "../../utils/subscription";
+import { removeStorage } from "../../utils/storage";
 import {
   previewMatchupAsync,
   simulateBattleAsync,
@@ -710,7 +711,15 @@ export default {
   },
 
   onShow() {
-    const saved = uni.getStorageSync("savedLineups") || [];
+    const pending = uni.getStorageSync("pendingMatchupLineup") || null;
+    const pendingAction = uni.getStorageSync("pendingMatchupAction") || "";
+    let saved = uni.getStorageSync("savedLineups") || [];
+    if (pending && pending.id) {
+      saved = [pending, ...saved.filter((item) => item.id !== pending.id)];
+      uni.setStorageSync("savedLineups", saved);
+      removeStorage("pendingMatchupLineup");
+      removeStorage("pendingMatchupAction");
+    }
     const savedView = saved.map((item) => ({
       ...item,
       generalsText: (item.generals || []).join(" / ")
@@ -719,7 +728,7 @@ export default {
     this.simulationRemoteMode = isRemoteMode();
     if (this.simulationRemoteMode) this.loadCatalogVersions();
     this.savedLineups = savedView;
-    this.refresh();
+    this.refresh(pendingAction === "simulate");
   },
 
   methods: {
@@ -788,7 +797,7 @@ export default {
       this.refresh();
     },
 
-    refresh() {
+    refresh(openSimulationAfterLoad = false) {
       const saved = this.savedLineups.length ? this.savedLineups : [];
       const ownInput = saved.length ? this.savedToInput(saved[0]) : this.defaultOwnInput();
 
@@ -817,6 +826,7 @@ export default {
           this.ownSummary = this.toSummary(saved[0], ownInput, preview.own);
           this.enemySummary = this.toSummary({ name: enemyName }, enemyInput, preview.enemy);
           this.result = preview.result;
+          if (openSimulationAfterLoad) this.openSimulation();
         })
         .catch(() => {
           this.isLoading = false;
@@ -838,9 +848,9 @@ export default {
       const tactics = saved.tactics || [];
       return {
         troop: saved.troop || "骑兵",
-        scenario: saved.scenario === "开荒" ? "pioneer" : saved.scenario === "打架" ? "war" : "pk",
-        generalIds: this.namesToGeneralIds(generals),
-        tacticIds: this.namesToTacticIds(tactics),
+        scenario: saved.scenarioId || (saved.scenario === "开荒" ? "pioneer" : saved.scenario === "打架" ? "war" : "pk"),
+        generalIds: (saved.generalIds && saved.generalIds.length ? saved.generalIds : this.namesToGeneralIds(generals)).slice(0, 3),
+        tacticIds: (saved.tacticIds && saved.tacticIds.length ? saved.tacticIds : this.namesToTacticIds(tactics)).slice(0, 6),
         redLevels: [0, 0, 0]
       };
     },

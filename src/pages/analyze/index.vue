@@ -197,7 +197,7 @@ import catalog from "../../utils/catalog";
 import { getEntitlements } from "../../utils/subscription";
 import { getOriginalCardStyle, getCardImageUrl } from "../../utils/assetPolicy";
 import { analyzeLineupAsync, isRemoteMode, saveLineupAsync } from "../../services/api";
-import { getStorage, setStorage } from "../../utils/storage";
+import { getStorage, setStorage, removeStorage } from "../../utils/storage";
 import SearchPicker from "../../components/search-picker.vue";
 
 const SCENARIOS = [
@@ -345,6 +345,7 @@ export default {
 
   onShow() {
     this.entitlements = getEntitlements();
+    this.applyPendingAnalyzeLineup();
     if (this.report) {
       this.updateVisibleReplacements(this.report);
     }
@@ -370,6 +371,39 @@ export default {
         const found = tactics.findIndex((item) => item.name === wanted);
         return found >= 0 ? found : index;
       });
+    },
+
+    applyPendingAnalyzeLineup() {
+      const pending = getStorage("pendingAnalyzeLineup");
+      if (!pending) return;
+      const generalIds = pending.generalIds || [];
+      const tacticIds = pending.tacticIds || [];
+      if (generalIds.length >= 3) {
+        const indexes = generalIds.slice(0, 3).map((id, fallback) => {
+          const index = this.generals.findIndex((item) => item.id === id || item.name === id);
+          return index >= 0 ? index : this.selectedGeneralIndexes[fallback];
+        });
+        this.selectedGeneralIndexes = indexes;
+      }
+      if (tacticIds.length >= 6) {
+        const indexes = tacticIds.slice(0, 6).map((id, fallback) => {
+          const index = this.tactics.findIndex((item) => item.id === id || item.name === id);
+          return index >= 0 ? index : this.selectedTacticIndexes[fallback];
+        });
+        this.selectedTacticIndexes = indexes;
+      }
+      if (pending.scenarioId) {
+        const scenarioIndex = this.scenarios.findIndex((item) => item.id === pending.scenarioId);
+        if (scenarioIndex >= 0) this.scenarioIndex = scenarioIndex;
+      }
+      if (pending.troop) {
+        const troopIndex = this.troops.findIndex((item) => item === pending.troop);
+        if (troopIndex >= 0) this.troopIndex = troopIndex;
+      }
+      this.report = null;
+      removeStorage("pendingAnalyzeLineup");
+      this.refreshSelection();
+      uni.showToast({ title: "已载入推荐阵容", icon: "none" });
     },
 
     refreshSelection() {

@@ -152,6 +152,23 @@
 - [x] 15.8 部署到服务器并完成 health、catalog、coverage、战报模拟冒烟
 - [x] 15.9 创建中文 commit，不执行 push
 
+
+## P16：配将功能需求文档与实现规划
+
+- [x] 16.1 生成配将功能需求规格文档
+- [x] 16.2 在路线图中增加配将功能阶段入口
+- [x] 16.3 在 API 文档中补充配将推荐规划
+- [x] 16.4 基于需求文档进入配将一期实现计划
+
+## P17：智能配将一期功能闭环
+
+- [x] 17.1 增强 optimizer 入参与稳定输出
+- [x] 17.2 新增前台智能配将页面和账号页入口
+- [x] 17.3 支持推荐结果保存、评分、对位和战报模拟跳转
+- [x] 17.4 补充 accounts/optimize 回归测试
+- [x] 17.5 运行测试和前端构建验证
+- [x] 17.6 更新 Review 记录并创建中文 commit，不执行 push
+
 ## Review
 
 ### 已完成
@@ -287,6 +304,19 @@
     - 将 `清流雅望`、`功勋克举`、`国色`、`花容月貌`、`七步成诗`、`水镜先生`、`克遵画一`、`王佐之才`、`奇施经略`、`天香`、`戮力上国`、`晓知良木`、`经术政要`、`仓廪而实` 标为内政/非战斗 explicit no-op，不再污染战斗规则缺口。
     - 新增 `潜龙阵`、`形一阵`、`工神`、`乱世奸雄`、`火烧连营`、`威震华夏`、`五雷轰顶` 显式规则；公开资料无法精确还原的条件、目标权重和隐藏系数继续写入 assumptions。
 
+
+23. **P16 配将功能需求文档**：
+    - 新增 `docs/lineup-recommendation-spec.md`，把用户后续要做的配将功能沉淀为需求规格，覆盖背景目标、用户场景、参考页面能力拆解、一期范围、非目标、输入输出、页面交互、接口数据流、验收标准和风险边界。
+    - `docs/ROADMAP.md` 增加配将功能规划入口，明确 P16-P19 的后续路线。
+    - `docs/API.md` 补充配将推荐规划，说明一期复用 `POST /api/v1/accounts/optimize`，后续可扩展 `POST /api/v1/lineups/recommend`，并继续要求返回资料版本与估算说明。
+
+
+23. **P17 智能配将一期功能闭环**：
+    - `POST /api/v1/accounts/optimize` 与服务端/前端本地 optimizer 支持目标队数、排除武将/战法、偏好兵种和稳定响应结构，响应补充 `summary.targetLineupCount`、`summary.generatedLineupCount`、`warnings`、`unused.generalIds/tacticIds`、推荐理由和规则覆盖摘要。
+    - 前台新增“智能配将”页面，支持手动选择武将和战法库存、目标队数、场景和偏好兵种，调用现有账号优化接口生成最多 3 套共存阵容。
+    - 账号页“AI 配将/去配将”入口已接入新页面；推荐结果支持保存阵容、预填评分页、进入对位页和触发战报模拟入口。
+    - 评分页支持从推荐阵容读取 `pendingAnalyzeLineup` 并预填武将、战法、场景和兵种；对位页支持 `pendingMatchupLineup` 和 `pendingMatchupAction`，并优先使用推荐阵容中的 ID 字段。
+
 ### 验证结果
 
 - `node tests/simulator.test.mjs` 通过 33/33，新增覆盖 P13 指挥/阵法、兵种、主动和突击代表显式规则。
@@ -366,6 +396,14 @@
 - P15 已部署到生产服务器：`./scripts/deploy.sh` 执行成功，PM2 `sgzzlb-server` online；线上 `GET https://sz.qihangwk.com/health` 返回 `ok`，`GET /api/v1/catalog/summary` 继续命中数据库 published catalog snapshot `cv_1781684387650_jblo3z`。
 - P15 线上 coverage 复验通过：published 版本统计为 `total=221`、`explicit=87`、`fallback=134`、`missed=0`、`todo=20`，`舌战群儒`、`智计`、`竭力佐谋`、`顾盼生姿`、`潜龙阵`、`形一阵`、`工神`、`乱世奸雄`、`火烧连营`、`威震华夏`、`五雷轰顶` 以及内政 no-op 代表项均为 `explicit` / `explicit-rule`。
 - P15 线上真实战报模拟冒烟通过：响应使用数据库 `published` catalog snapshot，回合日志包含发动率提升/降低、武力/智力降低、属性提升、内政 `战斗不结算`、准备完成、伤害、控制和持续治疗等 P15 规则效果，`ruleCoverage.coverageByTactic` 中相关战法均为 `explicit` / `explicit-rule`。
+
+- P16 配将需求文档已生成：`docs/lineup-recommendation-spec.md` 可独立说明配将功能目标、一期范围、非目标、输入输出、页面交互、接口数据流、复用能力、验收标准和风险边界；`docs/ROADMAP.md`、`docs/API.md`、`tasks/todo.md` 已补充入口。
+
+
+- P17 完整验证通过：`npm test` 全部通过，新增 `P17 账号优化支持目标队数、排除项和稳定响应结构`、`P17 账号优化裁剪目标队数并在库存不足时返回稳定结构` 两个服务端回归用例。
+- `npm --prefix src run build:h5` 构建成功，验证新增智能配将 H5 页面可编译。
+- `npm --prefix src run build:mp-weixin` 构建成功，验证小程序页面配置和新增页面可编译。
+- P17 浏览器点验尝试受限：`preview_start` 启动 uni dev server 与静态 `npx serve` 均未实际监听 5173 端口，页面停留在 `Awaiting server…`；本轮已通过 `npm test`、H5 构建和小程序构建覆盖自动化验证，需后续在本地浏览器或微信开发者工具中补手动点验。
 
 ### 剩余任务（非代码层面）
 

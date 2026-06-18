@@ -38,7 +38,7 @@
             <text>{{ loggedIn ? '同步' : '登录' }}</text>
           </view>
         </view>
-        <view class="feature-item" @tap="goToAnalyze">
+        <view class="feature-item" @tap="goToRecommend">
           <image src="/static/ui-assets/mockup-icons/benefit-speed.png" mode="aspectFit" />
           <view>
             <text>AI 配将</text>
@@ -64,7 +64,7 @@
 
     <view class="section-head">
       <view>阵容档案</view>
-      <view class="head-action" @tap="goToAnalyze">去配将 ›</view>
+      <view class="head-action" @tap="goToRecommend">去配将 ›</view>
     </view>
 
     <view class="saved-list">
@@ -315,6 +315,9 @@ export default {
     },
     goToAnalyze() {
       uni.switchTab({ url: "/pages/analyze/index" });
+    },
+    goToRecommend() {
+      uni.navigateTo({ url: "/pages/recommend/index" });
     },
     goToFeedback() {
       uni.navigateTo({ url: "/pages/feedback/index" });

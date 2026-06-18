@@ -243,3 +243,36 @@ H5 匿名登录，返回 token。
 - 阵容接口的 `.runtime` 与 MySQL 存储来源必须统一。
 - 后端创建 app 时会初始化 MySQL；本地开发和本地测试默认使用 `root` 空密码并自动创建 `sgzzlb_local` 数据库，生产环境必须显式设置 `MYSQL_*`。
 - 后台 token 登录不是完整管理员账号系统，生产化前需要正式认证与权限。
+
+## 配将推荐规划
+
+配将功能一期优先复用现有账号优化能力，不新增破坏性接口。
+
+### `POST /api/v1/accounts/optimize`
+
+当前接口可作为一期“智能配将建议”的基础：输入用户拥有的武将和战法，输出最多 3 套共存阵容、战法冲突、未使用库存和评分解释。后续产品化时，前台可以把该接口包装为“配将推荐”。
+
+后续兼容扩展字段建议：
+
+```js
+{
+  generalIds: ["..."],
+  tacticIds: ["..."],
+  targetLineupCount: 3,
+  season: "pk",
+  catalogVersionId: "cv_...",
+  options: {
+    lockedGeneralIds: [],
+    excludedGeneralIds: [],
+    lockedTacticIds: [],
+    excludedTacticIds: [],
+    preferredTroop: "",
+    strategyPreference: "balanced"
+  }
+}
+```
+
+后续如果新增专用接口，建议命名为 `POST /api/v1/lineups/recommend`，但内部仍复用 `utils/optimizer.js` 和 `utils/scoring.js`，并保持 `POST /api/v1/accounts/optimize` 兼容。
+
+配将推荐响应必须包含 `catalogContext`，并在接入战报模拟复核时展示 `ruleCoverage` 与 `assumptions`，避免把估算结果包装成官方结论。
+

@@ -35,6 +35,13 @@
       }
     },
     {
+      "path": "pages/recommend/index",
+      "style": {
+        "navigationBarTitleText": "智能配将",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/matchup/index",
       "style": {
         "navigationBarTitleText": "对位",
