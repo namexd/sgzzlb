@@ -74,6 +74,21 @@
         <view class="score-badge">{{ result.summary ? result.summary.averageScore : '-' }}</view>
       </view>
 
+      <view class="simulation-config">
+        <view>
+          <view class="notice-title">模拟复核环境</view>
+          <view class="muted">使用环境模板作为敌方阵容，模拟结果仅用于复核推荐稳定性。</view>
+        </view>
+        <view class="form-row compact">
+          <picker :range="enemyTemplates" range-key="name" :value="enemyIndex" @change="onEnemyTemplateChange">
+            <view class="select-field">{{ enemyTemplates[enemyIndex].name }}</view>
+          </picker>
+          <picker :range="iterationOptions" range-key="name" :value="iterationIndex" @change="onIterationChange">
+            <view class="select-field">{{ iterationOptions[iterationIndex].name }}</view>
+          </picker>
+        </view>
+      </view>
+
       <view v-for="lineup in result.lineups" :key="lineup.rank || lineup.priority" class="lineup-card">
         <view class="lineup-top">
           <view>
@@ -94,10 +109,42 @@
         <view v-if="lineup.weaknesses && lineup.weaknesses.length" class="weakness-list">
           <view v-for="weakness in lineup.weaknesses.slice(0, 2)" :key="weakness">短板：{{ weakness }}</view>
         </view>
+        <view v-if="lineup.alternatives && lineup.alternatives.length" class="alternative-list">
+          <view class="mini-title">替代建议</view>
+          <view v-for="item in lineup.alternatives.slice(0, 3)" :key="item.id || item.name" class="alternative-item">
+            <view>
+              <text class="quality-badge">{{ item.quality || '建议' }}</text>
+              <text>{{ item.name }}</text>
+              <text class="muted"> · {{ formatAlternativeType(item.type) }}</text>
+            </view>
+            <view class="muted">{{ item.reason }}</view>
+          </view>
+        </view>
+        <view v-if="coverageText(lineup.ruleCoverage)" class="coverage-panel">
+          <view class="mini-title">评分规则覆盖</view>
+          <view class="coverage-line">{{ coverageText(lineup.ruleCoverage) }}</view>
+          <view v-if="coverageHasEstimate(lineup.ruleCoverage)" class="assumption-line">存在通用估算，推荐分仅用于排序参考。</view>
+        </view>
+        <view v-if="lineup.assumptions && lineup.assumptions.length" class="assumption-list">
+          <view v-for="assumption in lineup.assumptions.slice(0, 2)" :key="assumption" class="assumption-line">{{ assumption }}</view>
+        </view>
+        <view v-if="simulationError(lineup)" class="error-line">{{ simulationError(lineup) }}</view>
+        <view v-if="simulationResult(lineup)" class="simulation-result">
+          <view class="mini-title">模拟复核</view>
+          <view class="coverage-grid">
+            <view class="coverage-item"><text>胜率</text><strong>{{ formatPercent(simulationResult(lineup).summary && simulationResult(lineup).summary.winRate) }}</strong></view>
+            <view class="coverage-item"><text>场次</text><strong>{{ simulationResult(lineup).summary ? simulationResult(lineup).summary.iterations : '-' }}</strong></view>
+            <view class="coverage-item"><text>稳定性</text><strong>{{ simulationResult(lineup).aggregate ? simulationResult(lineup).aggregate.stability : '-' }}</strong></view>
+          </view>
+          <view v-if="simulationResult(lineup).aggregate" class="muted">{{ simulationResult(lineup).aggregate.scoreSuggestion }}</view>
+          <view v-if="simulationCoverageText(simulationResult(lineup).ruleCoverage)" class="coverage-line">模拟规则覆盖：{{ simulationCoverageText(simulationResult(lineup).ruleCoverage) }}</view>
+          <view v-for="assumption in (simulationResult(lineup).assumptions || []).slice(0, 2)" :key="assumption" class="assumption-line">{{ assumption }}</view>
+        </view>
         <view class="card-actions">
           <button class="mini-btn" @tap="saveRecommendation(lineup)">保存</button>
           <button class="mini-btn" @tap="goToAnalyze(lineup)">去评分</button>
           <button class="mini-btn" @tap="goToMatchup(lineup)">去对位</button>
+          <button class="mini-btn" @tap="runLineupSimulation(lineup)">{{ simulationLoadingKey === lineupKey(lineup) ? '复核中' : '模拟复核' }}</button>
           <button class="mini-btn accent" @tap="goToSimulation(lineup)">战报模拟</button>
         </view>
       </view>
@@ -131,7 +178,7 @@
 <script>
 import catalog from "../../utils/catalog";
 import { getStorage, setStorage } from "../../utils/storage";
-import { getGenerals, getTactics, isRemoteMode, optimizeAccountAsync, saveLineupAsync } from "../../services/api";
+import { getGenerals, getTactics, isRemoteMode, optimizeAccountAsync, saveLineupAsync, simulateBattleAsync } from "../../services/api";
 import SearchPicker from "../../components/search-picker.vue";
 
 const SAVED_LINEUPS_KEY = "savedLineups";
@@ -139,6 +186,16 @@ const SCENARIOS = [
   { id: "pk", name: "PK赛季" },
   { id: "war", name: "打架环境" },
   { id: "pioneer", name: "开荒" }
+];
+
+const ENEMY_TEMPLATES = [
+  { name: "太尉盾", troop: "盾兵", scenario: "pk", generals: ["司马懿", "曹操", "满宠"], tactics: ["士别三日", "用武通神", "魅惑", "抚辑军民", "锋矢阵", "刮骨疗毒"] },
+  { name: "吴骑", troop: "骑兵", scenario: "war", generals: ["孙尚香", "凌统", "周泰"], tactics: ["裸衣血战", "虎踞鹰扬", "卧薪尝胆", "横扫千军", "盛气凌敌", "西凉铁骑"] },
+  { name: "麒麟弓", troop: "弓兵", scenario: "pk", generals: ["姜维", "庞统", "诸葛亮"], tactics: ["夺魂挟魄", "杯蛇鬼车", "太平道法", "士别三日", "八门金锁阵", "婴城自守"] },
+  { name: "关关张", troop: "枪兵", scenario: "war", generals: ["关羽", "关银屏", "张飞"], tactics: ["威谋靡亢", "箕形阵", "据水断桥", "青州兵", "横扫千军", "盛气凌敌"] },
+  { name: "虎臣弓", troop: "弓兵", scenario: "pk", generals: ["甘宁", "太史慈", "程普"], tactics: ["万箭齐发", "避实击虚", "折冲御侮", "白马义从", "当锋摧决", "弯弓饮羽"] },
+  { name: "三势吕", troop: "骑兵", scenario: "pk", generals: ["吕布", "郭嘉", "黄月英"], tactics: ["一骑当千", "暴戾无仁", "虎豹骑", "铁骑驱驰", "三势阵", "横戈跃马"] },
+  { name: "桃园盾", troop: "盾兵", scenario: "war", generals: ["刘备", "关羽", "张飞"], tactics: ["陷阵营", "暂避其锋", "落凤", "横扫千军", "盛气凌敌", "刮骨疗毒"] }
 ];
 
 export default {
@@ -170,7 +227,19 @@ export default {
       errorMsg: "",
       pickerVisible: false,
       pickerType: "generals",
-      isRemote: false
+      isRemote: false,
+      enemyTemplates: ENEMY_TEMPLATES,
+      enemyIndex: 0,
+      iterationOptions: [
+        { value: 20, name: "20 场" },
+        { value: 50, name: "50 场" },
+        { value: 100, name: "100 场" }
+      ],
+      iterationIndex: 0,
+      simulationOptions: { maxRounds: 8 },
+      simulationByLineupKey: {},
+      simulationLoadingKey: "",
+      simulationErrorByLineupKey: {}
     };
   },
   computed: {
@@ -218,6 +287,12 @@ export default {
     onScenarioChange(event) {
       this.scenarioIndex = Number(event.detail.value);
     },
+    onEnemyTemplateChange(event) {
+      this.enemyIndex = Number(event.detail.value);
+    },
+    onIterationChange(event) {
+      this.iterationIndex = Number(event.detail.value);
+    },
     openPicker(type) {
       this.pickerType = type;
       this.pickerVisible = true;
@@ -262,10 +337,108 @@ export default {
         options: { preferredTroop }
       }).then((result) => {
         this.result = result;
+        this.simulationByLineupKey = {};
+        this.simulationErrorByLineupKey = {};
         this.loading = false;
       }).catch((error) => {
         this.loading = false;
         this.errorMsg = error.message || "生成配将建议失败";
+      });
+    },
+
+    formatAlternativeType(type) {
+      if (type === "tactic" || type === "战法") return "战法";
+      if (type === "general" || type === "武将") return "武将";
+      return type || "建议";
+    },
+    normalizeCoverage(coverage = {}) {
+      return {
+        explicit: Number(coverage.explicit || 0),
+        estimated: Number(coverage.estimated || coverage.fallback || 0),
+        missed: Number(coverage.missed || 0)
+      };
+    },
+    coverageText(coverage) {
+      if (!coverage) return "";
+      const value = this.normalizeCoverage(coverage);
+      if (!value.explicit && !value.estimated && !value.missed) return "";
+      return `显式 ${value.explicit} · 估算 ${value.estimated} · 未覆盖 ${value.missed}`;
+    },
+    coverageHasEstimate(coverage) {
+      const value = this.normalizeCoverage(coverage || {});
+      return value.estimated > 0 || value.missed > 0;
+    },
+    simulationCoverageText(coverage) {
+      return this.coverageText(coverage);
+    },
+    formatPercent(value) {
+      if (value === undefined || value === null || Number.isNaN(Number(value))) return "-";
+      const number = Number(value);
+      return number <= 1 ? `${Math.round(number * 100)}%` : `${Math.round(number)}%`;
+    },
+    lineupKey(lineup) {
+      return [lineup.rank || lineup.priority || 0, ...(lineup.generalIds || []), ...(lineup.tacticIds || [])].join("_");
+    },
+    simulationResult(lineup) {
+      return this.simulationByLineupKey[this.lineupKey(lineup)] || null;
+    },
+    simulationError(lineup) {
+      return this.simulationErrorByLineupKey[this.lineupKey(lineup)] || "";
+    },
+    idsByNames(items, names) {
+      return (names || []).map((name) => {
+        const item = items.find((entry) => entry.name === name || entry.id === name);
+        return item ? item.id : "";
+      }).filter(Boolean);
+    },
+    lineupToBattleInput(lineup) {
+      return {
+        troop: lineup.troop || "骑兵",
+        scenario: lineup.scenario || this.scenarios[this.scenarioIndex].id,
+        generalIds: (lineup.generalIds || []).slice(0, 3),
+        tacticIds: (lineup.tacticIds || []).slice(0, 6),
+        redLevels: [0, 0, 0]
+      };
+    },
+    templateToBattleInput(template) {
+      return {
+        troop: template.troop || "骑兵",
+        scenario: template.scenario || this.scenarios[this.scenarioIndex].id,
+        generalIds: this.idsByNames(this.generals, template.generals).slice(0, 3),
+        tacticIds: this.idsByNames(this.tactics, template.tactics).slice(0, 6),
+        redLevels: [0, 0, 0]
+      };
+    },
+    buildSimulationPayload(lineup) {
+      const ctx = this.result && this.result.catalogContext ? this.result.catalogContext : {};
+      return {
+        own: this.lineupToBattleInput(lineup),
+        enemy: this.templateToBattleInput(this.enemyTemplates[this.enemyIndex]),
+        iterations: this.iterationOptions[this.iterationIndex].value,
+        season: ctx.seasonKey || ctx.season || this.scenarios[this.scenarioIndex].id,
+        catalogVersionId: ctx.catalogVersionId || "",
+        options: { maxRounds: this.simulationOptions.maxRounds }
+      };
+    },
+    runLineupSimulation(lineup) {
+      const key = this.lineupKey(lineup);
+      const payload = this.buildSimulationPayload(lineup);
+      if (payload.own.generalIds.length < 3 || payload.own.tacticIds.length < 6) {
+        this.simulationErrorByLineupKey = { ...this.simulationErrorByLineupKey, [key]: "推荐阵容资料不完整，无法模拟复核。" };
+        return;
+      }
+      if (payload.enemy.generalIds.length < 3 || payload.enemy.tacticIds.length < 6) {
+        this.simulationErrorByLineupKey = { ...this.simulationErrorByLineupKey, [key]: "当前环境模板资料不完整，无法模拟复核。" };
+        return;
+      }
+      this.simulationLoadingKey = key;
+      this.simulationErrorByLineupKey = { ...this.simulationErrorByLineupKey, [key]: "" };
+      simulateBattleAsync(payload).then((result) => {
+        this.simulationLoadingKey = "";
+        this.simulationByLineupKey = { ...this.simulationByLineupKey, [key]: result };
+      }).catch((error) => {
+        this.simulationLoadingKey = "";
+        this.simulationErrorByLineupKey = { ...this.simulationErrorByLineupKey, [key]: error.message || "模拟复核失败" };
       });
     },
     buildSavedLineup(lineup) {
@@ -502,4 +675,80 @@ export default {
   min-width: 88rpx;
   text-align: center;
 }
+
+.simulation-config,
+.coverage-panel,
+.simulation-result,
+.alternative-list,
+.assumption-list {
+  margin-top: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.18);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.form-row.compact {
+  margin-top: var(--sp-sm);
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.mini-title {
+  color: #f6d58d;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-bottom: 10rpx;
+}
+
+.alternative-item {
+  padding: 10rpx 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 24rpx;
+}
+
+.quality-badge {
+  display: inline-block;
+  margin-right: 10rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(214, 168, 93, 0.22);
+  color: #f6d58d;
+  font-size: 20rpx;
+}
+
+.coverage-line,
+.assumption-line {
+  color: var(--text-stone);
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10rpx;
+  margin: 12rpx 0;
+}
+
+.coverage-item {
+  padding: 12rpx;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.07);
+  text-align: center;
+}
+
+.coverage-item text {
+  display: block;
+  color: var(--text-stone);
+  font-size: 20rpx;
+}
+
+.coverage-item strong {
+  display: block;
+  color: #f6d58d;
+  font-size: 26rpx;
+}
+
 </style>
