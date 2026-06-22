@@ -5,6 +5,11 @@
         <div class="card-header">
           <span>用户反馈</span>
           <div class="header-actions">
+            <el-select v-model="typeFilter" placeholder="类型筛选" clearable style="width: 140px">
+              <el-option label="全部" value="" />
+              <el-option label="普通反馈" value="general" />
+              <el-option label="推荐反馈" value="recommendation" />
+            </el-select>
             <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 140px">
               <el-option label="全部" value="" />
               <el-option label="待处理" value="pending" />
@@ -18,9 +23,24 @@
       </template>
 
       <el-table :data="filteredList" style="width: 100%" v-loading="loading">
+        <el-table-column prop="type" label="类型" width="110">
+          <template #default="{ row }">
+            <el-tag :type="feedbackType(row.type).tag">{{ feedbackType(row.type).label }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="content" label="反馈内容" min-width="300">
           <template #default="{ row }">
             <div class="feedback-content">{{ row.content }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="推荐摘要" min-width="220">
+          <template #default="{ row }">
+            <div v-if="feedbackMetadata(row).rating" class="recommend-summary">
+              <div>{{ feedbackMetadata(row).rating === 'good' ? '有帮助' : '不适合' }} · {{ feedbackMetadata(row).reason || '未填写' }}</div>
+              <div>{{ (feedbackMetadata(row).generals || []).join(' / ') }}</div>
+              <div>{{ feedbackMetadata(row).scenario || '-' }} · {{ feedbackMetadata(row).score || '-' }}分</div>
+            </div>
+            <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column prop="contact" label="联系方式" width="150">
@@ -69,11 +89,30 @@ import { ElMessage } from "element-plus";
 const loading = ref(false);
 const list = ref([]);
 const statusFilter = ref("");
+const typeFilter = ref("");
 
-const filteredList = computed(() => {
-  if (!statusFilter.value) return list.value;
-  return list.value.filter((item) => item.status === statusFilter.value);
-});
+const filteredList = computed(() => list.value.filter((item) => {
+  const type = item.type || "general";
+  if (typeFilter.value && type !== typeFilter.value) return false;
+  if (statusFilter.value && item.status !== statusFilter.value) return false;
+  return true;
+}));
+
+
+const feedbackType = (type) => {
+  if (type === "recommendation") return { label: "推荐反馈", tag: "success" };
+  return { label: "普通反馈", tag: "info" };
+};
+
+const feedbackMetadata = (row) => {
+  if (!row || !row.metadata) return {};
+  if (typeof row.metadata === "object") return row.metadata;
+  try {
+    return JSON.parse(row.metadata);
+  } catch (e) {
+    return {};
+  }
+};
 
 const statusLabel = (status) => {
   const labels = { pending: "待处理", read: "已读", resolved: "已解决", rejected: "已驳回" };
@@ -132,5 +171,11 @@ onMounted(loadData);
 .user-id {
   color: #6b7a8d;
   font-size: 12px;
+}
+
+.recommend-summary {
+  color: #f4ead8;
+  font-size: 12px;
+  line-height: 1.6;
 }
 </style>

@@ -244,6 +244,23 @@ export function getLineupsAsync(params = {}) {
   return Promise.resolve(getStorage("savedLineups") || []);
 }
 
+
+export function submitRecommendationFeedbackAsync(payload = {}) {
+  const content = payload.content || [
+    "[推荐反馈]",
+    `评价：${payload.metadata && payload.metadata.rating === "good" ? "有帮助" : "不适合"}`,
+    `原因：${payload.metadata && payload.metadata.reason || "未填写"}`
+  ].join("\n");
+  const data = {
+    type: "recommendation",
+    content,
+    contact: payload.contact || "",
+    metadata: payload.metadata || {}
+  };
+  if (shouldUseRemote()) return requestRemote("/api/v1/feedback", { method: "POST", data });
+  return Promise.reject(new Error("推荐反馈需要切换到远程 API 模式。"));
+}
+
 export function saveLineupAsync(payload = {}) {
   if (shouldUseRemote()) return requestRemote("/api/v1/lineups", { method: "POST", data: payload });
   const item = payload.lineup || payload;

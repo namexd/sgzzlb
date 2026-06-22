@@ -797,6 +797,64 @@ test("P17 账号优化裁剪目标队数并在库存不足时返回稳定结构"
   });
 });
 
+test("P19 feedback 支持普通反馈和推荐反馈 metadata", async () => {
+  await withServer(async (baseUrl) => {
+    const normalRes = await httpRequest(baseUrl, "/api/v1/feedback", {
+      method: "POST",
+      body: { content: "这是普通反馈内容", contact: "tester" }
+    });
+    assert.equal(normalRes.statusCode, 200);
+    assert.equal(normalRes.body.item.type || "general", "general");
+
+    const metadata = {
+      recommendationId: "rec_test",
+      lineupKey: "lineup_1",
+      rating: "bad",
+      reason: "战法冲突",
+      scenario: "PK赛季",
+      generals: ["曹操", "贾诩", "郝昭"],
+      score: 86
+    };
+    const recommendationRes = await httpRequest(baseUrl, "/api/v1/feedback", {
+      method: "POST",
+      body: {
+        type: "recommendation",
+        content: "[推荐反馈] 推荐不适合",
+        metadata
+      }
+    });
+    assert.equal(recommendationRes.statusCode, 200);
+    assert.equal(recommendationRes.body.item.type, "recommendation");
+    assert.deepEqual(JSON.parse(recommendationRes.body.item.metadata).generals, metadata.generals);
+
+    const listRes = await httpRequest(baseUrl, "/api/v1/feedback", {
+      headers: { "x-admin-token": ADMIN_TOKEN }
+    });
+    assert.equal(listRes.statusCode, 200);
+    assert.ok(listRes.body.items.some((item) => item.type === "recommendation" && JSON.parse(item.metadata).rating === "bad"));
+  });
+});
+
+test("P19 feedback 拒绝非法类型和超长 metadata", async () => {
+  await withServer(async (baseUrl) => {
+    const invalidTypeRes = await httpRequest(baseUrl, "/api/v1/feedback", {
+      method: "POST",
+      body: { type: "other", content: "非法类型反馈" }
+    });
+    assert.equal(invalidTypeRes.statusCode, 400);
+
+    const longMetadataRes = await httpRequest(baseUrl, "/api/v1/feedback", {
+      method: "POST",
+      body: {
+        type: "recommendation",
+        content: "超长上下文反馈",
+        metadata: { payload: "x".repeat(9000) }
+      }
+    });
+    assert.equal(longMetadataRes.statusCode, 400);
+  });
+});
+
 
 test("阵容 API 使用 MySQL 存储：保存、查询、删除", async () => {
   await withServer(async (baseUrl) => {

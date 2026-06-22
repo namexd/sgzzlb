@@ -179,6 +179,18 @@
 - [x] 18.6 运行测试和 H5/小程序构建验证
 - [x] 18.7 更新 Review 并创建中文 commit，不执行 push
 
+## P19：推荐历史、复盘与反馈闭环
+
+- [x] 19.1 记录 P19 实施范围和验证命令
+- [x] 19.2 推荐页保存整次推荐方案历史，并在模拟复核/反馈后回写历史
+- [x] 19.3 账号页新增推荐历史入口
+- [x] 19.4 新增推荐复盘页，支持列表和详情
+- [x] 19.5 新增推荐质量反馈提交封装
+- [x] 19.6 轻量扩展 feedback 的 type/metadata 并补服务端测试
+- [x] 19.7 后台反馈页展示和筛选推荐反馈
+- [x] 19.8 运行测试、前台/后台构建验证
+- [x] 19.9 更新 Review 并创建中文 commit，不执行 push
+
 ## Review
 
 ### 已完成
@@ -335,6 +347,14 @@
     - 推荐卡内新增“模拟复核”按钮，直接复用 `simulateBattleAsync()` 调用现有战报模拟接口，卡内展示胜率、场次、稳定性、评分建议、模拟规则覆盖和模拟 assumptions。
     - 原有保存、去评分、去对位和跳转完整战报模拟入口保留。
 
+
+25. **P19 推荐历史、复盘与反馈闭环**：
+    - 智能配将页会保存整次推荐方案历史，包含输入库存、推荐摘要、推荐阵容、替代建议、规则覆盖、assumptions、模拟复核和反馈状态。
+    - 推荐页模拟复核成功后会回写历史中的对应阵容；用户可对推荐卡提交“有帮助/不适合”反馈，本地历史同步记录反馈状态。
+    - 账号页新增推荐历史入口，展示最近推荐方案并可进入复盘。
+    - 新增推荐复盘页，支持历史列表和单次推荐详情，保留保存阵容、去评分、去对位操作。
+    - feedback 表轻量扩展 `type` 和 `metadata`，推荐反馈通过现有反馈接口入库；后台反馈页可筛选并展示推荐反馈摘要。
+
 ### 验证结果
 
 - `node tests/simulator.test.mjs` 通过 33/33，新增覆盖 P13 指挥/阵法、兵种、主动和突击代表显式规则。
@@ -428,6 +448,14 @@
 - `npm --prefix src run build:h5` 构建成功，验证推荐页新增替代建议、规则覆盖、环境模板 picker 和卡片级模拟复核 UI 可编译。
 - `npm --prefix src run build:mp-weixin` 构建成功，验证小程序端新增推荐页模板和状态逻辑可编译。
 - P18 浏览器点验尝试受限：`preview_start` 显示启动成功但 5173 端口未实际监听，页面停留在 `Awaiting server…`；本轮已记录限制，需后续在本地浏览器或微信开发者工具补人工点验。
+
+
+- P19 自动验证通过：`node tests/server.test.mjs` 通过 27/27，新增覆盖普通反馈兼容、推荐反馈 `type/metadata`、非法类型和超长 metadata。
+- `npm test` 全部通过，覆盖 catalog、catalogDiff、catalogVersionStore、scoring、simulator、server、drawStorage。
+- `npm --prefix src run build:h5` 构建成功，修复推荐页反馈 content 换行字符串后通过。
+- `npm --prefix src run build:mp-weixin` 构建成功，验证推荐历史与复盘页可编译。
+- `npm --prefix admin run build` 构建成功，仅保留既有 `@vueuse/core` pure annotation 和 chunk 体积警告。
+- P19 浏览器点验受限：5173 端口被另一个项目的 `web-dev` 预览服务占用，未强行停止；需后续在本地浏览器或微信开发者工具补人工点验。
 
 ### 剩余任务（非代码层面）
 

@@ -179,11 +179,24 @@ async function createDatabase(config) {
       content TEXT NOT NULL,
       contact VARCHAR(128) DEFAULT '',
       status VARCHAR(16) DEFAULT 'pending',
+      type VARCHAR(32) DEFAULT 'general',
+      metadata TEXT,
       created_at VARCHAR(32),
       INDEX idx_feedback_user (user_id),
-      INDEX idx_feedback_status (status)
+      INDEX idx_feedback_status (status),
+      INDEX idx_feedback_type (type)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  try {
+    await p.execute("ALTER TABLE feedback ADD COLUMN type VARCHAR(32) DEFAULT 'general'");
+  } catch (e) { /* column already exists */ }
+  try {
+    await p.execute("ALTER TABLE feedback ADD COLUMN metadata TEXT");
+  } catch (e) { /* column already exists */ }
+  try {
+    await p.execute("ALTER TABLE feedback ADD INDEX idx_feedback_type (type)");
+  } catch (e) { /* index already exists */ }
 
   await p.execute(`
     CREATE TABLE IF NOT EXISTS catalog_versions (
@@ -955,12 +968,12 @@ async function updateTacticRuleTodo(pool, id, payload = {}) {
   return normalizeTacticRuleTodoRow(rows[0]);
 }
 
-async function addFeedback(pool, userId, content, contact) {
+async function addFeedback(pool, userId, content, contact, options = {}) {
   const id = "fb_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   const now = nowLocal();
   await pool.execute(
-    "INSERT INTO feedback (id, user_id, content, contact, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)",
-    [id, userId || null, content, contact || "", now]
+    "INSERT INTO feedback (id, user_id, content, contact, status, type, metadata, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
+    [id, userId || null, content, contact || "", options.type || "general", options.metadata || null, now]
   );
   const [rows] = await pool.execute("SELECT * FROM feedback WHERE id = ?", [id]);
   return rows[0];

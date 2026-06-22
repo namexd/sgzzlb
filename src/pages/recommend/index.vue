@@ -145,6 +145,8 @@
           <button class="mini-btn" @tap="goToAnalyze(lineup)">去评分</button>
           <button class="mini-btn" @tap="goToMatchup(lineup)">去对位</button>
           <button class="mini-btn" @tap="runLineupSimulation(lineup)">{{ simulationLoadingKey === lineupKey(lineup) ? '复核中' : '模拟复核' }}</button>
+          <button class="mini-btn" @tap="submitRecommendationFeedback(lineup, 'good')">有帮助</button>
+          <button class="mini-btn" @tap="chooseNegativeFeedback(lineup)">不适合</button>
           <button class="mini-btn accent" @tap="goToSimulation(lineup)">战报模拟</button>
         </view>
       </view>
@@ -178,10 +180,11 @@
 <script>
 import catalog from "../../utils/catalog";
 import { getStorage, setStorage } from "../../utils/storage";
-import { getGenerals, getTactics, isRemoteMode, optimizeAccountAsync, saveLineupAsync, simulateBattleAsync } from "../../services/api";
+import { getGenerals, getTactics, isRemoteMode, optimizeAccountAsync, saveLineupAsync, simulateBattleAsync, submitRecommendationFeedbackAsync } from "../../services/api";
 import SearchPicker from "../../components/search-picker.vue";
 
 const SAVED_LINEUPS_KEY = "savedLineups";
+const RECOMMENDATION_HISTORY_KEY = "recommendationHistory";
 const SCENARIOS = [
   { id: "pk", name: "PK赛季" },
   { id: "war", name: "打架环境" },
@@ -336,7 +339,8 @@ export default {
         scenario: this.scenarios[this.scenarioIndex].id,
         options: { preferredTroop }
       }).then((result) => {
-        this.result = result;
+        const historyId = this.saveRecommendationHistory(result);
+        this.result = { ...result, historyId };
         this.simulationByLineupKey = {};
         this.simulationErrorByLineupKey = {};
         this.loading = false;
@@ -436,9 +440,127 @@ export default {
       simulateBattleAsync(payload).then((result) => {
         this.simulationLoadingKey = "";
         this.simulationByLineupKey = { ...this.simulationByLineupKey, [key]: result };
+        this.updateHistoryLineup(this.result && this.result.historyId, key, { simulation: result });
       }).catch((error) => {
         this.simulationLoadingKey = "";
         this.simulationErrorByLineupKey = { ...this.simulationErrorByLineupKey, [key]: error.message || "模拟复核失败" };
+      });
+    },
+
+    buildRecommendationSnapshot(result) {
+      const createdAt = new Date().toISOString();
+      const scenario = this.scenarios[this.scenarioIndex];
+      return {
+        id: `rec_${Date.now()}`,
+        createdAt,
+        scenarioId: scenario.id,
+        scenario: scenario.name,
+        preferredTroop: this.troopOptions[this.troopIndex].value,
+        targetLineupCount: this.targetOptions[this.targetIndex].value,
+        input: {
+          generalIds: [...this.selectedGeneralIds],
+          tacticIds: [...this.selectedTacticIds]
+        },
+        summary: {
+          ...(result.summary || {}),
+          message: result.message || ""
+        },
+        catalogContext: result.catalogContext || null,
+        lineups: (result.lineups || []).map((lineup) => ({
+          key: this.lineupKey(lineup),
+          rank: lineup.rank || lineup.priority,
+          role: lineup.role,
+          troop: lineup.troop,
+          score: lineup.score,
+          confidence: lineup.confidence,
+          generals: lineup.generals || [],
+          generalIds: lineup.generalIds || [],
+          tactics: lineup.tactics || [],
+          tacticIds: lineup.tacticIds || [],
+          reasons: lineup.reasons || [],
+          weaknesses: lineup.weaknesses || [],
+          alternatives: lineup.alternatives || [],
+          ruleCoverage: lineup.ruleCoverage || null,
+          assumptions: lineup.assumptions || [],
+          simulation: null,
+          feedback: null
+        })),
+        warnings: result.warnings || [],
+        conflicts: result.conflicts || [],
+        unused: result.unused || {}
+      };
+    },
+    saveRecommendationHistory(result) {
+      const snapshot = this.buildRecommendationSnapshot(result);
+      const history = getStorage(RECOMMENDATION_HISTORY_KEY) || [];
+      setStorage(RECOMMENDATION_HISTORY_KEY, [snapshot, ...history.filter((item) => item.id !== snapshot.id)].slice(0, 20));
+      return snapshot.id;
+    },
+    updateHistoryLineup(historyId, lineupKey, patch) {
+      if (!historyId || !lineupKey) return;
+      const history = getStorage(RECOMMENDATION_HISTORY_KEY) || [];
+      const updated = history.map((item) => {
+        if (item.id !== historyId) return item;
+        return {
+          ...item,
+          lineups: (item.lineups || []).map((lineup) => lineup.key === lineupKey ? { ...lineup, ...patch } : lineup)
+        };
+      });
+      setStorage(RECOMMENDATION_HISTORY_KEY, updated);
+    },
+    buildRecommendationFeedbackPayload(lineup, rating, reason) {
+      const key = this.lineupKey(lineup);
+      const simulation = this.simulationByLineupKey[key] || null;
+      const metadata = {
+        recommendationId: this.result && this.result.historyId,
+        lineupKey: key,
+        rating,
+        reason,
+        scenarioId: this.scenarios[this.scenarioIndex].id,
+        scenario: this.scenarios[this.scenarioIndex].name,
+        troop: lineup.troop,
+        score: lineup.score,
+        confidence: lineup.confidence,
+        generals: lineup.generals || [],
+        tactics: lineup.tactics || [],
+        ruleCoverage: lineup.ruleCoverage || null,
+        simulationSummary: simulation ? {
+          winRate: simulation.summary && simulation.summary.winRate,
+          iterations: simulation.summary && simulation.summary.iterations,
+          stability: simulation.aggregate && simulation.aggregate.stability
+        } : null,
+        catalogContext: this.result ? this.result.catalogContext : null
+      };
+      const content = [
+        "[推荐反馈]",
+        `评价：${rating === "good" ? "有帮助" : "不适合"}`,
+        `原因：${reason || "未填写"}`,
+        `推荐ID：${metadata.recommendationId || ""}`,
+        `阵容：${metadata.generals.join(" / ")}`,
+        `战法：${metadata.tactics.join(" / ")}`,
+        `分数：${metadata.score || "-"}`,
+        `场景：${metadata.scenario}`
+      ].join("\n");
+      return { type: "recommendation", content, metadata };
+    },
+    submitRecommendationFeedback(lineup, rating, reason = "") {
+      const key = this.lineupKey(lineup);
+      const feedback = { rating, reason, submittedAt: new Date().toISOString(), pending: false };
+      this.updateHistoryLineup(this.result && this.result.historyId, key, { feedback });
+      submitRecommendationFeedbackAsync(this.buildRecommendationFeedbackPayload(lineup, rating, reason)).then(() => {
+        this.updateHistoryLineup(this.result && this.result.historyId, key, { feedback });
+        uni.showToast({ title: "反馈已提交", icon: "success" });
+      }).catch(() => {
+        const pendingFeedback = { ...feedback, pending: true };
+        this.updateHistoryLineup(this.result && this.result.historyId, key, { feedback: pendingFeedback });
+        uni.showToast({ title: "已记录本地反馈", icon: "none" });
+      });
+    },
+    chooseNegativeFeedback(lineup) {
+      const reasons = ["缺少核心武将", "战法冲突", "环境不适合", "分数虚高", "其他"];
+      uni.showActionSheet({
+        itemList: reasons,
+        success: (res) => this.submitRecommendationFeedback(lineup, "bad", reasons[res.tapIndex] || "其他")
       });
     },
     buildSavedLineup(lineup) {

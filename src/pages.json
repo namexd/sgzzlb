@@ -42,6 +42,13 @@
       }
     },
     {
+      "path": "pages/recommend/history",
+      "style": {
+        "navigationBarTitleText": "推荐复盘",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/matchup/index",
       "style": {
         "navigationBarTitleText": "对位",

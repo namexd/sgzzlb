@@ -1335,8 +1335,21 @@ function createApp(options = {}) {
           return;
         }
         const contact = (body.contact || "").trim().slice(0, 128);
+        const type = body.type || "general";
+        if (!["general", "recommendation"].includes(type)) {
+          sendJson(res, 400, { ok: false, message: "反馈类型无效。" });
+          return;
+        }
+        let metadata = null;
+        if (body.metadata !== undefined && body.metadata !== null && body.metadata !== "") {
+          metadata = typeof body.metadata === "string" ? body.metadata : JSON.stringify(body.metadata);
+          if (metadata.length > 8192) {
+            sendJson(res, 400, { ok: false, message: "反馈上下文不能超过 8KB。" });
+            return;
+          }
+        }
         const user = await getAuthUser(req);
-        const saved = await dbModule.addFeedback(db, user ? user.id : null, content, contact);
+        const saved = await dbModule.addFeedback(db, user ? user.id : null, content, contact, { type, metadata });
         sendJson(res, 200, { ok: true, item: saved });
         return;
       }

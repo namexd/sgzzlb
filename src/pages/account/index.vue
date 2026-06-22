@@ -91,6 +91,28 @@
       <view class="create-lineup" @tap="goToAnalyze">＋ 创建新阵容</view>
     </view>
 
+
+    <view class="section-head recommendation-head">
+      <view>推荐历史</view>
+      <view class="head-action" @tap="goToRecommendationHistory('')">查看全部 ›</view>
+    </view>
+
+    <view class="saved-list recommendation-list">
+      <view v-if="!recommendationHistoryView.length" class="create-lineup" @tap="goToRecommend">暂无推荐历史，去生成智能配将 ›</view>
+      <view v-for="item in recommendationHistoryView.slice(0, 3)" :key="item.id" class="saved-lineup history-lineup" @tap="goToRecommendationHistory(item.id)">
+        <view class="saved-info">
+          <view class="saved-name">{{ item.title }}</view>
+          <view class="saved-sub">{{ item.subtitle }}</view>
+          <view class="saved-sub">{{ item.lineupText }}</view>
+        </view>
+        <view class="saved-score">
+          <view>平均分</view>
+          <text>{{ item.averageScore || '-' }}</text>
+        </view>
+        <view class="saved-arrow">›</view>
+      </view>
+    </view>
+
     <view v-if="optimizeHint" class="note">{{ optimizeHint }}</view>
     <view v-if="optimizeResult && optimizeResult.lineups.length" class="optimize-list">
       <view v-for="(lineup, idx) in optimizeResult.lineups" :key="lineup.priority" class="optimize-card">
@@ -143,6 +165,7 @@ export default {
       loginLoading: false,
       syncing: false,
       savedLineupsView: [],
+      recommendationHistoryView: [],
       generalIds: [],
       tacticIds: [],
       inventorySummary: "未设置",
@@ -181,6 +204,7 @@ export default {
       this.entitlements = getEntitlements();
       this.meta = catalog.getMeta() || {};
       this.loadSaved();
+      this.loadRecommendationHistory();
       if (this.loggedIn) this.loadProfile();
     },
     loadProfile() {
@@ -286,6 +310,28 @@ export default {
       const saved = uni.getStorageSync("savedLineups") || [];
       this.savedLineupsView = saved.map((item, index) => this.buildLineupView(item, index, false));
     },
+    loadRecommendationHistory() {
+      const history = uni.getStorageSync("recommendationHistory") || [];
+      this.recommendationHistoryView = history.map((item) => {
+        const firstLineups = (item.lineups || []).slice(0, 2).map((lineup) => (lineup.generals || []).join(" / ")).filter(Boolean);
+        const simulatedCount = (item.lineups || []).filter((lineup) => lineup.simulation).length;
+        const feedbackCount = (item.lineups || []).filter((lineup) => lineup.feedback).length;
+        return {
+          ...item,
+          title: `${item.scenario || "推荐"} · ${item.summary && item.summary.generatedLineupCount || (item.lineups || []).length} 队`,
+          subtitle: `${this.formatDate(item.createdAt)} · 目标 ${item.targetLineupCount || "-"} 队 · 复核 ${simulatedCount} · 反馈 ${feedbackCount}`,
+          lineupText: firstLineups.length ? firstLineups.join("；") : "暂无阵容摘要",
+          averageScore: item.summary && item.summary.averageScore
+        };
+      });
+    },
+    formatDate(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      const pad = (num) => String(num).padStart(2, "0");
+      return `${date.getMonth() + 1}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    },
     clearSaved() {
       uni.setStorageSync("savedLineups", []);
       this.savedLineupsView = [];
@@ -318,6 +364,9 @@ export default {
     },
     goToRecommend() {
       uni.navigateTo({ url: "/pages/recommend/index" });
+    },
+    goToRecommendationHistory(id) {
+      uni.navigateTo({ url: id ? `/pages/recommend/history?id=${id}` : "/pages/recommend/history" });
     },
     goToFeedback() {
       uni.navigateTo({ url: "/pages/feedback/index" });
@@ -1229,4 +1278,13 @@ export default {
   mix-blend-mode: screen;
   filter: brightness(1.18) contrast(1.08);
 }
+
+.recommendation-head {
+  margin-top: var(--sp-lg);
+}
+
+.history-lineup {
+  cursor: pointer;
+}
+
 </style>
