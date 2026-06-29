@@ -78,11 +78,8 @@
 </template>
 
 <script>
-import { getStorage, setStorage } from "../../utils/storage";
-import { saveLineupAsync, isRemoteMode } from "../../services/api";
-
-const HISTORY_KEY = "recommendationHistory";
-const SAVED_LINEUPS_KEY = "savedLineups";
+import { setStorage } from "../../utils/storage";
+import { getRecommendationHistoryAsync, saveLineupAsync, isRemoteMode } from "../../services/api";
 
 export default {
   data() {
@@ -112,8 +109,8 @@ export default {
     this.loadHistory();
   },
   methods: {
-    loadHistory() {
-      this.history = getStorage(HISTORY_KEY) || [];
+    async loadHistory() {
+      this.history = await getRecommendationHistoryAsync().catch(() => []);
     },
     openDetail(id) {
       uni.navigateTo({ url: `/pages/recommend/history?id=${id}` });
@@ -150,12 +147,14 @@ export default {
         catalogContext: this.detail.catalogContext || null
       };
     },
-    saveLineup(lineup) {
+    async saveLineup(lineup) {
       const item = this.buildSavedLineup(lineup);
-      const saved = getStorage(SAVED_LINEUPS_KEY) || [];
-      setStorage(SAVED_LINEUPS_KEY, [item, ...saved.filter((old) => old.id !== item.id)]);
-      if (this.isRemote) saveLineupAsync({ lineup: item }).catch(() => {});
-      uni.showToast({ title: "已保存", icon: "success" });
+      try {
+        await saveLineupAsync({ lineup: item });
+        uni.showToast({ title: "已保存到数据库", icon: "success" });
+      } catch (error) {
+        uni.showToast({ title: error.message || "保存失败", icon: "none" });
+      }
     },
     goToAnalyze(lineup) {
       setStorage("pendingAnalyzeLineup", this.buildSavedLineup(lineup));
@@ -163,8 +162,6 @@ export default {
     },
     goToMatchup(lineup) {
       const item = this.buildSavedLineup(lineup);
-      const saved = getStorage(SAVED_LINEUPS_KEY) || [];
-      setStorage(SAVED_LINEUPS_KEY, [item, ...saved.filter((old) => old.id !== item.id)]);
       setStorage("pendingMatchupLineup", item);
       setStorage("pendingMatchupAction", "preview");
       uni.switchTab({ url: "/pages/matchup/index" });

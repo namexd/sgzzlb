@@ -179,12 +179,19 @@
 
 <script>
 import catalog from "../../utils/catalog";
-import { getStorage, setStorage } from "../../utils/storage";
-import { getGenerals, getTactics, isRemoteMode, optimizeAccountAsync, saveLineupAsync, simulateBattleAsync, submitRecommendationFeedbackAsync } from "../../services/api";
+import { setStorage } from "../../utils/storage";
+import {
+  getGenerals,
+  getTactics,
+  isRemoteMode,
+  optimizeAccountAsync,
+  saveLineupAsync,
+  saveRecommendationHistoryAsync,
+  simulateBattleAsync,
+  submitRecommendationFeedbackAsync
+} from "../../services/api";
 import SearchPicker from "../../components/search-picker.vue";
 
-const SAVED_LINEUPS_KEY = "savedLineups";
-const RECOMMENDATION_HISTORY_KEY = "recommendationHistory";
 const SCENARIOS = [
   { id: "pk", name: "PK赛季" },
   { id: "war", name: "打架环境" },
@@ -324,7 +331,7 @@ export default {
       const item = this.tactics.find((t) => t.id === id) || catalog.findTacticById(id);
       return item ? item.name : id;
     },
-    generateRecommendations() {
+    async generateRecommendations() {
       this.errorMsg = "";
       if (this.selectedGeneralIds.length < 3 || this.selectedTacticIds.length < 6) {
         uni.showToast({ title: this.inputHint, icon: "none" });
@@ -332,22 +339,24 @@ export default {
       }
       this.loading = true;
       const preferredTroop = this.troopOptions[this.troopIndex].value;
-      optimizeAccountAsync({
-        generalIds: this.selectedGeneralIds,
-        tacticIds: this.selectedTacticIds,
-        targetLineupCount: this.targetOptions[this.targetIndex].value,
-        scenario: this.scenarios[this.scenarioIndex].id,
-        options: { preferredTroop }
-      }).then((result) => {
-        const historyId = this.saveRecommendationHistory(result);
-        this.result = { ...result, historyId };
+      try {
+        const result = await optimizeAccountAsync({
+          generalIds: this.selectedGeneralIds,
+          tacticIds: this.selectedTacticIds,
+          targetLineupCount: this.targetOptions[this.targetIndex].value,
+          scenario: this.scenarios[this.scenarioIndex].id,
+          options: { preferredTroop }
+        });
+        const historySnapshot = await this.saveRecommendationHistory(result);
+        this.result = { ...result, historyId: historySnapshot.id, historySnapshot };
         this.simulationByLineupKey = {};
         this.simulationErrorByLineupKey = {};
-        this.loading = false;
-      }).catch((error) => {
+      } catch (error) {
         this.loading = false;
         this.errorMsg = error.message || "生成配将建议失败";
-      });
+        return;
+      }
+      this.loading = false;
     },
 
     formatAlternativeType(type) {
@@ -490,23 +499,23 @@ export default {
         unused: result.unused || {}
       };
     },
-    saveRecommendationHistory(result) {
+    async saveRecommendationHistory(result) {
       const snapshot = this.buildRecommendationSnapshot(result);
-      const history = getStorage(RECOMMENDATION_HISTORY_KEY) || [];
-      setStorage(RECOMMENDATION_HISTORY_KEY, [snapshot, ...history.filter((item) => item.id !== snapshot.id)].slice(0, 20));
-      return snapshot.id;
+      const saved = await saveRecommendationHistoryAsync(snapshot);
+      return saved.item || snapshot;
     },
     updateHistoryLineup(historyId, lineupKey, patch) {
       if (!historyId || !lineupKey) return;
-      const history = getStorage(RECOMMENDATION_HISTORY_KEY) || [];
-      const updated = history.map((item) => {
-        if (item.id !== historyId) return item;
-        return {
-          ...item,
-          lineups: (item.lineups || []).map((lineup) => lineup.key === lineupKey ? { ...lineup, ...patch } : lineup)
-        };
+      const current = this.result && this.result.historySnapshot;
+      if (!current || current.id !== historyId) return;
+      const updated = {
+        ...current,
+        lineups: (current.lineups || []).map((lineup) => lineup.key === lineupKey ? { ...lineup, ...patch } : lineup)
+      };
+      this.result = { ...this.result, historySnapshot: updated };
+      saveRecommendationHistoryAsync(updated).catch(() => {
+        uni.showToast({ title: "历史保存失败", icon: "none" });
       });
-      setStorage(RECOMMENDATION_HISTORY_KEY, updated);
     },
     buildRecommendationFeedbackPayload(lineup, rating, reason) {
       const key = this.lineupKey(lineup);
@@ -546,14 +555,11 @@ export default {
     submitRecommendationFeedback(lineup, rating, reason = "") {
       const key = this.lineupKey(lineup);
       const feedback = { rating, reason, submittedAt: new Date().toISOString(), pending: false };
-      this.updateHistoryLineup(this.result && this.result.historyId, key, { feedback });
       submitRecommendationFeedbackAsync(this.buildRecommendationFeedbackPayload(lineup, rating, reason)).then(() => {
         this.updateHistoryLineup(this.result && this.result.historyId, key, { feedback });
         uni.showToast({ title: "反馈已提交", icon: "success" });
-      }).catch(() => {
-        const pendingFeedback = { ...feedback, pending: true };
-        this.updateHistoryLineup(this.result && this.result.historyId, key, { feedback: pendingFeedback });
-        uni.showToast({ title: "已记录本地反馈", icon: "none" });
+      }).catch((error) => {
+        uni.showToast({ title: error.message || "反馈提交失败", icon: "none" });
       });
     },
     chooseNegativeFeedback(lineup) {
@@ -580,26 +586,31 @@ export default {
         catalogContext: this.result ? this.result.catalogContext : null
       };
     },
-    saveRecommendation(lineup) {
+    async saveRecommendation(lineup) {
       const item = this.buildSavedLineup(lineup);
-      const saved = getStorage(SAVED_LINEUPS_KEY) || [];
-      setStorage(SAVED_LINEUPS_KEY, [item, ...saved.filter((old) => old.id !== item.id)]);
-      if (this.isRemote) saveLineupAsync({ lineup: item }).catch(() => {});
-      uni.showToast({ title: "已保存", icon: "success" });
+      try {
+        await saveLineupAsync({ lineup: item });
+        uni.showToast({ title: "已保存到数据库", icon: "success" });
+      } catch (error) {
+        uni.showToast({ title: error.message || "保存失败", icon: "none" });
+        throw error;
+      }
       return item;
     },
     goToAnalyze(lineup) {
       setStorage("pendingAnalyzeLineup", this.buildSavedLineup(lineup));
       uni.switchTab({ url: "/pages/analyze/index" });
     },
-    goToMatchup(lineup) {
-      const item = this.saveRecommendation(lineup);
+    async goToMatchup(lineup) {
+      const item = await this.saveRecommendation(lineup).catch(() => null);
+      if (!item) return;
       setStorage("pendingMatchupLineup", item);
       setStorage("pendingMatchupAction", "preview");
       uni.switchTab({ url: "/pages/matchup/index" });
     },
-    goToSimulation(lineup) {
-      const item = this.saveRecommendation(lineup);
+    async goToSimulation(lineup) {
+      const item = await this.saveRecommendation(lineup).catch(() => null);
+      if (!item) return;
       setStorage("pendingMatchupLineup", item);
       setStorage("pendingMatchupAction", "simulate");
       uni.switchTab({ url: "/pages/matchup/index" });

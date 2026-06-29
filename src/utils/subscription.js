@@ -47,19 +47,19 @@ export function getEntitlements() {
 }
 
 export function syncEntitlements() {
-  // Lazy import to avoid circular dependency with api.js
-  const api = require("../services/api");
-  if (!api.isRemoteMode() || !api.isLoggedIn()) {
-    clearCachedEntitlements();
-    return Promise.resolve(getEntitlements());
-  }
-  return api.requestRemote("/api/v1/auth/entitlements")
-    .then((data) => {
-      const entitlements = data.entitlements || buildLocalEntitlements("free");
-      cacheEntitlements(entitlements);
-      return entitlements;
-    })
-    .catch(() => getCachedEntitlements());
+  return import("../services/api").then((api) => {
+    if (!api.isRemoteMode() || !api.isLoggedIn()) {
+      clearCachedEntitlements();
+      return getEntitlements();
+    }
+    return api.requestRemote("/api/v1/auth/entitlements")
+      .then((data) => {
+        const entitlements = data.entitlements || buildLocalEntitlements("free");
+        cacheEntitlements(entitlements);
+        return entitlements;
+      })
+      .catch(() => getCachedEntitlements());
+  });
 }
 
 export default { getTier: getLocalTier, isPremium, setTier, getEntitlements, syncEntitlements, cacheEntitlements, clearCachedEntitlements };

@@ -452,6 +452,149 @@ export function getAllTimeStats(poolId) {
   };
 }
 
+export function getSeasonByIdFromList(seasons, seasonId) {
+  if (!seasonId) return null;
+  return (seasons || []).find(s => s.id === seasonId) || null;
+}
+
+export function getActiveSeasonFromList(seasons) {
+  return (seasons || []).find(s => !s.endDate) || null;
+}
+
+export function getSeasonRecordsFromRecords(records, seasons, seasonId) {
+  const season = getSeasonByIdFromList(seasons, seasonId);
+  if (!season) return [];
+  return (records || []).filter(record => recordInSeason(record, season));
+}
+
+export function getPityInfoFromRecords(records, seasons, seasonId) {
+  const scoped = seasonId ? getSeasonRecordsFromRecords(records, seasons, seasonId) : (records || []);
+  let count = 0;
+  for (let i = scoped.length - 1; i >= 0; i--) {
+    if (scoped[i].quality === "orange") break;
+    count++;
+  }
+  return {
+    total: 30,
+    current: count,
+    remaining: Math.max(0, 30 - count),
+    guaranteedAt: count > 0 ? count : null
+  };
+}
+
+export function buildCalendarDaysFromRecords(records, year, month, seasons, seasonId) {
+  let scoped = seasonId ? getSeasonRecordsFromRecords(records, seasons, seasonId) : (records || []);
+  const prefix = `${year}-${String(month).padStart(2, "0")}`;
+  scoped = scoped.filter(r => r.date && r.date.indexOf(prefix) === 0);
+
+  const byDate = {};
+  scoped.forEach(r => {
+    if (!byDate[r.date]) byDate[r.date] = { count: 0, hasOrange: false, records: [] };
+    byDate[r.date].count++;
+    if (r.quality === "orange") byDate[r.date].hasOrange = true;
+    byDate[r.date].records.push(r);
+  });
+
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const daysInMonth = lastDay.getDate();
+  const startDow = firstDay.getDay();
+  const days = [];
+
+  for (let i = 0; i < startDow; i++) days.push({ day: null, blank: true });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const info = byDate[dateStr];
+    days.push({
+      day: d,
+      date: dateStr,
+      count: info ? info.count : 0,
+      hasOrange: info ? info.hasOrange : false,
+      records: info ? info.records : []
+    });
+  }
+
+  return {
+    year,
+    month,
+    days,
+    totalDraws: scoped.length,
+    orangeCount: scoped.filter(r => r.quality === "orange").length,
+    purpleCount: scoped.filter(r => r.quality === "purple").length,
+    blueCount: scoped.filter(r => r.quality === "blue").length
+  };
+}
+
+function buildStatsFromRecords(records) {
+  const scoped = records || [];
+  const orangeRecords = scoped.filter(r => r.quality === "orange");
+  const byMonth = {};
+  scoped.forEach(r => {
+    const monthKey = String(r.date || "").substring(0, 7);
+    if (!monthKey) return;
+    if (!byMonth[monthKey]) byMonth[monthKey] = { month: monthKey, total: 0, orange: 0, purple: 0, blue: 0 };
+    byMonth[monthKey].total++;
+    if (r.quality === "orange") byMonth[monthKey].orange++;
+    else if (r.quality === "purple") byMonth[monthKey].purple++;
+    else byMonth[monthKey].blue++;
+  });
+
+  const generalCount = {};
+  orangeRecords.forEach(r => {
+    const name = r.generalName || "未记录";
+    generalCount[name] = (generalCount[name] || 0) + 1;
+  });
+
+  return {
+    totalDraws: scoped.length,
+    orangeCount: orangeRecords.length,
+    purpleCount: scoped.filter(r => r.quality === "purple").length,
+    blueCount: scoped.filter(r => r.quality === "blue").length,
+    orangeRate: scoped.length > 0 ? (orangeRecords.length / scoped.length * 100).toFixed(1) : 0,
+    freeDraws: scoped.filter(r => r.drawType === "free").length,
+    halfDraws: scoped.filter(r => r.drawType === "half").length,
+    fiveDraws: scoped.filter(r => r.drawType === "five").length,
+    byMonth: Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month)),
+    byGroup: {
+      group1: scoped.filter(r => Number(r.group) === 1).length,
+      group2: scoped.filter(r => Number(r.group) === 2).length
+    },
+    orangeGenerals: Object.entries(generalCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+  };
+}
+
+export function getSeasonStatsFromRecords(records, seasons, seasonId) {
+  return buildStatsFromRecords(getSeasonRecordsFromRecords(records, seasons, seasonId));
+}
+
+export function getAllTimeStatsFromRecords(records) {
+  return buildStatsFromRecords(records || []);
+}
+
+export function getNextSeasonEstimateFromSeason(season) {
+  if (!season) return null;
+  const startDate = parseDateString(season.startDate) ? season.startDate : todayStr();
+  const estimateDate = addDays(startDate, SEASON_LENGTH_DAYS);
+  const today = todayStr();
+  const elapsedDays = Math.max(0, diffDays(startDate, today));
+  const daysUntilEstimate = diffDays(today, estimateDate);
+
+  return {
+    seasonId: season.id,
+    seasonName: season.name,
+    startDate,
+    estimateDate,
+    lengthDays: SEASON_LENGTH_DAYS,
+    elapsedDays,
+    remainingDays: Math.max(0, daysUntilEstimate),
+    overdueDays: Math.max(0, -daysUntilEstimate),
+    isOverdue: daysUntilEstimate < 0,
+    isDueToday: daysUntilEstimate === 0
+  };
+}
+
 // Remote sync
 export async function syncToRemote() {
   if (!api.isRemoteMode()) return;

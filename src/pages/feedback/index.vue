@@ -105,23 +105,9 @@ export default {
       }
       this.submitting = true;
       try {
-        const { requestRemote, shouldUseRemote } = await import("../../services/api");
+        const { requestRemote } = await import("../../services/api");
         const payload = { content: this.content.trim(), contact: this.contact.trim() };
-        let res;
-        if (shouldUseRemote()) {
-          res = await requestRemote("/api/v1/feedback", { method: "POST", data: payload });
-        } else {
-          // 本地模式：尝试直连本地服务器，失败则存本地
-          try {
-            res = await requestRemote("/api/v1/feedback", { method: "POST", data: payload });
-          } catch (serverErr) {
-            const { getStorage, setStorage } = await import("../../utils/storage");
-            const pending = getStorage("pendingFeedback") || [];
-            pending.push({ ...payload, createdAt: new Date().toLocaleString("zh-CN", { hour12: false }).replace(/\//g, "-") });
-            setStorage("pendingFeedback", pending);
-            res = { ok: true };
-          }
-        }
+        const res = await requestRemote("/api/v1/feedback", { method: "POST", data: payload });
         if (res && res.ok) {
           this.submitted = true;
           this.content = "";

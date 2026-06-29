@@ -430,7 +430,9 @@ import {
   getBattleReportStatsAsync,
   deleteBattleReportAsync,
   getCatalogVersions,
-  isRemoteMode
+  getLineupsAsync,
+  isRemoteMode,
+  saveLineupAsync
 } from "../../services/api";
 
 const ENEMY_TEMPLATES = [
@@ -710,16 +712,15 @@ export default {
     }
   },
 
-  onShow() {
+  async onShow() {
     const pending = uni.getStorageSync("pendingMatchupLineup") || null;
     const pendingAction = uni.getStorageSync("pendingMatchupAction") || "";
-    let saved = uni.getStorageSync("savedLineups") || [];
     if (pending && pending.id) {
-      saved = [pending, ...saved.filter((item) => item.id !== pending.id)];
-      uni.setStorageSync("savedLineups", saved);
+      await saveLineupAsync({ lineup: pending }).catch(() => null);
       removeStorage("pendingMatchupLineup");
       removeStorage("pendingMatchupAction");
     }
+    const saved = await getLineupsAsync().catch(() => []);
     const savedView = saved.map((item) => ({
       ...item,
       generalsText: (item.generals || []).join(" / ")

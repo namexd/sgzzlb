@@ -196,7 +196,8 @@
 import catalog from "../../utils/catalog";
 import { getEntitlements } from "../../utils/subscription";
 import { getOriginalCardStyle, getCardImageUrl } from "../../utils/assetPolicy";
-import { analyzeLineupAsync, isRemoteMode, saveLineupAsync } from "../../services/api";
+import { analyzeLineupAsync, saveLineupAsync } from "../../services/api";
+import { analyzeLineup as analyzeLineupLocal } from "../../utils/scoring";
 import { getStorage, setStorage, removeStorage } from "../../utils/storage";
 import SearchPicker from "../../components/search-picker.vue";
 
@@ -205,8 +206,6 @@ const SCENARIOS = [
   { id: "war", name: "打架" },
   { id: "pioneer", name: "开荒" }
 ];
-
-const SAVED_LINEUPS_KEY = "savedLineups";
 
 export default {
   components: { SearchPicker },
@@ -543,10 +542,8 @@ export default {
     },
 
     analyzeLineupLocal(payload) {
-      // Import scoring locally as fallback
       try {
-        const scoring = require("../../utils/scoring");
-        return scoring.analyzeLineup(payload);
+        return analyzeLineupLocal(payload);
       } catch (e) {
         return {
           totalScore: 0,
@@ -577,13 +574,8 @@ export default {
       this.visibleReplacements = report.replacements.slice(0, limit);
     },
 
-    saveLineup() {
+    async saveLineup() {
       if (!this.report) return;
-      const saved = getStorage(SAVED_LINEUPS_KEY) || [];
-      if (!this.entitlements.canSaveUnlimitedLineups && saved.length >= 3) {
-        this.savedMessage = "保存位已满";
-        return;
-      }
       const lineup = {
         id: `lineup_${Date.now()}`,
         createdAt: new Date().toISOString(),
@@ -593,11 +585,11 @@ export default {
         generals: this.selectedGeneralsView.map((item) => item.name),
         tactics: this.selectedTacticsView.map((item) => item.name)
       };
-      setStorage(SAVED_LINEUPS_KEY, [lineup, ...saved.filter((item) => item.id !== lineup.id)]);
-      this.savedMessage = "已保存";
-
-      if (isRemoteMode()) {
-        saveLineupAsync({ lineup }).catch(() => {});
+      try {
+        await saveLineupAsync({ lineup });
+        this.savedMessage = "已保存到数据库";
+      } catch (error) {
+        this.savedMessage = error.message || "保存失败";
       }
     },
 

@@ -45,11 +45,12 @@
       </view>
     </view>
 
-    <view class="skip-link" @tap="skipLogin">先不登录，继续使用 →</view>
   </view>
 </template>
 
 <script>
+import { redirectIfLoggedIn } from "../../utils/authGuard";
+
 export default {
   data() {
     return {
@@ -68,6 +69,9 @@ export default {
       }
     };
   },
+  onLoad() {
+    redirectIfLoggedIn();
+  },
   methods: {
     async doLogin() {
       this.errorMsg = "";
@@ -77,13 +81,14 @@ export default {
       }
       this.loading = true;
       try {
-        const { requestRemote } = await import("../../services/api");
+        const { requestRemote, migrateLocalUserDataToRemote } = await import("../../services/api");
         const res = await requestRemote("/api/v1/auth/login", {
           method: "POST",
           data: this.loginForm
         });
         if (res.ok) {
           this.saveAuth(res.token, res.user);
+          await migrateLocalUserDataToRemote().catch(() => null);
           this.navigateBack();
         } else {
           this.errorMsg = res.message || "登录失败。";
@@ -116,13 +121,14 @@ export default {
 
       this.loading = true;
       try {
-        const { requestRemote } = await import("../../services/api");
+        const { requestRemote, migrateLocalUserDataToRemote } = await import("../../services/api");
         const res = await requestRemote("/api/v1/auth/register", {
           method: "POST",
           data: { username: form.username, password: form.password, nickname: form.nickname }
         });
         if (res.ok) {
           this.saveAuth(res.token, res.user);
+          await migrateLocalUserDataToRemote().catch(() => null);
           this.navigateBack();
         } else {
           this.errorMsg = res.message || "注册失败。";
@@ -147,9 +153,6 @@ export default {
     saveAuth(token, user) {
       uni.setStorageSync("authToken", token);
       uni.setStorageSync("currentUser", { id: user.id, username: user.username, nickname: user.nickname });
-    },
-    skipLogin() {
-      uni.switchTab({ url: "/pages/analyze/index" });
     },
     navigateBack() {
       uni.switchTab({ url: "/pages/account/index" });

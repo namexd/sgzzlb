@@ -84,6 +84,19 @@ async function withServer(fn) {
   });
 }
 
+async function registerAuthHeaders(baseUrl, label = "tester") {
+  const safeLabel = String(label).replace(/[^a-zA-Z0-9_]/g, "_");
+  const username = `${safeLabel}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const password = "testpass123";
+  const res = await httpRequest(baseUrl, "/api/v1/auth/register", {
+    method: "POST",
+    body: { username, password, nickname: "测试用户" }
+  });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.token);
+  return { authorization: `Bearer ${res.body.token}` };
+}
+
 const generals = catalog.getGenerals();
 const tactics = catalog.getAllTactics();
 const generalIds = generals.slice(0, 3).map((item) => item.id);
@@ -395,10 +408,12 @@ test("保存阵容后重建 app 仍能按用户读到（MySQL）", async () => {
     const lineupId = "lineup-persist-test-" + Date.now();
 
     const first = await startApp({ storeFile });
+    let headers;
     try {
+      headers = await registerAuthHeaders(first.baseUrl, "persist_tester");
       const saveRes = await httpRequest(first.baseUrl, "/api/v1/lineups", {
         method: "POST",
-        headers: { "x-user-id": "tester" },
+        headers,
         body: {
           lineup: {
             id: lineupId,
@@ -416,7 +431,7 @@ test("保存阵容后重建 app 仍能按用户读到（MySQL）", async () => {
       assert.equal(saveRes.body.item.id, lineupId);
 
       const listRes = await httpRequest(first.baseUrl, "/api/v1/lineups", {
-        headers: { "x-user-id": "tester" }
+        headers
       });
       assert.equal(listRes.statusCode, 200);
       const found = listRes.body.items.find((item) => item.id === lineupId);
@@ -429,7 +444,7 @@ test("保存阵容后重建 app 仍能按用户读到（MySQL）", async () => {
     const second = await startApp({ storeFile });
     try {
       const listRes = await httpRequest(second.baseUrl, "/api/v1/lineups", {
-        headers: { "x-user-id": "tester" }
+        headers
       });
       assert.equal(listRes.statusCode, 200);
       const found = listRes.body.items.find((item) => item.id === lineupId);
@@ -438,6 +453,85 @@ test("保存阵容后重建 app 仍能按用户读到（MySQL）", async () => {
     } finally {
       await second.app.stop();
     }
+  });
+});
+
+test("抽卡赛季和记录使用 MySQL 持久化", async () => {
+  await withServer(async (baseUrl) => {
+    const headers = await registerAuthHeaders(baseUrl, "draw_remote");
+
+    const poolRes = await httpRequest(baseUrl, "/api/v1/draw-pools", {
+      method: "POST",
+      headers,
+      body: { name: "测试卡池" }
+    });
+    assert.equal(poolRes.statusCode, 200);
+    const poolId = poolRes.body.item.id;
+
+    const seasonRes = await httpRequest(baseUrl, "/api/v1/draw-seasons", {
+      method: "POST",
+      headers,
+      body: { name: "S1", startDate: "2026-06-01" }
+    });
+    assert.equal(seasonRes.statusCode, 200);
+    const seasonId = seasonRes.body.item.id;
+
+    const recordRes = await httpRequest(baseUrl, "/api/v1/draw-records", {
+      method: "POST",
+      headers,
+      body: {
+        poolId,
+        seasonId,
+        date: "2026-06-15",
+        time: "09:30",
+        quality: "orange",
+        generalName: "曹操",
+        drawType: "free",
+        group: 1
+      }
+    });
+    assert.equal(recordRes.statusCode, 200);
+    assert.equal(recordRes.body.item.season_id, seasonId);
+
+    const recordsRes = await httpRequest(baseUrl, `/api/v1/draw-records?poolId=${encodeURIComponent(poolId)}`, { headers });
+    assert.equal(recordsRes.statusCode, 200);
+    assert.equal(recordsRes.body.items.length, 1);
+    assert.equal(recordsRes.body.items[0].general_name, "曹操");
+    assert.equal(recordsRes.body.items[0].season_id, seasonId);
+
+    const seasonsRes = await httpRequest(baseUrl, "/api/v1/draw-seasons", { headers });
+    assert.equal(seasonsRes.statusCode, 200);
+    assert.ok(seasonsRes.body.items.some((item) => item.id === seasonId));
+  });
+});
+
+test("推荐历史使用 MySQL 持久化", async () => {
+  await withServer(async (baseUrl) => {
+    const headers = await registerAuthHeaders(baseUrl, "recommendation_history");
+    const historyId = "rec-test-" + Date.now();
+    const saveRes = await httpRequest(baseUrl, "/api/v1/recommendation-history", {
+      method: "POST",
+      headers,
+      body: {
+        snapshot: {
+          id: historyId,
+          createdAt: "2026-06-20T10:00:00.000Z",
+          scenario: "PK赛季",
+          targetLineupCount: 2,
+          summary: { generatedLineupCount: 1, averageScore: 88 },
+          input: { generalIds: ["g1", "g2", "g3"], tacticIds: ["t1", "t2", "t3", "t4", "t5", "t6"] },
+          lineups: [{ key: "lineup_1", generals: ["曹操", "刘备", "孙权"], tactics: [] }]
+        }
+      }
+    });
+    assert.equal(saveRes.statusCode, 200);
+    assert.equal(saveRes.body.item.id, historyId);
+
+    const listRes = await httpRequest(baseUrl, "/api/v1/recommendation-history", { headers });
+    assert.equal(listRes.statusCode, 200);
+    const found = listRes.body.items.find((item) => item.id === historyId);
+    assert.ok(found);
+    assert.equal(found.summary.averageScore, 88);
   });
 });
 
@@ -799,8 +893,10 @@ test("P17 账号优化裁剪目标队数并在库存不足时返回稳定结构"
 
 test("P19 feedback 支持普通反馈和推荐反馈 metadata", async () => {
   await withServer(async (baseUrl) => {
+    const headers = await registerAuthHeaders(baseUrl, "feedback_user");
     const normalRes = await httpRequest(baseUrl, "/api/v1/feedback", {
       method: "POST",
+      headers,
       body: { content: "这是普通反馈内容", contact: "tester" }
     });
     assert.equal(normalRes.statusCode, 200);
@@ -817,6 +913,7 @@ test("P19 feedback 支持普通反馈和推荐反馈 metadata", async () => {
     };
     const recommendationRes = await httpRequest(baseUrl, "/api/v1/feedback", {
       method: "POST",
+      headers,
       body: {
         type: "recommendation",
         content: "[推荐反馈] 推荐不适合",
@@ -837,14 +934,17 @@ test("P19 feedback 支持普通反馈和推荐反馈 metadata", async () => {
 
 test("P19 feedback 拒绝非法类型和超长 metadata", async () => {
   await withServer(async (baseUrl) => {
+    const headers = await registerAuthHeaders(baseUrl, "feedback_invalid");
     const invalidTypeRes = await httpRequest(baseUrl, "/api/v1/feedback", {
       method: "POST",
+      headers,
       body: { type: "other", content: "非法类型反馈" }
     });
     assert.equal(invalidTypeRes.statusCode, 400);
 
     const longMetadataRes = await httpRequest(baseUrl, "/api/v1/feedback", {
       method: "POST",
+      headers,
       body: {
         type: "recommendation",
         content: "超长上下文反馈",
@@ -859,11 +959,12 @@ test("P19 feedback 拒绝非法类型和超长 metadata", async () => {
 test("阵容 API 使用 MySQL 存储：保存、查询、删除", async () => {
   await withServer(async (baseUrl) => {
     const lineupId = "lineup-mysql-test-" + Date.now();
+    const headers = await registerAuthHeaders(baseUrl, "mysql_tester");
 
     // 保存阵容
     const saveRes = await httpRequest(baseUrl, "/api/v1/lineups", {
       method: "POST",
-      headers: { "x-user-id": "mysql-tester" },
+      headers,
       body: {
         lineup: {
           id: lineupId,
@@ -881,7 +982,7 @@ test("阵容 API 使用 MySQL 存储：保存、查询、删除", async () => {
 
     // 查询阵容
     const listRes = await httpRequest(baseUrl, "/api/v1/lineups", {
-      headers: { "x-user-id": "mysql-tester" }
+      headers
     });
     assert.equal(listRes.statusCode, 200);
     assert.ok(Array.isArray(listRes.body.items));
@@ -892,7 +993,7 @@ test("阵容 API 使用 MySQL 存储：保存、查询、删除", async () => {
     // 删除阵容
     const deleteRes = await httpRequest(baseUrl, `/api/v1/lineups/${lineupId}`, {
       method: "DELETE",
-      headers: { "x-user-id": "mysql-tester" }
+      headers
     });
     assert.equal(deleteRes.statusCode, 200);
     assert.equal(deleteRes.body.ok, true);
@@ -900,7 +1001,7 @@ test("阵容 API 使用 MySQL 存储：保存、查询、删除", async () => {
 
     // 再次查询应为空
     const listRes2 = await httpRequest(baseUrl, "/api/v1/lineups", {
-      headers: { "x-user-id": "mysql-tester" }
+      headers
     });
     const found2 = listRes2.body.items.find((item) => item.id === lineupId);
     assert.equal(found2, undefined, "删除后不应再查到");

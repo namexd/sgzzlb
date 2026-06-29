@@ -5,7 +5,7 @@ import * as catalog from "../utils/catalog";
 
 const PRODUCTION_API_BASE_URL = "https://sz.qihangwk.com";
 const LOCAL_API_BASE_URL = "http://127.0.0.1:8787";
-const DEFAULT_API_CONFIG = { mode: "local", baseUrl: "", adminToken: "" };
+const DEFAULT_API_CONFIG = { mode: "remote", baseUrl: "", adminToken: "" };
 
 function isLoopbackHost(hostname) {
   return ["localhost", "127.0.0.1", "::1"].includes(hostname);
@@ -40,9 +40,7 @@ function normalizeBaseUrl(baseUrl) {
 export function getApiConfig() {
   const storedConfig = getStorage("apiConfig") || {};
   const config = { ...DEFAULT_API_CONFIG, ...storedConfig };
-  if (isHostedBrowser()) {
-    config.mode = "remote";
-  }
+  config.mode = "remote";
   config.baseUrl = normalizeBaseUrl(config.baseUrl);
 
   if (isHostedBrowser() && isLoopbackUrl(config.baseUrl)) {
@@ -53,17 +51,17 @@ export function getApiConfig() {
 }
 
 export function setApiConfig(nextConfig) {
-  const config = { ...getApiConfig(), ...(nextConfig || {}) };
+  const config = { ...getApiConfig(), ...(nextConfig || {}), mode: "remote" };
   setStorage("apiConfig", config);
   return config;
 }
 
 export function isRemoteMode() {
-  return getApiConfig().mode === "remote";
+  return true;
 }
 
 export function shouldUseRemote() {
-  return isRemoteMode();
+  return true;
 }
 
 export function getAuthToken() {
@@ -84,6 +82,23 @@ export function isLoggedIn() {
 
 export function logout() {
   clearAuthToken();
+  removeStorage("currentUser");
+}
+
+function isPublicRequest(path) {
+  return path.startsWith("/api/v1/auth/login") ||
+    path.startsWith("/api/v1/auth/register") ||
+    path.startsWith("/api/v1/auth/wechat-login") ||
+    path.startsWith("/api/v1/catalog/");
+}
+
+function redirectToLogin() {
+  try {
+    const pages = getCurrentPages();
+    const current = pages && pages[pages.length - 1];
+    if (current && current.route === "pages/login/index") return;
+  } catch (e) {}
+  uni.navigateTo({ url: "/pages/login/index" });
 }
 
 function requestRemote(path, options = {}) {
@@ -91,6 +106,10 @@ function requestRemote(path, options = {}) {
   const method = options.method || "GET";
   const headers = { "content-type": "application/json", ...(options.headers || {}) };
   const authToken = getAuthToken();
+  if (!authToken && !isPublicRequest(path)) {
+    redirectToLogin();
+    return Promise.reject(new Error("请先登录。"));
+  }
   if (authToken) headers["authorization"] = `Bearer ${authToken}`;
   if (config.adminToken) headers["x-admin-token"] = config.adminToken;
 
@@ -114,6 +133,10 @@ function requestRemote(path, options = {}) {
           if (response.statusCode >= 200 && response.statusCode < 300 && body.ok !== false) {
             resolve(body.data !== undefined ? body.data : body);
           } else {
+            if (response.statusCode === 401 && !isPublicRequest(path)) {
+              logout();
+              redirectToLogin();
+            }
             if (canRetryWithFallback(baseUrl, retried) && shouldRetryResponse(response)) {
               send(fallbackBaseUrl, true);
               return;
@@ -136,6 +159,35 @@ function requestRemote(path, options = {}) {
 }
 
 export { requestRemote };
+
+function normalizeDrawPool(row = {}) {
+  return {
+    ...row,
+    createdAt: row.createdAt || row.created_at
+  };
+}
+
+function normalizeDrawSeason(row = {}) {
+  return {
+    ...row,
+    startDate: row.startDate || row.start_date,
+    endDate: row.endDate !== undefined ? row.endDate : row.end_date,
+    createdAt: row.createdAt || row.created_at,
+    updatedAt: row.updatedAt || row.updated_at
+  };
+}
+
+function normalizeDrawRecord(row = {}) {
+  return {
+    ...row,
+    poolId: row.poolId || row.pool_id,
+    seasonId: row.seasonId !== undefined ? row.seasonId : row.season_id,
+    generalName: row.generalName !== undefined ? row.generalName : row.general_name,
+    drawType: row.drawType || row.draw_type,
+    group: row.group !== undefined ? Number(row.group) : Number(row.group_num || 1),
+    createdAt: row.createdAt || row.created_at
+  };
+}
 
 function withQuery(path, params = {}) {
   const pairs = Object.keys(params)
@@ -166,11 +218,7 @@ export function wxLogin() {
     });
     // #endif
     // #ifdef H5
-    const anonymousId = getStorage("anonymousId") || "h5_" + Date.now();
-    setStorage("anonymousId", anonymousId);
-    requestRemote("/api/v1/auth/anonymous-login", { method: "POST", data: { userId: anonymousId } })
-      .then((data) => { if (data.token) setAuthToken(data.token); resolve(data); })
-      .catch(reject);
+    reject(new Error("请使用账号密码登录。"));
     // #endif
   });
 }
@@ -240,8 +288,7 @@ export function optimizeAccountAsync(payload) {
 }
 
 export function getLineupsAsync(params = {}) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/lineups", { data: params });
-  return Promise.resolve(getStorage("savedLineups") || []);
+  return requestRemote(withQuery("/api/v1/lineups", params)).then((res) => normalizePagedList(res));
 }
 
 
@@ -262,137 +309,166 @@ export function submitRecommendationFeedbackAsync(payload = {}) {
 }
 
 export function saveLineupAsync(payload = {}) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/lineups", { method: "POST", data: payload });
-  const item = payload.lineup || payload;
-  const saved = getStorage("savedLineups") || [];
-  const idx = saved.findIndex((l) => l.id === item.id);
-  if (idx >= 0) {
-    saved[idx] = { ...saved[idx], ...item, updatedAt: new Date().toISOString() };
-  } else {
-    saved.unshift({ ...item, createdAt: item.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() });
-  }
-  setStorage("savedLineups", saved);
-  return Promise.resolve({ ok: true, item });
+  return requestRemote("/api/v1/lineups", { method: "POST", data: payload });
 }
 
 export function deleteLineupAsync(id) {
-  if (shouldUseRemote()) return requestRemote(`/api/v1/lineups/${encodeURIComponent(id)}`, { method: "DELETE" });
-  const saved = getStorage("savedLineups") || [];
-  const next = saved.filter((item) => item.id !== id);
-  setStorage("savedLineups", next);
-  return Promise.resolve({ ok: true, deleted: saved.length - next.length });
+  return requestRemote(`/api/v1/lineups/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+function normalizeRecommendationHistory(item = {}) {
+  return {
+    ...item,
+    targetLineupCount: item.targetLineupCount || item.target_lineup_count || 0,
+    createdAt: item.createdAt || item.created_at,
+    updatedAt: item.updatedAt || item.updated_at
+  };
+}
+
+export function getRecommendationHistoryAsync(params = {}) {
+  return requestRemote(withQuery("/api/v1/recommendation-history", params))
+    .then((res) => normalizePagedList(res).map(normalizeRecommendationHistory));
+}
+
+export function saveRecommendationHistoryAsync(snapshot = {}) {
+  return requestRemote("/api/v1/recommendation-history", { method: "POST", data: { snapshot } })
+    .then((res) => ({ ...res, item: normalizeRecommendationHistory(res.item) }));
 }
 
 // --- Battle Reports ---
 export function addBattleReportAsync(report) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/battle-reports", { method: "POST", data: report });
-  const item = {
-    ...report,
-    id: report.id || "br_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
-    createdAt: new Date().toISOString()
-  };
-  const saved = getStorage("battleReports") || [];
-  saved.unshift(item);
-  setStorage("battleReports", saved);
-  return Promise.resolve({ ok: true, item });
+  return requestRemote("/api/v1/battle-reports", { method: "POST", data: report });
 }
 
 export function getBattleReportsAsync(params = {}) {
-  if (shouldUseRemote()) {
-    const query = {};
-    if (params.limit) query.limit = params.limit;
-    if (params.offset) query.offset = params.offset;
-    return requestRemote(withQuery("/api/v1/battle-reports", query));
-  }
-  const saved = getStorage("battleReports") || [];
-  const limit = params.limit || 50;
-  const offset = params.offset || 0;
-  return Promise.resolve({ items: saved.slice(offset, offset + limit) });
+  const query = {};
+  if (params.limit) query.limit = params.limit;
+  if (params.offset) query.offset = params.offset;
+  return requestRemote(withQuery("/api/v1/battle-reports", query));
 }
 
 export function getBattleReportStatsAsync() {
-  if (shouldUseRemote()) return requestRemote("/api/v1/battle-reports/stats");
-  const saved = getStorage("battleReports") || [];
-  const total = saved.length;
-  const wins = saved.filter((r) => r.result === "win").length;
-  const losses = saved.filter((r) => r.result === "loss").length;
-  const draws = saved.filter((r) => r.result === "draw").length;
-  const recent = saved.slice(0, 10);
-  const recentWins = recent.filter((r) => r.result === "win").length;
-  return Promise.resolve({
-    ok: true,
-    stats: {
-      total,
-      wins,
-      losses,
-      draws,
-      winRate: total > 0 ? Math.round((wins / total) * 100) : 0,
-      byTroop: [],
-      recentTrend: `${recentWins}/${recent.length}`
-    }
-  });
+  return requestRemote("/api/v1/battle-reports/stats");
 }
 
 export function deleteBattleReportAsync(id) {
-  if (shouldUseRemote()) return requestRemote(`/api/v1/battle-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
-  const saved = getStorage("battleReports") || [];
-  const next = saved.filter((r) => r.id !== id);
-  setStorage("battleReports", next);
-  return Promise.resolve({ ok: true, deleted: saved.length - next.length });
+  return requestRemote(`/api/v1/battle-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // --- Draw Pools & Records ---
 export function getDrawPoolsAsync() {
-  if (shouldUseRemote()) return requestRemote("/api/v1/draw-pools").then((res) => Array.isArray(res) ? res : (res.items || []));
-  return Promise.resolve(require("../utils/drawStorage").getPools());
+  return requestRemote("/api/v1/draw-pools").then((res) => normalizePagedList(res).map(normalizeDrawPool));
 }
 
 export function createDrawPoolAsync(pool) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/draw-pools", { method: "POST", data: pool });
-  return Promise.resolve({ ok: true, item: require("../utils/drawStorage").createPool(pool.name) });
+  return requestRemote("/api/v1/draw-pools", { method: "POST", data: pool })
+    .then((res) => ({ ...res, item: normalizeDrawPool(res.item) }));
 }
 
 export function deleteDrawPoolAsync(poolId) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/draw-pools/" + encodeURIComponent(poolId), { method: "DELETE" });
-  require("../utils/drawStorage").deletePool(poolId);
-  return Promise.resolve({ ok: true });
+  return requestRemote("/api/v1/draw-pools/" + encodeURIComponent(poolId), { method: "DELETE" });
+}
+
+export function getDrawSeasonsAsync() {
+  return requestRemote("/api/v1/draw-seasons").then((res) => normalizePagedList(res).map(normalizeDrawSeason));
+}
+
+export function createDrawSeasonAsync(season = {}) {
+  return requestRemote("/api/v1/draw-seasons", { method: "POST", data: season })
+    .then((res) => ({ ...res, item: normalizeDrawSeason(res.item) }));
+}
+
+export function updateDrawSeasonAsync(seasonId, patch = {}) {
+  return requestRemote("/api/v1/draw-seasons/" + encodeURIComponent(seasonId), { method: "PATCH", data: patch })
+    .then((res) => ({ ...res, item: normalizeDrawSeason(res.item) }));
+}
+
+export function endDrawSeasonAsync(seasonId, endDate) {
+  return requestRemote("/api/v1/draw-seasons/" + encodeURIComponent(seasonId) + "/end", { method: "POST", data: { endDate } })
+    .then((res) => ({ ...res, item: normalizeDrawSeason(res.item) }));
+}
+
+export function syncDrawSeasonsAsync(seasons = []) {
+  return requestRemote("/api/v1/draw-seasons/sync", { method: "POST", data: { seasons } });
 }
 
 export function getDrawRecordsAsync(poolId) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/draw-records?poolId=" + encodeURIComponent(poolId)).then((res) => Array.isArray(res) ? res : (res.items || []));
-  return Promise.resolve(require("../utils/drawStorage").getRecords(poolId));
+  return requestRemote("/api/v1/draw-records?poolId=" + encodeURIComponent(poolId))
+    .then((res) => normalizePagedList(res).map(normalizeDrawRecord).sort((a, b) => {
+      const left = `${a.date || ""} ${a.time || ""} ${a.createdAt || ""}`;
+      const right = `${b.date || ""} ${b.time || ""} ${b.createdAt || ""}`;
+      return left.localeCompare(right);
+    }));
 }
 
 export function addDrawRecordAsync(record) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/draw-records", { method: "POST", data: record });
-  return Promise.resolve({ ok: true, item: require("../utils/drawStorage").addRecord(record.poolId, record) });
+  return requestRemote("/api/v1/draw-records", { method: "POST", data: record })
+    .then((res) => ({ ...res, item: normalizeDrawRecord(res.item) }));
 }
 
 export function deleteDrawRecordAsync(poolId, recordId) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/draw-records/" + encodeURIComponent(recordId), { method: "DELETE" });
-  require("../utils/drawStorage").deleteRecord(poolId, recordId);
-  return Promise.resolve({ ok: true });
+  return requestRemote("/api/v1/draw-records/" + encodeURIComponent(recordId), { method: "DELETE" });
 }
 
 export function syncDrawRecordsAsync(records) {
-  if (shouldUseRemote()) return requestRemote("/api/v1/draw-records/sync", { method: "POST", data: { records } });
-  return Promise.resolve({ ok: true, added: 0, total: records.length });
+  return requestRemote("/api/v1/draw-records/sync", { method: "POST", data: { records } });
+}
+
+export async function migrateLocalUserDataToRemote() {
+  if (!isLoggedIn()) return { ok: false, skipped: true };
+  const drawStorage = await import("../utils/drawStorage");
+  const lineups = getStorage("savedLineups") || [];
+  const recommendationHistory = getStorage("recommendationHistory") || [];
+  const pools = drawStorage.getPools ? drawStorage.getPools() : [];
+  const seasons = drawStorage.getSeasons ? drawStorage.getSeasons() : [];
+  const drawRecords = [];
+
+  for (const pool of pools) {
+    if (pool && pool.name) {
+      await createDrawPoolAsync(pool).catch(() => null);
+    }
+    const records = drawStorage.getRecords ? drawStorage.getRecords(pool.id) : [];
+    drawRecords.push(...records);
+  }
+
+  if (seasons.length > 0) await syncDrawSeasonsAsync(seasons).catch(() => null);
+  if (drawRecords.length > 0) await syncDrawRecordsAsync(drawRecords).catch(() => null);
+  for (const lineup of lineups) {
+    await saveLineupAsync({ lineup }).catch(() => null);
+  }
+  for (const item of recommendationHistory) {
+    await saveRecommendationHistoryAsync(item).catch(() => null);
+  }
+
+  setStorage("remoteMigrationDone", true);
+  return {
+    ok: true,
+    lineups: lineups.length,
+    recommendationHistory: recommendationHistory.length,
+    pools: pools.length,
+    seasons: seasons.length,
+    drawRecords: drawRecords.length
+  };
 }
 
 // Aliases without "Async" suffix for drawStorage compatibility
 export const getDrawPools = getDrawPoolsAsync;
 export const getDrawRecords = getDrawRecordsAsync;
 export const syncDrawRecords = syncDrawRecordsAsync;
+export const getDrawSeasons = getDrawSeasonsAsync;
+export const syncDrawSeasons = syncDrawSeasonsAsync;
 
 export default {
   getApiConfig, setApiConfig, isRemoteMode, shouldUseRemote, requestRemote,
   getAuthToken, setAuthToken, clearAuthToken, isLoggedIn, logout,
-  wxLogin, getProfile,
+  wxLogin, getProfile, migrateLocalUserDataToRemote,
   getCatalogSummary, getGenerals, getTactics, getEquipment, getTroopTactics, getRecords,
   analyzeLineupAsync, previewMatchupAsync, optimizeAccountAsync,
   getLineupsAsync, saveLineupAsync, deleteLineupAsync,
+  getRecommendationHistoryAsync, saveRecommendationHistoryAsync,
   addBattleReportAsync, getBattleReportsAsync, getBattleReportStatsAsync, deleteBattleReportAsync,
   getDrawPoolsAsync, createDrawPoolAsync, deleteDrawPoolAsync,
+  getDrawSeasonsAsync, createDrawSeasonAsync, updateDrawSeasonAsync, endDrawSeasonAsync, syncDrawSeasonsAsync,
   getDrawRecordsAsync, addDrawRecordAsync, deleteDrawRecordAsync, syncDrawRecordsAsync,
-  getDrawPools, getDrawRecords, syncDrawRecords
+  getDrawPools, getDrawRecords, syncDrawRecords, getDrawSeasons, syncDrawSeasons
 };

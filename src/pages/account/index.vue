@@ -137,15 +137,13 @@
       </view>
       <view class="tool-card" @tap="loggedIn ? syncData() : goToLogin()">
         <image class="tool-icon" src="/static/ui-assets/mockup-icons/tool-settings.png" mode="aspectFit" />
-        <view>{{ loggedIn ? '同步数据' : '登录账号' }}</view>
+        <view>{{ loggedIn ? (syncing ? '同步中' : '同步数据') : '登录账号' }}</view>
         <text>›</text>
       </view>
     </view>
 
-    <view class="account-actions">
-      <button v-if="!loggedIn" class="mini-btn" @tap="goToLogin">登录 / 注册</button>
-      <button v-if="loggedIn" class="mini-btn" @tap="syncData" :loading="syncing">同步数据</button>
-      <button v-if="loggedIn" class="mini-btn danger" @tap="doLogout">退出登录</button>
+    <view v-if="loggedIn" class="logout-row">
+      <view class="logout-btn" @tap="doLogout">退出登录</view>
     </view>
 
   </view>
@@ -154,7 +152,17 @@
 <script>
 import catalog from "../../utils/catalog";
 import { getEntitlements, setTier, syncEntitlements } from "../../utils/subscription";
-import { isLoggedIn, logout, getProfile, optimizeAccountAsync, deleteLineupAsync, requestRemote } from "../../services/api";
+import {
+  isLoggedIn,
+  logout,
+  getProfile,
+  optimizeAccountAsync,
+  deleteLineupAsync,
+  getLineupsAsync,
+  getRecommendationHistoryAsync,
+  migrateLocalUserDataToRemote,
+  saveLineupAsync
+} from "../../services/api";
 
 export default {
   data() {
@@ -223,95 +231,34 @@ export default {
       if (!this.loggedIn) return;
       this.syncing = true;
       try {
-        // Upload local lineups
-        const savedLineups = uni.getStorageSync("savedLineups") || [];
-        if (savedLineups.length > 0) {
-          await requestRemote("/api/v1/lineups/sync", { method: "POST", data: { lineups: savedLineups } });
-        }
-        // Upload local draw records
-        const drawPools = uni.getStorageSync("drawPools") || [];
-        for (const pool of drawPools) {
-          const records = uni.getStorageSync(`drawRecords_${pool.id}`) || [];
-          if (records.length > 0) {
-            await requestRemote("/api/v1/draw-records/sync", { method: "POST", data: { records } });
-          }
-        }
-        // Download from server
-        await this.loadFromCloud();
-        uni.showToast({ title: "同步完成", icon: "success" });
+        const result = await migrateLocalUserDataToRemote();
+        await Promise.all([this.loadSaved(), this.loadRecommendationHistory()]);
+        const total = Number(result.lineups || 0) +
+          Number(result.recommendationHistory || 0) +
+          Number(result.drawRecords || 0);
+        uni.showToast({
+          title: total > 0 ? `已同步${total}条` : "暂无本地数据",
+          icon: "success"
+        });
       } catch (e) {
-        uni.showToast({ title: "同步失败", icon: "none" });
+        uni.showToast({ title: e.message || "同步失败", icon: "none" });
       } finally {
         this.syncing = false;
       }
     },
     async loadFromCloud() {
-      try {
-        // Load lineups from server
-        const lineupsRes = await requestRemote("/api/v1/lineups");
-        const lineups = lineupsRes.items || [];
-        if (lineups.length > 0) {
-          const localLineups = uni.getStorageSync("savedLineups") || [];
-          const localMap = new Map(localLineups.map(l => [l.id, l]));
-          lineups.forEach(l => {
-            if (!localMap.has(l.id)) {
-              localLineups.push({
-                id: l.id,
-                createdAt: l.created_at,
-                scenario: l.scenario,
-                troop: l.troop,
-                score: l.score,
-                generals: typeof l.generals === 'string' ? JSON.parse(l.generals) : l.generals,
-                tactics: typeof l.tactics === 'string' ? JSON.parse(l.tactics) : l.tactics
-              });
-            }
-          });
-          uni.setStorageSync("savedLineups", localLineups);
-        }
-        // Load draw records from server
-        const drawRes = await requestRemote("/api/v1/draw-records");
-        const records = drawRes.items || [];
-        if (records.length > 0) {
-          // Group by pool and merge
-          const poolMap = {};
-          records.forEach(r => {
-            const poolId = r.pool_id || "default";
-            if (!poolMap[poolId]) poolMap[poolId] = [];
-            poolMap[poolId].push({
-              id: r.id,
-              poolId: r.pool_id,
-              date: r.date,
-              time: r.time,
-              quality: r.quality,
-              generalName: r.general_name,
-              drawType: r.draw_type,
-              group: r.group_num
-            });
-          });
-          for (const [poolId, serverRecords] of Object.entries(poolMap)) {
-            const localRecords = uni.getStorageSync(`drawRecords_${poolId}`) || [];
-            const localIds = new Set(localRecords.map(r => r.id));
-            serverRecords.forEach(r => {
-              if (!localIds.has(r.id)) localRecords.push(r);
-            });
-            uni.setStorageSync(`drawRecords_${poolId}`, localRecords);
-          }
-        }
-        this.loadSaved();
-      } catch (e) {
-        console.error("Load from cloud failed:", e);
-      }
+      await this.loadSaved();
     },
     togglePremium(e) {
       setTier(e.detail.value ? "premium" : "free");
       this.entitlements = getEntitlements();
     },
-    loadSaved() {
-      const saved = uni.getStorageSync("savedLineups") || [];
+    async loadSaved() {
+      const saved = await getLineupsAsync().catch(() => []);
       this.savedLineupsView = saved.map((item, index) => this.buildLineupView(item, index, false));
     },
-    loadRecommendationHistory() {
-      const history = uni.getStorageSync("recommendationHistory") || [];
+    async loadRecommendationHistory() {
+      const history = await getRecommendationHistoryAsync().catch(() => []);
       this.recommendationHistoryView = history.map((item) => {
         const firstLineups = (item.lineups || []).slice(0, 2).map((lineup) => (lineup.generals || []).join(" / ")).filter(Boolean);
         const simulatedCount = (item.lineups || []).filter((lineup) => lineup.simulation).length;
@@ -333,7 +280,6 @@ export default {
       return `${date.getMonth() + 1}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     },
     clearSaved() {
-      uni.setStorageSync("savedLineups", []);
       this.savedLineupsView = [];
     },
     deleteLineup(id) {
@@ -347,13 +293,12 @@ export default {
         .then((r) => { this.optimizeResult = r; this.optimizeLoading = false; })
         .catch((err) => { this.optimizeHint = "失败：" + err.message; this.optimizeLoading = false; });
     },
-    saveOptimizeLineup(idx) {
+    async saveOptimizeLineup(idx) {
       const lineup = this.optimizeResult.lineups[idx];
       if (!lineup) return;
-      const saved = uni.getStorageSync("savedLineups") || [];
       const item = { id: `opt_${Date.now()}`, createdAt: new Date().toISOString(), scenario: "PK赛季", troop: lineup.troop, score: lineup.score, generals: lineup.generals, tactics: lineup.tactics };
-      uni.setStorageSync("savedLineups", [item, ...saved]);
-      this.loadSaved();
+      await saveLineupAsync({ lineup: item });
+      await this.loadSaved();
       uni.showToast({ title: "已保存", icon: "success" });
     },
     goToDrawStats() {
@@ -677,7 +622,7 @@ export default {
 .saved-list,
 .optimize-list,
 .tool-grid,
-.account-actions,
+.logout-row,
 .data-note,
 .note {
   position: relative;
@@ -1049,11 +994,10 @@ export default {
   font-size: 28rpx;
 }
 
-.account-actions {
+.logout-row {
   display: flex;
-  gap: 14rpx;
   justify-content: center;
-  margin-bottom: 22rpx;
+  margin: 8rpx 0 22rpx;
 }
 
 .mini-btn {
@@ -1064,12 +1008,29 @@ export default {
   background: rgba(214, 168, 93, 0.1);
   color: #d6b978;
   font-size: 24rpx;
+  line-height: 54rpx;
 }
 
-.mini-btn.danger {
-  color: #d1684d;
-  border-color: rgba(209, 104, 77, 0.26);
-  background: rgba(209, 104, 77, 0.08);
+.benefit-btn::after,
+.mini-btn::after {
+  border: 0;
+}
+
+.logout-btn {
+  min-width: 188rpx;
+  height: 56rpx;
+  padding: 0 30rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(209, 104, 77, 0.36);
+  background:
+    linear-gradient(180deg, rgba(98, 39, 28, 0.48), rgba(38, 18, 15, 0.74));
+  color: #e98468;
+  font-size: 24rpx;
+  line-height: 56rpx;
+  text-align: center;
+  box-shadow:
+    0 10rpx 22rpx rgba(0, 0, 0, 0.26),
+    inset 0 1rpx 0 rgba(255, 190, 170, 0.16);
 }
 
 .data-note,

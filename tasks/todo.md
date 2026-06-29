@@ -450,12 +450,12 @@
 - P18 浏览器点验尝试受限：`preview_start` 显示启动成功但 5173 端口未实际监听，页面停留在 `Awaiting server…`；本轮已记录限制，需后续在本地浏览器或微信开发者工具补人工点验。
 
 
-- P19 自动验证通过：`node tests/server.test.mjs` 通过 27/27，新增覆盖普通反馈兼容、推荐反馈 `type/metadata`、非法类型和超长 metadata。
+- P19 自动验证通过：`node tests/server.test.mjs` 通过 29/29，覆盖普通反馈兼容、推荐历史 MySQL 持久化、推荐反馈 `type/metadata`、非法类型和超长 metadata。
 - `npm test` 全部通过，覆盖 catalog、catalogDiff、catalogVersionStore、scoring、simulator、server、drawStorage。
-- `npm --prefix src run build:h5` 构建成功，修复推荐页反馈 content 换行字符串后通过。
-- `npm --prefix src run build:mp-weixin` 构建成功，验证推荐历史与复盘页可编译。
+- `npm --prefix src run build:h5` 构建成功，验证推荐页、推荐历史与复盘页 H5 可编译。
+- `npm --prefix src run build:mp-weixin` 构建成功，验证推荐历史与复盘页小程序端可编译。
 - `npm --prefix admin run build` 构建成功，仅保留既有 `@vueuse/core` pure annotation 和 chunk 体积警告。
-- P19 浏览器点验受限：5173 端口被另一个项目的 `web-dev` 预览服务占用，未强行停止；需后续在本地浏览器或微信开发者工具补人工点验。
+- P19 H5 浏览器点验通过：`.claude/launch.json` 使用 5174 端口启动 `sgzzlb-h5` 静态预览，登录页可加载，推荐复盘路由 `#/pages/recommend/history` 可加载空历史状态，控制台无错误。
 
 ### 剩余任务（非代码层面）
 

@@ -91,7 +91,7 @@ function sendText(res, statusCode, body, headers = {}) {
 
 function applyCors(res, origin) {
   res.setHeader("access-control-allow-origin", origin || "*");
-  res.setHeader("access-control-allow-methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   res.setHeader("access-control-allow-headers", "content-type,x-admin-token,authorization");
   res.setHeader("access-control-max-age", "86400");
 }
@@ -564,28 +564,27 @@ function createApp(options = {}) {
   let db = null;
   const dbReady = dbModule.createDatabase(options.dbConfig).then((pool) => { db = pool; });
 
-  // Get or create user from request (openid from header or query)
-  async function getUser(req, url) {
-    const openid = req.headers["x-user-id"] || url.searchParams.get("userId") || "anonymous";
-    return dbModule.getOrCreateUser(db, openid);
-  }
-
   // Extract authenticated user from Bearer token
   async function getAuthUser(req) {
+    if (req.authUser) return req.authUser;
     const authHeader = req.headers["authorization"] || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     if (!token) return null;
     const tokenSecret = process.env.TOKEN_SECRET || DEFAULT_TOKEN_SECRET;
     const payload = verifyToken(token, tokenSecret);
     if (!payload) return null;
-    return dbModule.getOrCreateUser(db, payload.userId);
+    const user = await dbModule.getOrCreateUser(db, payload.userId);
+    req.authUser = user;
+    return user;
   }
 
-  // Unified user resolution: Bearer token > x-user-id > anonymous
-  async function resolveUser(req, url) {
-    const authUser = await getAuthUser(req);
-    if (authUser) return authUser;
-    return getUser(req, url);
+  async function requireAuthUser(req, res) {
+    const user = await getAuthUser(req);
+    if (!user) {
+      sendJson(res, 401, { ok: false, message: "请先登录。" });
+      return null;
+    }
+    return user;
   }
 
   // Database health check
@@ -1055,12 +1054,7 @@ function createApp(options = {}) {
       }
 
       if (req.method === "POST" && path === "/api/v1/auth/anonymous-login") {
-        const body = await readJsonBody(req);
-        const userId = body.userId || "anonymous_" + Date.now();
-        const user = await dbModule.getOrCreateUser(db, userId);
-        const tokenSecret = process.env.TOKEN_SECRET || DEFAULT_TOKEN_SECRET;
-        const token = generateToken(user.id, tokenSecret);
-        sendJson(res, 200, { ok: true, token, userId: user.id });
+        sendJson(res, 410, { ok: false, message: "匿名登录已关闭，请注册或登录。" });
         return;
       }
 
@@ -1187,14 +1181,16 @@ function createApp(options = {}) {
       }
 
       if (req.method === "GET" && path === "/api/v1/lineups") {
-        const user = await resolveUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const rows = await dbModule.getLineups(db, user.id);
         sendJson(res, 200, { items: rows });
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/lineups") {
-        const user = await resolveUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const body = await readJsonBody(req);
         const record = normalizeLineupPayload(body);
         const saved = await dbModule.saveLineup(db, user.id, record);
@@ -1205,7 +1201,8 @@ function createApp(options = {}) {
 
       const lineupDeleteMatch = path.match(/^\/api\/v1\/lineups\/([^/]+)$/);
       if (req.method === "DELETE" && lineupDeleteMatch) {
-        const user = await resolveUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const lineupId = decodeURIComponent(lineupDeleteMatch[1]);
         const result = await dbModule.deleteLineup(db, lineupId, user.id);
         if (result.deleted > 0) {
@@ -1217,7 +1214,8 @@ function createApp(options = {}) {
 
       // Sync lineups from local to server
       if (req.method === "POST" && path === "/api/v1/lineups/sync") {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const body = await readJsonBody(req);
         const lineups = Array.isArray(body.lineups) ? body.lineups : [];
         let added = 0;
@@ -1279,7 +1277,8 @@ function createApp(options = {}) {
       }
 
       if (req.method === "POST" && path === "/api/v1/battle-reports") {
-        const user = await resolveUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const body = await readJsonBody(req);
         if (!body.result || !["win", "loss", "draw"].includes(body.result)) {
           sendJson(res, 400, { ok: false, message: "result 必须是 win/loss/draw。" });
@@ -1292,7 +1291,8 @@ function createApp(options = {}) {
       }
 
       if (req.method === "GET" && path === "/api/v1/battle-reports") {
-        const user = await resolveUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const limit = parsePositiveInteger(url.searchParams.get("limit"), 50, 200);
         const offset = parsePositiveInteger(url.searchParams.get("offset"), 0);
         const reports = await dbModule.getBattleReports(db, user.id, limit, offset);
@@ -1301,7 +1301,8 @@ function createApp(options = {}) {
       }
 
       if (req.method === "GET" && path === "/api/v1/battle-reports/stats") {
-        const user = await resolveUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const stats = await dbModule.getBattleReportStats(db, user.id);
         sendJson(res, 200, { ok: true, stats });
         return;
@@ -1309,7 +1310,8 @@ function createApp(options = {}) {
 
       const battleReportDeleteMatch = path.match(/^\/api\/v1\/battle-reports\/([^/]+)$/);
       if (req.method === "DELETE" && battleReportDeleteMatch) {
-        const user = await resolveUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const reportId = decodeURIComponent(battleReportDeleteMatch[1]);
         const result = await dbModule.deleteBattleReport(db, reportId, user.id);
         sendJson(res, 200, { ok: true, deleted: result.deleted });
@@ -1324,6 +1326,8 @@ function createApp(options = {}) {
       // --- Feedback ---
 
       if (req.method === "POST" && path === "/api/v1/feedback") {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const body = await readJsonBody(req);
         const content = (body.content || "").trim();
         if (!content || content.length < 5) {
@@ -1348,8 +1352,40 @@ function createApp(options = {}) {
             return;
           }
         }
-        const user = await getAuthUser(req);
-        const saved = await dbModule.addFeedback(db, user ? user.id : null, content, contact, { type, metadata });
+        const saved = await dbModule.addFeedback(db, user.id, content, contact, { type, metadata });
+        sendJson(res, 200, { ok: true, item: saved });
+        return;
+      }
+
+      if (req.method === "GET" && path === "/api/v1/recommendation-history") {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const limit = parsePositiveInteger(url.searchParams.get("limit"), 20, 100);
+        const items = await dbModule.getRecommendationHistory(db, user.id, limit);
+        sendJson(res, 200, { items });
+        return;
+      }
+
+      if (req.method === "POST" && path === "/api/v1/recommendation-history") {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const body = await readJsonBody(req);
+        const snapshot = body.snapshot && typeof body.snapshot === "object" ? body.snapshot : body;
+        const saved = await dbModule.saveRecommendationHistory(db, user.id, snapshot);
+        sendJson(res, 200, { ok: true, item: saved });
+        return;
+      }
+
+      const recommendationHistoryMatch = path.match(/^\/api\/v1\/recommendation-history\/([^/]+)$/);
+      if ((req.method === "PUT" || req.method === "PATCH") && recommendationHistoryMatch) {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const body = await readJsonBody(req);
+        const snapshot = body.snapshot && typeof body.snapshot === "object" ? body.snapshot : body;
+        const saved = await dbModule.saveRecommendationHistory(db, user.id, {
+          ...snapshot,
+          id: decodeURIComponent(recommendationHistoryMatch[1])
+        });
         sendJson(res, 200, { ok: true, item: saved });
         return;
       }
@@ -1389,25 +1425,104 @@ function createApp(options = {}) {
       // --- Draw pools (MySQL) ---
 
       if (req.method === "GET" && path === "/api/v1/draw-pools") {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const pools = await dbModule.getDrawPools(db, user.id);
         sendJson(res, 200, { items: pools });
         return;
       }
 
       if (req.method === "POST" && path === "/api/v1/draw-pools") {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const body = await readJsonBody(req);
         const name = normalizeText(body.name, "新卡池", 60);
-        const pool = await dbModule.createDrawPool(db, user.id, name);
+        const pool = await dbModule.createDrawPool(db, user.id, name, normalizeText(body.id, "", 64) || undefined);
         addAuditLog(store, "drawPools.created", { id: pool.id, name: pool.name, userId: user.id });
         sendJson(res, 200, { ok: true, item: pool });
         return;
       }
 
+      // --- Draw seasons (MySQL) ---
+
+      if (req.method === "GET" && path === "/api/v1/draw-seasons") {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const seasons = await dbModule.getDrawSeasons(db, user.id);
+        sendJson(res, 200, { items: seasons });
+        return;
+      }
+
+      if (req.method === "POST" && path === "/api/v1/draw-seasons") {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const body = await readJsonBody(req);
+        const season = await dbModule.createDrawSeason(db, user.id, {
+          id: normalizeText(body.id, "", 64) || undefined,
+          name: normalizeText(body.name, "S1", 60),
+          startDate: normalizeText(body.startDate, nowLocal().slice(0, 10), 16),
+          endDate: body.endDate ? normalizeText(body.endDate, "", 16) : null
+        });
+        addAuditLog(store, "drawSeasons.created", { id: season.id, name: season.name, userId: user.id });
+        sendJson(res, 200, { ok: true, item: season });
+        return;
+      }
+
+      if (req.method === "POST" && path === "/api/v1/draw-seasons/sync") {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const body = await readJsonBody(req);
+        const seasons = Array.isArray(body.seasons) ? body.seasons : [];
+        const normalized = seasons.map((season) => ({
+          id: normalizeText(season.id, "", 64),
+          name: normalizeText(season.name, "S1", 60),
+          startDate: normalizeText(season.startDate, nowLocal().slice(0, 10), 16),
+          endDate: season.endDate ? normalizeText(season.endDate, "", 16) : null,
+          createdAt: normalizeText(season.createdAt, "", 32) || undefined
+        })).filter((season) => season.id);
+        const result = await dbModule.syncDrawSeasons(db, user.id, normalized);
+        sendJson(res, 200, { ok: true, added: result.added, total: result.total });
+        return;
+      }
+
+      const drawSeasonEndMatch = path.match(/^\/api\/v1\/draw-seasons\/([^/]+)\/end$/);
+      if (req.method === "POST" && drawSeasonEndMatch) {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const body = await readJsonBody(req);
+        const seasonId = decodeURIComponent(drawSeasonEndMatch[1]);
+        const season = await dbModule.endDrawSeason(db, user.id, seasonId, body.endDate || nowLocal().slice(0, 10));
+        if (!season) {
+          sendJson(res, 404, { ok: false, message: "赛季不存在。" });
+          return;
+        }
+        sendJson(res, 200, { ok: true, item: season });
+        return;
+      }
+
+      const drawSeasonUpdateMatch = path.match(/^\/api\/v1\/draw-seasons\/([^/]+)$/);
+      if ((req.method === "PUT" || req.method === "PATCH") && drawSeasonUpdateMatch) {
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
+        const body = await readJsonBody(req);
+        const seasonId = decodeURIComponent(drawSeasonUpdateMatch[1]);
+        const patch = {};
+        if (body.name) patch.name = normalizeText(body.name, "", 60);
+        if (body.startDate) patch.startDate = normalizeText(body.startDate, "", 16);
+        if (Object.prototype.hasOwnProperty.call(body, "endDate")) patch.endDate = body.endDate ? normalizeText(body.endDate, "", 16) : null;
+        const season = await dbModule.updateDrawSeason(db, user.id, seasonId, patch);
+        if (!season) {
+          sendJson(res, 404, { ok: false, message: "赛季不存在。" });
+          return;
+        }
+        sendJson(res, 200, { ok: true, item: season });
+        return;
+      }
+
       const drawPoolDeleteMatch = path.match(/^\/api\/v1\/draw-pools\/([^/]+)$/);
       if (req.method === "DELETE" && drawPoolDeleteMatch) {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const poolId = decodeURIComponent(drawPoolDeleteMatch[1]);
         const result = await dbModule.deleteDrawPool(db, poolId, user.id);
         if (result.deleted > 0) {
@@ -1420,7 +1535,8 @@ function createApp(options = {}) {
       // --- Draw records (MySQL) ---
 
       if (req.method === "GET" && path === "/api/v1/draw-records") {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const poolId = url.searchParams.get("poolId");
         let records;
         if (poolId) {
@@ -1433,10 +1549,12 @@ function createApp(options = {}) {
       }
 
       if (req.method === "POST" && path === "/api/v1/draw-records") {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const body = await readJsonBody(req);
         const record = {
           poolId: body.poolId || "default",
+          seasonId: body.seasonId || null,
           date: body.date || nowLocal().slice(0, 10),
           time: body.time || nowLocal().slice(11, 16),
           quality: body.quality || "blue",
@@ -1445,13 +1563,18 @@ function createApp(options = {}) {
           group: body.group || 1
         };
         const saved = await dbModule.addDrawRecord(db, user.id, record);
+        if (saved.error) {
+          sendJson(res, 400, { ok: false, message: saved.error });
+          return;
+        }
         sendJson(res, 200, { ok: true, item: saved });
         return;
       }
 
       const drawRecordDeleteMatch = path.match(/^\/api\/v1\/draw-records\/([^/]+)$/);
       if (req.method === "DELETE" && drawRecordDeleteMatch) {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const recordId = decodeURIComponent(drawRecordDeleteMatch[1]);
         const result = await dbModule.deleteDrawRecord(db, recordId, user.id);
         sendJson(res, 200, { ok: true, deleted: result.deleted });
@@ -1461,9 +1584,13 @@ function createApp(options = {}) {
       // --- Draw records sync (batch upload, MySQL) ---
 
       if (req.method === "POST" && path === "/api/v1/draw-records/sync") {
-        const user = await getUser(req, url);
+        const user = await requireAuthUser(req, res);
+        if (!user) return;
         const body = await readJsonBody(req);
-        const records = Array.isArray(body.records) ? body.records : [];
+        const records = Array.isArray(body.records) ? body.records.map((record) => ({
+          ...record,
+          seasonId: record.seasonId || null
+        })) : [];
         const result = await dbModule.syncDrawRecords(db, user.id, records);
         if (result.added > 0) {
           addAuditLog(store, "drawRecords.synced", { added: result.added, total: result.total, userId: user.id });

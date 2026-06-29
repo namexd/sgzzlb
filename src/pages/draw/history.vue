@@ -48,6 +48,12 @@
 
 <script>
 import * as drawStorage from "../../utils/drawStorage";
+import {
+  deleteDrawRecordAsync,
+  getDrawPoolsAsync,
+  getDrawRecordsAsync,
+  getDrawSeasonsAsync
+} from "../../services/api";
 
 export default {
   data() {
@@ -101,18 +107,14 @@ export default {
   },
 
   methods: {
-    refreshRecords() {
-      let pools = drawStorage.getPools();
-      if (pools.length === 0) {
-        drawStorage.ensureDefaultPool();
-        pools = drawStorage.getPools();
-      }
+    async refreshRecords() {
+      const pools = await getDrawPoolsAsync().catch(() => []);
       const activePool = pools[0] || null;
-      const activeSeason = drawStorage.ensureDefaultSeason();
+      const seasons = await getDrawSeasonsAsync().catch(() => []);
+      const activeSeason = drawStorage.getActiveSeasonFromList(seasons) || seasons[0] || null;
       const seasonId = activeSeason && activeSeason.id;
-      const records = activePool
-        ? (seasonId ? drawStorage.getSeasonRecords(activePool.id, seasonId) : drawStorage.getRecords(activePool.id))
-        : [];
+      const allRecords = activePool ? await getDrawRecordsAsync(activePool.id).catch(() => []) : [];
+      const records = seasonId ? drawStorage.getSeasonRecordsFromRecords(allRecords, seasons, seasonId) : allRecords;
 
       this.activePool = activePool;
       this.activeSeason = activeSeason;
@@ -123,10 +125,10 @@ export default {
       });
     },
 
-    deleteRecord(id) {
+    async deleteRecord(id) {
       if (!this.activePool) return;
-      drawStorage.deleteRecord(this.activePool.id, id);
-      this.refreshRecords();
+      await deleteDrawRecordAsync(this.activePool.id, id);
+      await this.refreshRecords();
       uni.showToast({ title: "已删除", icon: "success" });
     },
 

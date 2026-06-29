@@ -114,10 +114,25 @@ async function createDatabase(config) {
   `);
 
   await p.execute(`
+    CREATE TABLE IF NOT EXISTS draw_seasons (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      name VARCHAR(64) NOT NULL,
+      start_date VARCHAR(16) NOT NULL,
+      end_date VARCHAR(16) DEFAULT NULL,
+      created_at VARCHAR(32),
+      updated_at VARCHAR(32),
+      INDEX idx_draw_seasons_user (user_id),
+      INDEX idx_draw_seasons_active (user_id, end_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await p.execute(`
     CREATE TABLE IF NOT EXISTS draw_records (
       id VARCHAR(64) PRIMARY KEY,
       pool_id VARCHAR(64) NOT NULL,
       user_id VARCHAR(64) NOT NULL,
+      season_id VARCHAR(64) DEFAULT NULL,
       date VARCHAR(16) NOT NULL,
       time VARCHAR(16) NOT NULL,
       quality VARCHAR(16) NOT NULL,
@@ -127,9 +142,16 @@ async function createDatabase(config) {
       created_at VARCHAR(32),
       INDEX idx_draw_records_pool (pool_id),
       INDEX idx_draw_records_user (user_id),
+      INDEX idx_draw_records_season (user_id, season_id),
       INDEX idx_draw_records_date (user_id, date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+  try {
+    await p.execute("ALTER TABLE draw_records ADD COLUMN season_id VARCHAR(64) DEFAULT NULL");
+  } catch (e) { /* column already exists */ }
+  try {
+    await p.execute("ALTER TABLE draw_records ADD INDEX idx_draw_records_season (user_id, season_id)");
+  } catch (e) { /* index already exists */ }
 
   await p.execute(`
     CREATE TABLE IF NOT EXISTS lineups (
@@ -169,6 +191,20 @@ async function createDatabase(config) {
       created_at VARCHAR(32),
       INDEX idx_battle_reports_user (user_id),
       INDEX idx_battle_reports_date (user_id, battle_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS recommendation_history (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      scenario VARCHAR(80) DEFAULT '',
+      target_lineup_count INT DEFAULT 0,
+      summary TEXT,
+      payload_json MEDIUMTEXT,
+      created_at VARCHAR(32),
+      updated_at VARCHAR(32),
+      INDEX idx_recommendation_history_user (user_id, updated_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -345,11 +381,16 @@ async function getDrawPools(pool, userId) {
   return rows;
 }
 
-async function createDrawPool(pool, userId, name) {
-  const id = "pool_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+async function createDrawPool(pool, userId, name, poolId) {
+  const id = poolId || "pool_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   const now = nowLocal();
-  await pool.execute("INSERT INTO draw_pools (id, user_id, name, created_at) VALUES (?, ?, ?, ?)", [id, userId, name, now]);
-  const [rows] = await pool.execute("SELECT * FROM draw_pools WHERE id = ?", [id]);
+  await pool.execute(
+    `INSERT INTO draw_pools (id, user_id, name, created_at)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE name=VALUES(name)`,
+    [id, userId, name, now]
+  );
+  const [rows] = await pool.execute("SELECT * FROM draw_pools WHERE id = ? AND user_id = ?", [id, userId]);
   return rows[0];
 }
 
@@ -362,6 +403,67 @@ async function deleteDrawPool(pool, poolId, userId) {
   await pool.execute("DELETE FROM draw_pools WHERE id = ?", [poolId]);
 
   return { deleted: 1, recordsDeleted: cntRows[0].cnt };
+}
+
+async function getDrawSeasons(pool, userId) {
+  const [rows] = await pool.execute("SELECT * FROM draw_seasons WHERE user_id = ? ORDER BY start_date DESC, created_at DESC", [userId]);
+  return rows;
+}
+
+async function createDrawSeason(pool, userId, season = {}) {
+  const id = season.id || "season_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  const now = nowLocal();
+  const startDate = season.startDate || now.slice(0, 10);
+  const name = season.name || "S1";
+  const endDate = season.endDate || null;
+
+  if (!endDate) {
+    await pool.execute(
+      "UPDATE draw_seasons SET end_date = ?, updated_at = ? WHERE user_id = ? AND end_date IS NULL",
+      [startDate, now, userId]
+    );
+  }
+
+  await pool.execute(
+    `INSERT INTO draw_seasons (id, user_id, name, start_date, end_date, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE name=VALUES(name), start_date=VALUES(start_date), end_date=VALUES(end_date), updated_at=VALUES(updated_at)`,
+    [id, userId, name, startDate, endDate, season.createdAt || now, now]
+  );
+  const [rows] = await pool.execute("SELECT * FROM draw_seasons WHERE id = ? AND user_id = ?", [id, userId]);
+  return rows[0];
+}
+
+async function updateDrawSeason(pool, userId, seasonId, patch = {}) {
+  const [rows] = await pool.execute("SELECT * FROM draw_seasons WHERE id = ? AND user_id = ?", [seasonId, userId]);
+  if (rows.length === 0) return null;
+  const current = rows[0];
+  const now = nowLocal();
+  const next = {
+    name: patch.name || current.name,
+    startDate: patch.startDate || current.start_date,
+    endDate: Object.prototype.hasOwnProperty.call(patch, "endDate") ? (patch.endDate || null) : current.end_date
+  };
+  await pool.execute(
+    "UPDATE draw_seasons SET name = ?, start_date = ?, end_date = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+    [next.name, next.startDate, next.endDate, now, seasonId, userId]
+  );
+  const [updated] = await pool.execute("SELECT * FROM draw_seasons WHERE id = ? AND user_id = ?", [seasonId, userId]);
+  return updated[0];
+}
+
+async function endDrawSeason(pool, userId, seasonId, endDate) {
+  return updateDrawSeason(pool, userId, seasonId, { endDate: endDate || nowLocal().slice(0, 10) });
+}
+
+async function syncDrawSeasons(pool, userId, seasons = []) {
+  let added = 0;
+  for (const season of seasons) {
+    if (!season || !season.id) continue;
+    await createDrawSeason(pool, userId, season);
+    added++;
+  }
+  return { added, total: seasons.length };
 }
 
 async function getDrawRecords(pool, poolId, userId) {
@@ -385,10 +487,10 @@ async function addDrawRecord(pool, userId, record) {
   const id = record.id || "dr_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   const now = nowLocal();
   await pool.execute(
-    `INSERT INTO draw_records (id, pool_id, user_id, date, time, quality, general_name, draw_type, group_num, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE date=VALUES(date), time=VALUES(time), quality=VALUES(quality), general_name=VALUES(general_name)`,
-    [id, record.poolId, userId, record.date, record.time, record.quality, record.generalName || "", record.drawType, record.group, now]
+    `INSERT INTO draw_records (id, pool_id, user_id, season_id, date, time, quality, general_name, draw_type, group_num, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE season_id=VALUES(season_id), date=VALUES(date), time=VALUES(time), quality=VALUES(quality), general_name=VALUES(general_name), draw_type=VALUES(draw_type), group_num=VALUES(group_num)`,
+    [id, record.poolId, userId, record.seasonId || null, record.date, record.time, record.quality, record.generalName || "", record.drawType, record.group, now]
   );
   const [rows] = await pool.execute("SELECT * FROM draw_records WHERE id = ?", [id]);
   return rows[0];
@@ -419,9 +521,9 @@ async function syncDrawRecords(pool, userId, records) {
     const id = r.id || "dr_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
     try {
       await pool.execute(
-        `INSERT IGNORE INTO draw_records (id, pool_id, user_id, date, time, quality, general_name, draw_type, group_num, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, r.poolId, userId, r.date, r.time, r.quality, r.generalName || "", r.drawType, r.group, now]
+        `INSERT IGNORE INTO draw_records (id, pool_id, user_id, season_id, date, time, quality, general_name, draw_type, group_num, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, r.poolId, userId, r.seasonId || null, r.date, r.time, r.quality, r.generalName || "", r.drawType, r.group, now]
       );
       added++;
     } catch (e) {
@@ -582,6 +684,59 @@ async function getLineupBattleStats(pool, lineupId) {
 async function deleteBattleReport(pool, reportId, userId) {
   const [result] = await pool.execute("DELETE FROM battle_reports WHERE id = ? AND user_id = ?", [reportId, userId]);
   return { deleted: result.affectedRows };
+}
+
+function normalizeRecommendationHistoryRow(row = {}) {
+  const payload = safeParseJson(row.payload_json, {});
+  return {
+    ...payload,
+    id: row.id,
+    scenario: payload.scenario || row.scenario || "",
+    targetLineupCount: payload.targetLineupCount || row.target_lineup_count || 0,
+    createdAt: payload.createdAt || row.created_at || "",
+    updatedAt: payload.updatedAt || row.updated_at || row.created_at || ""
+  };
+}
+
+async function getRecommendationHistory(pool, userId, limit = 20) {
+  const lim = Math.min(limit || 20, 100);
+  const [rows] = await pool.query(
+    "SELECT * FROM recommendation_history WHERE user_id = ? ORDER BY updated_at DESC, created_at DESC LIMIT ?",
+    [userId, lim]
+  );
+  return rows.map(normalizeRecommendationHistoryRow);
+}
+
+async function saveRecommendationHistory(pool, userId, snapshot = {}) {
+  const now = nowLocal();
+  const id = snapshot.id || "rec_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  const createdAt = snapshot.createdAt ? String(snapshot.createdAt).replace("T", " ").slice(0, 19) : now;
+  const updatedAt = now;
+  const payload = {
+    ...snapshot,
+    id,
+    createdAt: snapshot.createdAt || createdAt,
+    updatedAt
+  };
+  const summary = payload.summary ? JSON.stringify(payload.summary) : "";
+  await pool.execute(
+    `INSERT INTO recommendation_history (id, user_id, scenario, target_lineup_count, summary, payload_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE scenario=VALUES(scenario), target_lineup_count=VALUES(target_lineup_count),
+       summary=VALUES(summary), payload_json=VALUES(payload_json), updated_at=VALUES(updated_at)`,
+    [
+      id,
+      userId,
+      payload.scenario || "",
+      Number(payload.targetLineupCount || 0),
+      summary,
+      JSON.stringify(payload),
+      createdAt,
+      updatedAt
+    ]
+  );
+  const [rows] = await pool.execute("SELECT * FROM recommendation_history WHERE id = ? AND user_id = ?", [id, userId]);
+  return rows[0] ? normalizeRecommendationHistoryRow(rows[0]) : null;
 }
 
 async function getLineups(pool, userId) {
@@ -1084,6 +1239,11 @@ module.exports = {
   getDrawPools,
   createDrawPool,
   deleteDrawPool,
+  getDrawSeasons,
+  createDrawSeason,
+  updateDrawSeason,
+  endDrawSeason,
+  syncDrawSeasons,
   getDrawRecords,
   getAllDrawRecords,
   addDrawRecord,
@@ -1100,6 +1260,8 @@ module.exports = {
   getBattleReportStats,
   getLineupBattleStats,
   deleteBattleReport,
+  getRecommendationHistory,
+  saveRecommendationHistory,
   addFeedback,
   getFeedbackList,
   updateFeedbackStatus,

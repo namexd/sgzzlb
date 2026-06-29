@@ -123,6 +123,13 @@
 
 <script>
 import * as drawStorage from "../../utils/drawStorage";
+import {
+  createDrawPoolAsync,
+  createDrawSeasonAsync,
+  getDrawPoolsAsync,
+  getDrawRecordsAsync,
+  getDrawSeasonsAsync
+} from "../../services/api";
 
 export default {
   data() {
@@ -156,12 +163,16 @@ export default {
     this.refreshStats();
   },
 
+  onShow() {
+    this.refreshStats();
+  },
+
   methods: {
-    refreshStats() {
-      let pools = drawStorage.getPools();
+    async refreshStats() {
+      let pools = await getDrawPoolsAsync().catch(() => []);
       if (pools.length === 0) {
-        drawStorage.ensureDefaultPool();
-        pools = drawStorage.getPools();
+        const createdPool = await createDrawPoolAsync({ name: "主卡池" }).catch(() => null);
+        pools = createdPool && createdPool.item ? [createdPool.item] : [];
       }
 
       if (pools.length === 0) {
@@ -184,12 +195,18 @@ export default {
       }
 
       const poolId = pools[0].id;
-      const activeSeason = drawStorage.ensureDefaultSeason();
+      let seasons = await getDrawSeasonsAsync().catch(() => []);
+      if (seasons.length === 0) {
+        const createdSeason = await createDrawSeasonAsync({ name: "S1", startDate: drawStorage.todayStr() }).catch(() => null);
+        seasons = createdSeason && createdSeason.item ? [createdSeason.item] : [];
+      }
+      const activeSeason = drawStorage.getActiveSeasonFromList(seasons) || seasons[0] || null;
+      const records = await getDrawRecordsAsync(poolId).catch(() => []);
       this.activeSeason = activeSeason;
-      this.pity = drawStorage.getPityInfo(poolId, activeSeason && activeSeason.id);
+      this.pity = drawStorage.getPityInfoFromRecords(records, seasons, activeSeason && activeSeason.id);
       this.stats = activeSeason
-        ? drawStorage.getSeasonStats(poolId, activeSeason.id)
-        : drawStorage.getAllTimeStats(poolId);
+        ? drawStorage.getSeasonStatsFromRecords(records, seasons, activeSeason.id)
+        : drawStorage.getAllTimeStatsFromRecords(records);
     },
 
     getBarHeight(value, max) {

@@ -558,6 +558,156 @@ function getAllTimeStats(poolId) {
   };
 }
 
+function getSeasonByIdFromList(seasons, seasonId) {
+  if (!seasonId) return null;
+  return (seasons || []).find(function(s) { return s.id === seasonId; }) || null;
+}
+
+function getActiveSeasonFromList(seasons) {
+  return (seasons || []).find(function(s) { return !s.endDate; }) || null;
+}
+
+function getSeasonRecordsFromRecords(records, seasons, seasonId) {
+  var season = getSeasonByIdFromList(seasons, seasonId);
+  if (!season) return [];
+  return (records || []).filter(function(record) {
+    return recordInSeason(record, season);
+  });
+}
+
+function getPityInfoFromRecords(records, seasons, seasonId) {
+  var scoped = seasonId ? getSeasonRecordsFromRecords(records, seasons, seasonId) : (records || []);
+  var count = 0;
+  for (var i = scoped.length - 1; i >= 0; i--) {
+    if (scoped[i].quality === "orange") break;
+    count++;
+  }
+  return {
+    total: 30,
+    current: count,
+    remaining: Math.max(0, 30 - count),
+    guaranteedAt: count > 0 ? count : null
+  };
+}
+
+function buildCalendarDaysFromRecords(records, year, month, seasons, seasonId) {
+  var scoped = seasonId ? getSeasonRecordsFromRecords(records, seasons, seasonId) : (records || []);
+  var prefix = year + "-" + String(month).padStart(2, "0");
+  scoped = scoped.filter(function(r) { return r.date && r.date.indexOf(prefix) === 0; });
+
+  var byDate = {};
+  scoped.forEach(function(r) {
+    if (!byDate[r.date]) byDate[r.date] = { count: 0, hasOrange: false, records: [] };
+    byDate[r.date].count++;
+    if (r.quality === "orange") byDate[r.date].hasOrange = true;
+    byDate[r.date].records.push(r);
+  });
+
+  var firstDay = new Date(year, month - 1, 1);
+  var lastDay = new Date(year, month, 0);
+  var daysInMonth = lastDay.getDate();
+  var startDow = firstDay.getDay();
+  var days = [];
+
+  for (var i = 0; i < startDow; i++) {
+    days.push({ day: null, blank: true });
+  }
+
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dateStr = year + "-" + String(month).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    var info = byDate[dateStr];
+    days.push({
+      day: d,
+      date: dateStr,
+      count: info ? info.count : 0,
+      hasOrange: info ? info.hasOrange : false,
+      records: info ? info.records : []
+    });
+  }
+
+  return {
+    year: year,
+    month: month,
+    days: days,
+    totalDraws: scoped.length,
+    orangeCount: scoped.filter(function(r) { return r.quality === "orange"; }).length,
+    purpleCount: scoped.filter(function(r) { return r.quality === "purple"; }).length,
+    blueCount: scoped.filter(function(r) { return r.quality === "blue"; }).length
+  };
+}
+
+function buildStatsFromRecords(records) {
+  var scoped = records || [];
+  var orangeRecords = scoped.filter(function(r) { return r.quality === "orange"; });
+  var byMonth = {};
+  scoped.forEach(function(r) {
+    var monthKey = String(r.date || "").substring(0, 7);
+    if (!monthKey) return;
+    if (!byMonth[monthKey]) {
+      byMonth[monthKey] = { month: monthKey, total: 0, orange: 0, purple: 0, blue: 0 };
+    }
+    byMonth[monthKey].total++;
+    if (r.quality === "orange") byMonth[monthKey].orange++;
+    else if (r.quality === "purple") byMonth[monthKey].purple++;
+    else byMonth[monthKey].blue++;
+  });
+
+  var generalCount = {};
+  orangeRecords.forEach(function(r) {
+    var name = r.generalName || "未记录";
+    generalCount[name] = (generalCount[name] || 0) + 1;
+  });
+
+  return {
+    totalDraws: scoped.length,
+    orangeCount: orangeRecords.length,
+    purpleCount: scoped.filter(function(r) { return r.quality === "purple"; }).length,
+    blueCount: scoped.filter(function(r) { return r.quality === "blue"; }).length,
+    orangeRate: scoped.length > 0 ? (orangeRecords.length / scoped.length * 100).toFixed(1) : 0,
+    freeDraws: scoped.filter(function(r) { return r.drawType === "free"; }).length,
+    halfDraws: scoped.filter(function(r) { return r.drawType === "half"; }).length,
+    fiveDraws: scoped.filter(function(r) { return r.drawType === "five"; }).length,
+    byMonth: Object.values(byMonth).sort(function(a, b) { return a.month.localeCompare(b.month); }),
+    byGroup: {
+      group1: scoped.filter(function(r) { return Number(r.group) === 1; }).length,
+      group2: scoped.filter(function(r) { return Number(r.group) === 2; }).length
+    },
+    orangeGenerals: Object.entries(generalCount).map(function(entry) {
+      return { name: entry[0], count: entry[1] };
+    }).sort(function(a, b) { return b.count - a.count; })
+  };
+}
+
+function getSeasonStatsFromRecords(records, seasons, seasonId) {
+  return buildStatsFromRecords(getSeasonRecordsFromRecords(records, seasons, seasonId));
+}
+
+function getAllTimeStatsFromRecords(records) {
+  return buildStatsFromRecords(records || []);
+}
+
+function getNextSeasonEstimateFromSeason(season) {
+  if (!season) return null;
+  var startDate = parseDateString(season.startDate) ? season.startDate : todayStr();
+  var estimateDate = addDays(startDate, SEASON_LENGTH_DAYS);
+  var today = todayStr();
+  var elapsedDays = Math.max(0, diffDays(startDate, today));
+  var daysUntilEstimate = diffDays(today, estimateDate);
+
+  return {
+    seasonId: season.id,
+    seasonName: season.name,
+    startDate: startDate,
+    estimateDate: estimateDate,
+    lengthDays: SEASON_LENGTH_DAYS,
+    elapsedDays: elapsedDays,
+    remainingDays: Math.max(0, daysUntilEstimate),
+    overdueDays: Math.max(0, -daysUntilEstimate),
+    isOverdue: daysUntilEstimate < 0,
+    isDueToday: daysUntilEstimate === 0
+  };
+}
+
 module.exports = {
   SEASON_LENGTH_DAYS: SEASON_LENGTH_DAYS,
   QUALITY_MAP: QUALITY_MAP,
@@ -591,5 +741,12 @@ module.exports = {
   ensureDefaultSeason: ensureDefaultSeason,
   // Statistics
   getSeasonStats: getSeasonStats,
-  getAllTimeStats: getAllTimeStats
+  getAllTimeStats: getAllTimeStats,
+  getActiveSeasonFromList: getActiveSeasonFromList,
+  getSeasonRecordsFromRecords: getSeasonRecordsFromRecords,
+  getPityInfoFromRecords: getPityInfoFromRecords,
+  buildCalendarDaysFromRecords: buildCalendarDaysFromRecords,
+  getSeasonStatsFromRecords: getSeasonStatsFromRecords,
+  getAllTimeStatsFromRecords: getAllTimeStatsFromRecords,
+  getNextSeasonEstimateFromSeason: getNextSeasonEstimateFromSeason
 };

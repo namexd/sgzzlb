@@ -239,6 +239,17 @@
 
 <script>
 import * as drawStorage from "../../utils/drawStorage";
+import {
+  addDrawRecordAsync,
+  createDrawPoolAsync,
+  createDrawSeasonAsync,
+  deleteDrawRecordAsync,
+  endDrawSeasonAsync,
+  getDrawPoolsAsync,
+  getDrawRecordsAsync,
+  getDrawSeasonsAsync,
+  updateDrawSeasonAsync
+} from "../../services/api";
 
 export default {
   data() {
@@ -256,6 +267,8 @@ export default {
       activePool: null,
       seasons: [],
       activeSeason: null,
+      allRecords: [],
+      loading: false,
       pity: { total: 30, current: 0, remaining: 30, guaranteedAt: null },
       qualityMap: drawStorage.QUALITY_MAP,
       drawTypeMap: drawStorage.DRAW_TYPE_MAP,
@@ -289,7 +302,7 @@ export default {
 
     seasonEstimate() {
       if (!this.activeSeason) return null;
-      return drawStorage.getNextSeasonEstimate(this.activeSeason.id);
+      return drawStorage.getNextSeasonEstimateFromSeason(this.activeSeason);
     },
 
     seasonEstimateState() {
@@ -317,19 +330,27 @@ export default {
       return `${yyyy}-${mm}-${dd}`;
     },
 
-    refreshAll() {
-      let pools = drawStorage.getPools();
+    async refreshAll() {
+      if (this.loading) return;
+      this.loading = true;
+      try {
+      let pools = await getDrawPoolsAsync();
       if (pools.length === 0) {
-        drawStorage.ensureDefaultPool();
-        pools = drawStorage.getPools();
+        const createdPool = await createDrawPoolAsync({ name: "主卡池" });
+        pools = createdPool.item ? [createdPool.item] : await getDrawPoolsAsync();
       }
       const activePool = pools[0];
 
-      const activeSeason = drawStorage.ensureDefaultSeason();
-      const seasons = drawStorage.getSeasons();
+      let seasons = await getDrawSeasonsAsync();
+      if (seasons.length === 0) {
+        const createdSeason = await createDrawSeasonAsync({ name: "S1", startDate: drawStorage.todayStr() });
+        seasons = createdSeason.item ? [createdSeason.item] : await getDrawSeasonsAsync();
+      }
+      const activeSeason = drawStorage.getActiveSeasonFromList(seasons) || seasons[0] || null;
       const seasonId = activeSeason && activeSeason.id;
-      const pity = drawStorage.getPityInfo(activePool.id, seasonId);
-      const calData = drawStorage.buildCalendarDays(activePool.id, this.calYear, this.calMonth, seasonId);
+      const allRecords = activePool ? await getDrawRecordsAsync(activePool.id) : [];
+      const pity = drawStorage.getPityInfoFromRecords(allRecords, seasons, seasonId);
+      const calData = drawStorage.buildCalendarDaysFromRecords(allRecords, this.calYear, this.calMonth, seasons, seasonId);
 
       const todayStr = drawStorage.todayStr();
       const daysWithToday = calData.days.map(cell => ({
@@ -337,13 +358,14 @@ export default {
         isToday: cell.date === todayStr
       }));
 
-      const selectedRecords = this.getSelectedDateRecords(activePool.id, seasonId);
+      const selectedRecords = this.getSelectedDateRecords(allRecords, seasons, seasonId);
 
       Object.assign(this, {
         pools,
         activePool,
         activeSeason,
         seasons,
+        allRecords,
         pity,
         calDays: daysWithToday,
         calTotalDraws: calData.totalDraws,
@@ -351,12 +373,19 @@ export default {
         calPurpleCount: calData.purpleCount,
         selectedRecords
       });
+      } catch (e) {
+        if (e && e.message !== "请先登录。") {
+          uni.showToast({ title: e.message || "抽卡数据加载失败", icon: "none" });
+        }
+      } finally {
+        this.loading = false;
+      }
     },
 
-    getSelectedDateRecords(poolId, seasonId) {
+    getSelectedDateRecords(records, seasons, seasonId) {
       if (!this.selectedDate) return [];
-      const records = seasonId ? drawStorage.getSeasonRecords(poolId, seasonId) : drawStorage.getRecords(poolId);
-      return records.filter(r => r.date === this.selectedDate);
+      const scoped = seasonId ? drawStorage.getSeasonRecordsFromRecords(records, seasons, seasonId) : records;
+      return scoped.filter(r => r.date === this.selectedDate);
     },
 
     prevMonth() {
@@ -388,7 +417,7 @@ export default {
     refreshCalendar() {
       if (!this.activePool) return;
       const seasonId = this.activeSeason && this.activeSeason.id;
-      const calData = drawStorage.buildCalendarDays(this.activePool.id, this.calYear, this.calMonth, seasonId);
+      const calData = drawStorage.buildCalendarDaysFromRecords(this.allRecords, this.calYear, this.calMonth, this.seasons, seasonId);
       const todayStr = drawStorage.todayStr();
       const daysWithToday = calData.days.map(cell => ({
         ...cell,
@@ -398,13 +427,18 @@ export default {
       this.calTotalDraws = calData.totalDraws;
       this.calOrangeCount = calData.orangeCount;
       this.calPurpleCount = calData.purpleCount;
-      this.selectedRecords = this.getSelectedDateRecords(this.activePool.id, seasonId);
+      this.pity = drawStorage.getPityInfoFromRecords(this.allRecords, this.seasons, seasonId);
+      this.selectedRecords = this.getSelectedDateRecords(this.allRecords, this.seasons, seasonId);
     },
 
     onDateTap(cell) {
       if (!cell.date) return;
       this.selectedDate = cell.date;
-      this.selectedRecords = this.getSelectedDateRecords(this.activePool.id, this.activeSeason && this.activeSeason.id);
+      this.selectedRecords = this.getSelectedDateRecords(
+        this.allRecords,
+        this.seasons,
+        this.activeSeason && this.activeSeason.id
+      );
     },
 
     showAddRecord() {
@@ -460,9 +494,10 @@ export default {
       uni.navigateTo({ url: "/pages/draw/history" });
     },
 
-    doAddRecord() {
+    async doAddRecord() {
       if (!this.recordForm || !this.activePool) return;
-      drawStorage.addRecord(this.activePool.id, {
+      await addDrawRecordAsync({
+        poolId: this.activePool.id,
         date: this.recordForm.date,
         seasonId: this.activeSeason ? this.activeSeason.id : null,
         quality: this.recordForm.quality,
@@ -471,11 +506,11 @@ export default {
         group: this.recordForm.group
       });
       this.recordForm = null;
-      this.refreshAll();
+      await this.refreshAll();
       uni.showToast({ title: "已记录", icon: "success" });
     },
 
-    doAddFiveRecords() {
+    async doAddFiveRecords() {
       if (!this.multiRecordForm || !this.activePool) return;
       const missingOrangeName = this.multiRecordForm.items.some(item =>
         item.quality === "orange" && !(item.generalName || "").trim()
@@ -485,8 +520,9 @@ export default {
         return;
       }
 
-      this.multiRecordForm.items.forEach(item => {
-        drawStorage.addRecord(this.activePool.id, {
+      for (const item of this.multiRecordForm.items) {
+        await addDrawRecordAsync({
+          poolId: this.activePool.id,
           date: this.multiRecordForm.date,
           seasonId: this.activeSeason ? this.activeSeason.id : null,
           quality: item.quality,
@@ -494,17 +530,17 @@ export default {
           drawType: "five",
           group: this.multiRecordForm.group
         });
-      });
+      }
 
       this.multiRecordForm = null;
-      this.refreshAll();
+      await this.refreshAll();
       uni.showToast({ title: "已记录五连", icon: "success" });
     },
 
-    onDeleteRecord(id) {
+    async onDeleteRecord(id) {
       if (!this.activePool) return;
-      drawStorage.deleteRecord(this.activePool.id, id);
-      this.refreshAll();
+      await deleteDrawRecordAsync(this.activePool.id, id);
+      await this.refreshAll();
     },
 
     goToStats() {
@@ -512,29 +548,31 @@ export default {
     },
 
     switchSeason(seasonId) {
-      drawStorage.setCurrentSeason(seasonId);
+      const season = this.seasons.find(s => s.id === seasonId);
+      if (season) this.activeSeason = season;
       this.showSeasonModal = false;
-      this.refreshAll();
+      this.refreshCalendar();
     },
 
-    onSeasonStartChange(e) {
+    async onSeasonStartChange(e) {
       if (!this.activeSeason) return;
       const nextDate = e && e.detail ? e.detail.value : "";
-      const updated = drawStorage.updateSeasonStartDate(this.activeSeason.id, nextDate);
+      const updatedRes = await updateDrawSeasonAsync(this.activeSeason.id, { startDate: nextDate }).catch(() => null);
+      const updated = updatedRes && updatedRes.item;
       if (!updated) {
         uni.showToast({ title: "日期无效", icon: "none" });
         return;
       }
-      this.refreshAll();
+      await this.refreshAll();
       uni.showToast({ title: "已更新开始时间", icon: "success" });
     },
 
-    doCreateSeason() {
+    async doCreateSeason() {
       const name = (this.newSeasonName || "").trim();
-      drawStorage.createSeason(name || `S${this.seasons.length + 1}`);
+      await createDrawSeasonAsync({ name: name || `S${this.seasons.length + 1}`, startDate: drawStorage.todayStr() });
       this.newSeasonName = "";
       this.showSeasonModal = false;
-      this.refreshAll();
+      await this.refreshAll();
       uni.showToast({ title: "已进入新赛季", icon: "success" });
     },
 
@@ -543,11 +581,13 @@ export default {
       this.showEndSeasonConfirm = true;
     },
 
-    doEndSeason() {
-      drawStorage.endCurrentSeason();
-      drawStorage.ensureDefaultSeason();
+    async doEndSeason() {
+      if (this.activeSeason) {
+        await endDrawSeasonAsync(this.activeSeason.id, drawStorage.todayStr());
+      }
+      await createDrawSeasonAsync({ name: `S${this.seasons.length + 1}`, startDate: drawStorage.todayStr() });
       this.showEndSeasonConfirm = false;
-      this.refreshAll();
+      await this.refreshAll();
       uni.showToast({ title: "已进入新赛季", icon: "success" });
     },
 
