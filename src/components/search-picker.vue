@@ -24,6 +24,18 @@
         >{{ chip }}</text>
       </view>
 
+      <view class="picker-actions">
+        <text class="action-chip" @tap="onSelectFilteredTap">全选当前筛选</text>
+        <template v-if="type === 'generals'">
+          <text
+            v-for="faction in factionOptions"
+            :key="faction"
+            class="action-chip"
+            @tap="onSelectFactionTap(faction)"
+          >全选{{ faction }}</text>
+        </template>
+      </view>
+
       <view class="picker-count">{{ filtered.length }} / {{ totalCount }}</view>
 
       <scroll-view class="picker-list" scroll-y>
@@ -57,15 +69,19 @@ export default {
   props: {
     type: { type: String, default: "generals" },
     selectedId: { type: String, default: "" },
+    excludeIds: { type: Array, default: () => [] },
+    items: { type: Array, default: () => [] },
     visible: { type: Boolean, default: false }
   },
-  emits: ["select", "close"],
+  emits: ["select", "select-many", "close"],
   data() {
-    return { keyword: "", filtered: [], chips: [], activeChip: "全部", totalCount: 0 };
+    return { keyword: "", filtered: [], filteredSource: [], chips: [], activeChip: "全部", totalCount: 0, factionOptions: ["魏", "蜀", "吴", "群"] };
   },
   watch: {
     visible(val) { if (val) this.refresh(); },
-    type() { if (this.visible) this.refresh(); }
+    type() { if (this.visible) this.refresh(); },
+    items() { if (this.visible) this.applyFilter(); },
+    excludeIds() { if (this.visible) this.applyFilter(); }
   },
   methods: {
     refresh() {
@@ -77,7 +93,7 @@ export default {
     },
     applyFilter() {
       const isGeneral = this.type === "generals";
-      let pool = isGeneral ? catalog.getGenerals() : catalog.getAllTactics();
+      let pool = this.items.length ? this.items : (isGeneral ? catalog.getGenerals() : catalog.getAllTactics());
 
       if (this.activeChip !== "全部") {
         if (isGeneral) {
@@ -95,11 +111,13 @@ export default {
         });
       }
 
+      const excluded = new Set(this.excludeIds);
+      this.filteredSource = pool;
       this.totalCount = pool.length;
       this.filtered = pool.slice(0, DISPLAY_LIMIT).map((item) => ({
         id: item.id,
         name: item.name,
-        selected: item.id === this.selectedId,
+        selected: item.id === this.selectedId || excluded.has(item.id),
         imageUrl: isGeneral && item.asset ? item.asset.imageUrl || "" : "",
         sub: isGeneral
           ? [item.star, Array.isArray(item.tags) ? item.tags.join("/") : ""].filter(Boolean).join(" · ")
@@ -116,6 +134,18 @@ export default {
     },
     onItemTap(id) {
       this.$emit("select", { id });
+    },
+    emitMany(items) {
+      const excluded = new Set(this.excludeIds);
+      const ids = items.map((item) => item.id).filter((id) => id && !excluded.has(id));
+      if (ids.length) this.$emit("select-many", { ids });
+    },
+    onSelectFilteredTap() {
+      this.emitMany(this.filteredSource);
+    },
+    onSelectFactionTap(faction) {
+      const pool = this.items.length ? this.items : catalog.getGenerals();
+      this.emitMany(pool.filter((item) => item.faction === faction));
     },
     onMaskTap() {
       this.$emit("close");
@@ -179,6 +209,16 @@ export default {
   background: rgba(214, 168, 93, 0.12);
 }
 .picker-count { margin-top: 14rpx; color: #6b7a8d; font-size: 22rpx; }
+.picker-actions { display: flex; gap: 12rpx; margin-top: 16rpx; flex-wrap: wrap; }
+.action-chip {
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(214, 168, 93, 0.45);
+  color: #f7e4bc;
+  background: rgba(214, 168, 93, 0.12);
+  font-size: 23rpx;
+  font-weight: 600;
+}
 .picker-list { margin-top: 14rpx; max-height: 50vh; }
 .picker-item {
   display: flex;

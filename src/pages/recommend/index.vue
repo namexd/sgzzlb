@@ -170,8 +170,10 @@
       :visible="pickerVisible"
       :type="pickerType"
       :selected-id="''"
+      :items="pickerType === 'generals' ? generals : tactics"
       :exclude-ids="pickerExcludeIds"
       @select="onPickerSelect"
+      @select-many="onPickerSelectMany"
       @close="pickerVisible = false"
     />
   </view>
@@ -307,13 +309,30 @@ export default {
       this.pickerType = type;
       this.pickerVisible = true;
     },
+    addGeneralIds(ids) {
+      const next = ids.filter((id) => id && !this.selectedGeneralIds.includes(id));
+      if (!next.length) return false;
+      this.selectedGeneralIds = [...this.selectedGeneralIds, ...next];
+      this.result = null;
+      return true;
+    },
+    addTacticIds(ids) {
+      const next = ids.filter((id) => id && !this.selectedTacticIds.includes(id));
+      if (!next.length) return false;
+      this.selectedTacticIds = [...this.selectedTacticIds, ...next];
+      this.result = null;
+      return true;
+    },
     onPickerSelect(item) {
       const id = item && item.id;
       if (!id) return;
-      if (this.pickerType === "generals" && !this.selectedGeneralIds.includes(id)) this.selectedGeneralIds.push(id);
-      if (this.pickerType === "tactics" && !this.selectedTacticIds.includes(id)) this.selectedTacticIds.push(id);
-      this.pickerVisible = false;
-      this.result = null;
+      const changed = this.pickerType === "generals" ? this.addGeneralIds([id]) : this.addTacticIds([id]);
+      if (changed) this.pickerVisible = false;
+    },
+    onPickerSelectMany(payload) {
+      const ids = payload && Array.isArray(payload.ids) ? payload.ids : [];
+      const changed = this.pickerType === "generals" ? this.addGeneralIds(ids) : this.addTacticIds(ids);
+      if (changed) this.pickerVisible = false;
     },
     removeGeneral(id) {
       this.selectedGeneralIds = this.selectedGeneralIds.filter((item) => item !== id);
