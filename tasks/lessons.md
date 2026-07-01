@@ -117,4 +117,11 @@
 
 **2026-06-18 P12 Read.pages 复发教训**：计划阶段已经记录过普通文本 `Read` 不得传 `pages`，但进入 P12 实施后仍多次复制 `pages` 到 JS/MJS/Markdown 读取，且在声明会修正后仍复发，说明仅靠口头提醒不可靠。后续一旦普通文件读取出现 `pages` 报错，本轮剩余文本读写必须改用显式 `# -*- coding: utf-8 -*-` 的 Python 脚本；恢复 `Read` 前必须从空 JSON 重新填写，只允许 `file_path`、必要的 `offset` 和 `limit`。本轮 2026-06-18 线上冒烟前再次对 `tests/server.test.mjs` 传入 `pages`，因此本轮剩余代码/文档片段查看一律使用 UTF-8 脚本或搜索命令，不再调用普通文本 `Read`。
 
-**2026-06-18 P13 Read.pages 计划阶段复发教训**：即使 `tasks/lessons.md` 已明确要求普通文本不传 `pages`，P13 计划阶段仍连续多次给 Markdown `Read` 携带 `pages`，说明只靠“下一次改正”的口头承诺会失败。后续本轮所有普通文本、源码、Markdown 查看和批量修改必须优先使用显式 `# -*- coding: utf-8 -*-` 的 Python 脚本或搜索命令；如确需 `Read`，必须从空 JSON 手写，只允许 `file_path`、必要的 `offset`、`limit`，不得复制上一轮工具参数。
+
+## 部署前读取项目文档
+
+**问题**：用户要求提交部署时，不能直接套用通用 `/ship` 分支规则并阻塞在 `main` 分支；本项目部署文档已经明确写了 push 到 `main` 会触发 GitHub Actions 自动部署。
+
+**解决**：部署前必须先读取项目内的部署文档、部署脚本和 CI 工作流，确认当前项目的真实发布路径；本项目优先按 `docs/deployment.md` 走 `main` push 自动部署，必要时再使用 `scripts/deploy.sh` 本地 SSH 部署。
+
+**教训**：项目已有部署文档时，项目文档优先于通用发布技能默认规则；不能因为工具流程提示 base branch 就忽略项目自身约定。
